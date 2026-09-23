@@ -6,12 +6,12 @@ Nexus（[`nexus-mobile`](https://gitlab.com/11h27m/nexus-mobile)）の管理ポ�
 
 ## 現在の実装状態
 
-**Step 0（基盤整備）のみ完了。Step 1（認証＋App Shell）・Step 2（イベント編集）以降は未着手です。**
+**Step 0（基盤整備）と Step 1（認証＋App Shell）が完了。Step 2（イベント編集）以降は未着手です。**
 
 | Step | 内容 | 状態 |
 |---|---|---|
 | Step 0 | リポジトリ骨格、`studio` schema、MapDataset validatorの移植 | ✅ 完了 |
-| Step 1 | ASP.NET Core Identity認証、App Shell（Sidebar/Workspace/Inspector） | 未着手（Figma画面棚卸しが前提） |
+| Step 1 | ASP.NET Core Identity認証、管理者コマンド、ログイン画面、App Shell（Sidebar/Workspace） | ✅ 完了（各領域の本文は準備中表示） |
 | Step 2 | イベント編集（Revision/head/楽観的排他制御） | 未着手 |
 
 詳細は [`CLAUDE.md`](CLAUDE.md) を参照してください。
@@ -21,7 +21,7 @@ Nexus（[`nexus-mobile`](https://gitlab.com/11h27m/nexus-mobile)）の管理ポ�
 ```
 nexusstudio/
 ├── apps/
-│   ├── studio-web/          # Vite + React 18 + TypeScript + Tailwind v4（プレースホルダーのみ、App Shell未実装）
+│   ├── studio-web/          # Vite + React 18 + TypeScript + Tailwind v4（ログイン画面・App Shell）
 │   ├── studio-api/          # ASP.NET Core Web API（.NET 10 LTS）
 │   └── studio-api-tests/    # xUnit
 ├── docs/
@@ -56,7 +56,21 @@ ConnectionStrings__StudioDatabase="Host=localhost;Port=5433;Database=nexus_studi
   dotnet tool run dotnet-ef database update   # マイグレーション適用（起動時の自動適用はしない）
 
 ConnectionStrings__StudioDatabase="Host=localhost;Port=5433;Database=nexus_studio;Username=studio;Password=<.envと同じ値>" \
-  dotnet run
+  dotnet run   # http://localhost:5001（Studio Webの開発サーバーが /api をここへ中継する）
+```
+
+### 管理者アカウント（運用者のみ）
+
+公開サインアップはありません。管理者の登録・無効化・パスワード再設定は、同じ接続文字列を与えて次のコマンドで行います。パスワードは引数では受け取らず、実行後に入力を求めます（標準入力をリダイレクトした場合は1行目を読みます）。
+
+```bash
+cd apps/studio-api
+export ConnectionStrings__StudioDatabase="Host=localhost;Port=5433;Database=nexus_studio;Username=studio;Password=<.envと同じ値>"
+dotnet run -- admin add --email <メールアドレス> --name <表示名>
+dotnet run -- admin list
+dotnet run -- admin disable --email <メールアドレス>          # 既存のログインも1分以内に失効
+dotnet run -- admin enable --email <メールアドレス>
+dotnet run -- admin reset-password --email <メールアドレス>
 ```
 
 ### Studio Web
@@ -64,7 +78,7 @@ ConnectionStrings__StudioDatabase="Host=localhost;Port=5433;Database=nexus_studi
 ```bash
 cd apps/studio-web
 npm install
-npm run dev         # http://localhost:5173
+npm run dev         # http://localhost:5173（/api は http://localhost:5001 へ中継）
 npm run typecheck
 npm run build
 ```
@@ -76,7 +90,7 @@ dotnet build NexusStudio.slnx
 dotnet test apps/studio-api-tests/StudioApi.Tests.csproj
 ```
 
-MapDataset validatorの移植テスト（`MapDatasetValidatorTests`・`MapDatasetTests`）と、Schema同一性の`PinnedSchemaHashTests`を含みます。
+MapDataset validatorの移植テスト（`MapDatasetValidatorTests`・`MapDatasetTests`）、Schema同一性の`PinnedSchemaHashTests`、認証・CSRF・管理者コマンドのテスト（`AuthEndpointsTests`・`AdminAccountTests`。DBはSQLiteのメモリDBに差し替え）を含みます。
 
 ## MapDataset Schema の同一性
 
@@ -89,3 +103,4 @@ MapDataset validatorの移植テスト（`MapDatasetValidatorTests`・`MapDatase
 | `CLAUDE.md` | 毎セッション読み込む前提知識（プロジェクト概要・現在の実装状態・設計判断） |
 | `AGENTS.md` | リポジトリ作業ルール |
 | `docs/決定事項/` | 意思決定記録。日付・版が新しいものを正とする |
+| `docs/UI補完記録.md` | Figmaに描かれていない部分を実装で補った記録 |

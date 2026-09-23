@@ -10,11 +10,12 @@ Nexus Studio は、Nexus（`gitlab.com/11h27m/nexus-mobile`）の管理ポータ
 
 ## 現在の実装状態（重要）
 
-**Step 0（基盤整備）のみ完了。Step 1（認証＋App Shell）・Step 2（イベント編集）以降は未着手。**
+**Step 0（基盤整備）・Step 1（認証＋App Shell）完了。Step 2（イベント編集）以降は未着手。**
 
 - Step 0 完了内容: `studio-api`/`studio-web` のソリューション骨格、`studio` schema の EF Core マイグレーション、MapDataset validator の移植（テスト全件成功）。
+- Step 1 完了内容: Identity＋Cookie認証（`/api/auth/*`、CSRF検証、未認証は既定で拒否）、運用者用の管理者コマンド（`dotnet run -- admin ...`）、ログイン画面（L01〜L04・L06）、App Shell（Sidebar・Toolbar・管理者メニュー・再ログインダイアログL05）。各領域の本文は準備中表示。
 - Figmaモックアップは Phase 1（Login・Events編集・保存/競合/期限切れ・一覧状態）まで作成済み（2026-09-23確認）。Phase 2（Open Campus・カテゴリ管理・Map Data・Validation・Releases履歴・Logs・中止/取り下げ）は未作成。
-- Step 1 は着手可能。Step 2 は、Events編集画面の構成（「イベントを編集」「開催枠を編集」「共通情報を編集」「開催枠一覧」の4種を1画面へ統合するか）を利用者が確認してから着手する。
+- Step 2 は、Events編集画面の構成（「イベントを編集」「開催枠を編集」「共通情報を編集」「開催枠一覧」の4種を1画面へ統合するか）を利用者が確認してから着手する。
 - Figma画面棚卸しの成果物（`docs/決定事項/22`〜`24`、Issue #1）は未作成。
 - 地図公開機構の二重開発を避ける整理案（15 v02 §9.1、A/B/C案）は利用者判断待ち。
 
@@ -23,7 +24,7 @@ Nexus Studio は、Nexus（`gitlab.com/11h27m/nexus-mobile`）の管理ポータ
 ```
 nexusstudio/
 ├── apps/
-│   ├── studio-web/       # Vite + React 18 + TypeScript + Tailwind v4（App Shell未実装）
+│   ├── studio-web/       # Vite + React 18 + TypeScript + Tailwind v4（ログイン画面・App Shell）
 │   ├── studio-api/       # ASP.NET Core Web API（.NET 10 LTS）
 │   └── studio-api-tests/ # xUnit
 ├── docs/
@@ -37,7 +38,7 @@ nexusstudio/
 
 | Area | Stack |
 |---|---|
-| Studio Web | React 18 + TypeScript + Vite、Tailwind CSS v4。将来 Step 1 で React Router・TanStack Query・Radix（shadcn系）を追加予定。**MUIは持ち込まない** |
+| Studio Web | React 18 + TypeScript + Vite、Tailwind CSS v4（Figma Variablesを `src/index.css` の `@theme` に定義）、React Router 7（v8はReact 19必須のため）、TanStack Query、Radix（Dialog・DropdownMenu）。**MUIは持ち込まない** |
 | Studio API | ASP.NET Core 8→**.NET 10 LTS**、EF Core 10 + Npgsql、PostgreSQLの`studio` schemaを所有 |
 | DB | PostgreSQL。`nexus-mobile`と同一インスタンス内の別schema（`studio`）を想定。本リポジトリの検証環境は専用のDocker Compose PostgreSQL |
 
@@ -57,9 +58,14 @@ ConnectionStrings__StudioDatabase="Host=localhost;Port=5433;Database=nexus_studi
 # Studio Web
 cd apps/studio-web
 npm install
-npm run dev
+npm run dev          # /api は http://localhost:5001 へ中継
 npm run typecheck
+npm run lint
 npm run build
+
+# 管理者アカウント（運用者のみ。パスワードは引数で渡さない）
+cd apps/studio-api
+dotnet run -- admin add --email <メールアドレス> --name <表示名>   # ほか disable / enable / reset-password / list
 
 # 検証用DB
 cp .env.example .env   # STUDIO_DB_PASSWORD等を設定
