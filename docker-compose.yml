@@ -1,0 +1,14 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: ${STUDIO_DB_NAME}
+      POSTGRES_USER: ${STUDIO_DB_USER}
+      POSTGRES_PASSWORD: ${STUDIO_DB_PASSWORD}
+    ports:
+      - "5433:5432"
+    volumes:
+      - nexus_studio_data:/var/lib/postgresql/data
+
+volumes:
+  nexus_studio_data:
