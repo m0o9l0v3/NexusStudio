@@ -5,6 +5,7 @@ import { formatDateShort } from '../../events/model'
 import { Toolbar } from '../../shell/Toolbar'
 import { Button } from '../../ui/Button'
 import { NoticeBanner } from '../../ui/NoticeBanner'
+import { publicationBadge } from '../../publishing/publication'
 import { StatusBadge } from '../../ui/StatusBadge'
 
 const updatedFormat = new Intl.DateTimeFormat('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Tokyo' })
@@ -72,7 +73,7 @@ export function OpenCampusListPage() {
                     <p className="w-10 text-[12px] leading-5 text-text-secondary">{item.days.length}日</p>
                     <p className="w-[50px] text-[12px] leading-5 text-text-secondary">{item.relatedEventCount}件</p>
                     <div className="flex w-[150px] items-center">
-                      <StatusBadge>未公開</StatusBadge>
+                      <StatusBadge tone={publicationBadge(item.publication).tone}>{publicationBadge(item.publication).label}</StatusBadge>
                     </div>
                     <p className="w-40 text-[11px] leading-[19px] text-text-secondary">
                       {item.updatedAt ? `更新 ${updatedFormat.format(new Date(item.updatedAt))}` : '取り込み'}

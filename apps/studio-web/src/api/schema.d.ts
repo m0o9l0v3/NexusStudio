@@ -148,6 +148,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/operations/{operationId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    operationId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["OperationResult"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/auth/csrf": {
         parameters: {
             query?: never;
@@ -842,6 +886,164 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/releases/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["PreviewRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PublishPreview"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PublishBadRequest"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/releases": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["PublishRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["OperationResult"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PublishBadRequest"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PublishRejected"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PublishRejected"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/releases/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ReleaseSummary"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -871,7 +1073,9 @@ export interface components {
             /** Format: date-time */
             updatedAt: null | string;
             updatedBy: null | components["schemas"]["EditorRef"];
-            publication: string;
+            /** Format: uuid */
+            revisionId: null | string;
+            publication: components["schemas"]["PublicationSummary"];
             items: components["schemas"]["CategoryListItem"][];
         };
         CategoryListItem: {
@@ -881,6 +1085,10 @@ export interface components {
             selectable: boolean;
             /** Format: int32 */
             referenceCount: number;
+        };
+        CategorySides: {
+            published: null | components["schemas"]["CategoryDraft"][];
+            candidate: null | components["schemas"]["CategoryDraft"][];
         };
         CreateEventRequest: {
             /** Format: uuid */
@@ -927,7 +1135,7 @@ export interface components {
             /** Format: date-time */
             updatedAt: string;
             updatedBy: components["schemas"]["AdminRef"];
-            publication: string;
+            publication: components["schemas"]["PublicationSummary"];
             draft: components["schemas"]["EventDraft"];
         };
         EventDraft: {
@@ -955,6 +1163,10 @@ export interface components {
             /** Format: date-time */
             updatedAt: string;
             updatedBy: components["schemas"]["AdminRef"];
+        };
+        EventSides: {
+            published: null | components["schemas"]["EventDraft"];
+            candidate: null | components["schemas"]["EventDraft"];
         };
         EventSlot: {
             /** Format: uuid */
@@ -993,7 +1205,9 @@ export interface components {
             /** Format: date-time */
             updatedAt: null | string;
             updatedBy: null | components["schemas"]["EditorRef"];
-            publication: string;
+            /** Format: uuid */
+            revisionId: null | string;
+            publication: components["schemas"]["PublicationSummary"];
             draft: components["schemas"]["OccurrenceDraft"];
             references: components["schemas"]["SlotReference"][];
         };
@@ -1020,6 +1234,10 @@ export interface components {
             updatedAt: null | string;
             updatedBy: null | components["schemas"]["EditorRef"];
         };
+        OccurrenceSides: {
+            published: null | components["schemas"]["OccurrenceDraft"];
+            candidate: null | components["schemas"]["OccurrenceDraft"];
+        };
         OcDayDraft: {
             /** Format: uuid */
             id: string;
@@ -1038,6 +1256,91 @@ export interface components {
             publicStart: null | string;
             publicEnd: null | string;
             status: string;
+        };
+        OperationResult: {
+            /** Format: uuid */
+            operationId: string;
+            status: string;
+            /** Format: date-time */
+            startedAt: string;
+            release: null | components["schemas"]["ReleaseSummary"];
+            detail: null | string;
+        };
+        PreviewDay: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            occurrenceId: string;
+            /** Format: date */
+            date: null | string;
+            publicStart: null | string;
+            publicEnd: null | string;
+            status: string;
+        };
+        PreviewItem: {
+            targetKind: string;
+            targetId: string;
+            label: string;
+            action: string;
+            /** Format: uuid */
+            revisionId: null | string;
+            publication: components["schemas"]["PublicationSummary"];
+            event: null | components["schemas"]["EventSides"];
+            occurrence: null | components["schemas"]["OccurrenceSides"];
+            categories: null | components["schemas"]["CategorySides"];
+            spot: null | components["schemas"]["SpotSides"];
+        };
+        PreviewReferences: {
+            days: components["schemas"]["PreviewDay"][];
+            spots: components["schemas"]["PreviewSpot"][];
+            categories: components["schemas"]["CategoryDraft"][];
+        };
+        PreviewRequest: {
+            entries: null | components["schemas"]["PublishEntry"][];
+        };
+        PreviewSpot: {
+            canonicalId: string;
+            name: string;
+            buildingName: null | string;
+            floorName: null | string;
+            utilization: string;
+        };
+        PublicationSummary: {
+            state: string;
+            /** Format: uuid */
+            publishedRevisionId: null | string;
+            /** Format: date-time */
+            publishedAt: null | string;
+        };
+        PublishBadRequest: {
+            code: string;
+            title: string;
+        };
+        PublishEntry: {
+            targetKind: string;
+            targetId: string;
+            action: string;
+            /** Format: uuid */
+            revisionId: null | string;
+        };
+        PublishPreview: {
+            validation: components["schemas"]["ValidationRunResult"];
+            items: components["schemas"]["PreviewItem"][];
+            published: components["schemas"]["PreviewReferences"];
+            candidate: components["schemas"]["PreviewReferences"];
+        };
+        PublishRejected: {
+            code: string;
+            title: string;
+            validation: components["schemas"]["ValidationRunResult"];
+        };
+        PublishRequest: {
+            /** Format: uuid */
+            operationId: string;
+            entries: null | components["schemas"]["PublishEntry"][];
+            /** Format: uuid */
+            confirmedValidationId: string;
+            message: null | string;
         };
         ReferenceConflictOfCategoryListDetail: {
             code: string;
@@ -1062,6 +1365,28 @@ export interface components {
             code: string;
             title: string;
             problems: components["schemas"]["DraftProblem"][];
+        };
+        ReleaseEntrySummary: {
+            targetKind: string;
+            targetId: string;
+            action: string;
+            /** Format: uuid */
+            revisionId: string;
+            /** Format: uuid */
+            previousRevisionId: null | string;
+            label: string;
+        };
+        ReleaseSummary: {
+            /** Format: uuid */
+            releaseId: string;
+            /** Format: int64 */
+            sequence: number;
+            /** Format: date-time */
+            createdAt: string;
+            createdBy: null | components["schemas"]["EditorRef"];
+            source: string;
+            message: null | string;
+            entries: components["schemas"]["ReleaseEntrySummary"][];
         };
         SaveCategoriesRequest: {
             /** Format: uuid */
@@ -1115,7 +1440,9 @@ export interface components {
             /** Format: date-time */
             updatedAt: null | string;
             updatedBy: null | components["schemas"]["EditorRef"];
-            isPublished: boolean;
+            /** Format: uuid */
+            revisionId: null | string;
+            publication: components["schemas"]["PublicationSummary"];
             draft: components["schemas"]["SpotDraft"];
             placement: components["schemas"]["SpotPlacement"];
             draftEvents: components["schemas"]["SpotEventReference"][];
@@ -1139,6 +1466,7 @@ export interface components {
             buildingName: null | string;
             floorName: null | string;
             isPublished: boolean;
+            publication: string;
             utilization: string;
         };
         SpotPlacement: {
@@ -1152,12 +1480,38 @@ export interface components {
             buildings: string[];
             floors: string[];
         };
+        SpotSides: {
+            published: null | components["schemas"]["SpotDraft"];
+            candidate: null | components["schemas"]["SpotDraft"];
+        };
         UpdateEventRequest: {
             /** Format: uuid */
             operationId: string;
             /** Format: int64 */
             rowVersion: number;
             draft: null | components["schemas"]["EventDraft"];
+        };
+        ValidationFinding: {
+            severity: string;
+            code: string;
+            message: string;
+            targetKind: string;
+            targetId: string;
+            targetLabel: string;
+            path: null | string;
+        };
+        ValidationRunResult: {
+            /** Format: uuid */
+            id: string;
+            /** Format: date-time */
+            createdAt: string;
+            status: string;
+            /** Format: int32 */
+            blockingCount: number;
+            /** Format: int32 */
+            warningCount: number;
+            entries: components["schemas"]["PublishEntry"][];
+            findings: components["schemas"]["ValidationFinding"][];
         };
     };
     responses: never;

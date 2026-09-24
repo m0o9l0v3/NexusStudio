@@ -16,6 +16,7 @@ import { CompareRows, type CompareRow } from '../../editing/CompareRows'
 import { LeaveGuard } from '../../editing/LeaveGuard'
 import { useDraftEditor } from '../../editing/useDraftEditor'
 import { formatDateLong } from '../../events/model'
+import { isLive, publicationBadge, reviewPath } from '../../publishing/publication'
 import { Toolbar } from '../../shell/Toolbar'
 import { Button } from '../../ui/Button'
 import { ChoiceGroup } from '../../ui/ChoiceGroup'
@@ -144,14 +145,26 @@ function OccurrenceEditor({ initial }: { initial: OccurrenceDetail | null }) {
   }
 
   async function save(): Promise<boolean> {
+    return (await saveDetail({ openCreated: true })) !== null
+  }
+
+  async function saveDetail({ openCreated }: { openCreated: boolean }): Promise<OccurrenceDetail | null> {
     const detail = await editor.save()
-    if (!detail) return false
+    if (!detail) return null
     queryClient.setQueryData(['occurrence', detail.id], detail)
     void queryClient.invalidateQueries({ queryKey: ['occurrences'] })
     void queryClient.invalidateQueries({ queryKey: ['reference'] })
-    if (!base) void navigate(`/open-campus/${detail.id}`, { replace: true, state: { skipUnsavedGuard: true } })
-    return true
+    if (!base && openCreated) void navigate(`/open-campus/${detail.id}`, { replace: true, state: { skipUnsavedGuard: true } })
+    return detail
   }
+
+  /** 公開確認へ。未保存の変更があれば先に保存する（11 §5）。 */
+  async function review() {
+    const saved = editor.dirty || !base ? await saveDetail({ openCreated: false }) : base
+    if (saved) void navigate(reviewPath('occurrence', saved.id), { state: { skipUnsavedGuard: true } })
+  }
+
+  const publication = publicationBadge(base?.publication.state ?? 'unpublished')
 
   const title = draft.name?.trim() || (base ? '無題の開催回' : '新規開催回')
   const compareRows: CompareRow[] = editor.conflict
@@ -168,7 +181,7 @@ function OccurrenceEditor({ initial }: { initial: OccurrenceDetail | null }) {
   return (
     <>
       <Toolbar title={`Open Campus / ${title}`}>
-        <StatusBadge>未公開</StatusBadge>
+        <StatusBadge tone={publication.tone}>{publication.label}</StatusBadge>
         <StatusBadge tone={editor.statusBadge.tone}>
           <span role="status">{editor.statusBadge.label}</span>
         </StatusBadge>
@@ -179,9 +192,14 @@ function OccurrenceEditor({ initial }: { initial: OccurrenceDetail | null }) {
         <Button variant="secondary" className="min-w-[93px]" onClick={() => void navigate('/open-campus')}>
           一覧へ戻る
         </Button>
-        <Button variant="secondary" disabled title="公開は Step 4 で実装します">
-          公開内容を確認
+        <Button variant="secondary" onClick={() => void review()} disabled={editor.saveState === 'saving' || editor.conflictOpen}>
+          {editor.dirty || !base ? '保存して確認' : '公開内容を確認'}
         </Button>
+        {base && isLive(base.publication.state) && (
+          <Button variant="danger" className="min-w-[93px]" onClick={() => void navigate(reviewPath('occurrence', base.id, 'withdraw'))}>
+            取り下げ
+          </Button>
+        )}
       </Toolbar>
 
       <div className="flex min-h-0 flex-1">

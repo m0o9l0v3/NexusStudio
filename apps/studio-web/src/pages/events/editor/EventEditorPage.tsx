@@ -4,6 +4,7 @@ import { useBlocker, useNavigate, useParams, type Location } from 'react-router'
 import { ApiError } from '../../../api/client'
 import { createEvent, getEvent, updateEvent, type DraftValidationProblem, type EventConflict, type EventDetail, type EventDraft, type EventSlot } from '../../../api/events'
 import { getReference, lookupSpots } from '../../../api/reference'
+import { isLive, publicationBadge, reviewPath } from '../../../publishing/publication'
 import { draftKey, duplicateSlot, emptySlot, findDraftIssues, indexReference, newDraft, newId } from '../../../events/model'
 import { Toolbar } from '../../../shell/Toolbar'
 import { useRegisterUnsavedChanges } from '../../../shell/unsavedChanges'
@@ -129,8 +130,9 @@ function EventEditor({ initial }: { initial: EventDetail | null }) {
   }
 
   /** @param openCreated 新規作成後に作成したイベントのURLへ移る（離脱確認から保存した場合は移動先を優先する）。 */
-  async function save({ openCreated = true }: { openCreated?: boolean } = {}): Promise<boolean> {
-    if (saveState === 'saving' || conflictOpen) return false
+  /** @returns 保存したイベント。保存できなかった場合はnull。 */
+  async function save({ openCreated = true }: { openCreated?: boolean } = {}): Promise<EventDetail | null> {
+    if (saveState === 'saving' || conflictOpen) return null
     const snapshot = draft
     const key = draftKey(snapshot)
     const operationId = pendingOperation.current?.key === key ? pendingOperation.current.id : newId()
@@ -146,7 +148,7 @@ function EventEditor({ initial }: { initial: EventDetail | null }) {
       queryClient.setQueryData(['event', detail.id], detail)
       void queryClient.invalidateQueries({ queryKey: ['events'] })
       if (!base && openCreated) void navigate(`/events/${detail.id}`, { replace: true, state: { skipUnsavedGuard: true } })
-      return true
+      return detail
     } catch (error) {
       if (error instanceof ApiError && error.status === 409) {
         pendingOperation.current = null
@@ -169,7 +171,7 @@ function EventEditor({ initial }: { initial: EventDetail | null }) {
         setSaveState('failed')
         setFailure(SAVE_FAILED)
       }
-      return false
+      return null
     }
   }
 
@@ -221,11 +223,18 @@ function EventEditor({ initial }: { initial: EventDetail | null }) {
             : { label: '保存済み', tone: 'success' }
 
   const titleText = draft.title?.trim() || (base ? '無題のイベント' : '新規イベント')
+  const publication = publicationBadge(base?.publication.state ?? 'unpublished')
+
+  /** 公開確認へ。未保存の変更があれば先に保存し、画面と公開対象を食い違わせない（11 §5「保存して確認」）。 */
+  async function review() {
+    const saved = dirty || !base ? await save({ openCreated: false }) : base
+    if (saved) void navigate(reviewPath('event', saved.id), { state: { skipUnsavedGuard: true } })
+  }
 
   return (
     <>
       <Toolbar title={`Events / ${titleText}`}>
-        <StatusBadge>未公開</StatusBadge>
+        <StatusBadge tone={publication.tone}>{publication.label}</StatusBadge>
         <StatusBadge tone={saveBadge.tone}>
           <span role="status">{saveBadge.label}</span>
         </StatusBadge>
@@ -236,9 +245,14 @@ function EventEditor({ initial }: { initial: EventDetail | null }) {
         <Button variant="secondary" className="min-w-[93px]" onClick={() => void navigate('/events')}>
           一覧へ戻る
         </Button>
-        <Button variant="secondary" disabled title="公開は Step 4 で実装します">
-          公開内容を確認
+        <Button variant="secondary" onClick={() => void review()} disabled={saveState === 'saving' || conflictOpen}>
+          {dirty || !base ? '保存して確認' : '公開内容を確認'}
         </Button>
+        {base && isLive(base.publication.state) && (
+          <Button variant="danger" className="min-w-[93px]" onClick={() => void navigate(reviewPath('event', base.id, 'withdraw'))}>
+            取り下げ
+          </Button>
+        )}
       </Toolbar>
 
       <div className="flex min-h-0 flex-1">

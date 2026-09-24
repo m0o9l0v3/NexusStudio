@@ -8,13 +8,9 @@ import { Toolbar } from '../../shell/Toolbar'
 import { Button } from '../../ui/Button'
 import { FilterChip } from '../../ui/FilterChip'
 import { NoticeBanner } from '../../ui/NoticeBanner'
+import { publicationBadge } from '../../publishing/publication'
 import { StatusBadge } from '../../ui/StatusBadge'
 
-const publicationLabels: Record<string, { label: string; tone: 'neutral' | 'success' }> = {
-  unpublished: { label: '未公開', tone: 'neutral' },
-  published: { label: '公開中', tone: 'success' },
-  changed: { label: '公開中・未公開変更あり', tone: 'success' },
-}
 
 const updatedFormat = new Intl.DateTimeFormat('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Tokyo' })
 
@@ -106,8 +102,11 @@ export function EventListPage() {
               ))}
             </FilterChip>
             <FilterChip label="公開状態" value={publication} onChange={(value) => update('publication', value)}>
-              <option value="">公開状態：すべて</option>
+              <option value="">公開状態：すべて（取り下げ済みを除く）</option>
               <option value="unpublished">公開状態：未公開</option>
+              <option value="published">公開状態：公開中</option>
+              <option value="publishedWithChanges">公開状態：公開中・未公開変更あり</option>
+              <option value="withdrawn">公開状態：取り下げ済み</option>
             </FilterChip>
             <FilterChip label="並べ替え" value={sort} active={sort !== 'updated'} onChange={(value) => update('sort', value === 'updated' ? '' : value)}>
               <option value="updated">更新日時順</option>
@@ -161,7 +160,7 @@ export function EventListPage() {
 
 /** Figma `Event List Row`（72:298）。 */
 function EventRow({ item }: { item: EventListItem }) {
-  const status = publicationLabels[item.publication] ?? { label: item.publication, tone: 'neutral' as const }
+  const status = publicationBadge(item.publication)
   return (
     <li className="flex h-[72px] items-center gap-3 border border-border bg-surface px-3.5 py-3">
       <div className="flex w-[580px] min-w-0 flex-col gap-[3px]">

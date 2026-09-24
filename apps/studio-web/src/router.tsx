@@ -7,6 +7,7 @@ import { LoginPage } from './pages/LoginPage'
 import { OccurrenceEditorPage } from './pages/openCampus/OccurrenceEditorPage'
 import { OpenCampusListPage } from './pages/openCampus/OpenCampusListPage'
 import { PlaceholderPage } from './pages/PlaceholderPage'
+import { PublishReviewPage } from './publishing/PublishReviewPage'
 import { SpotsPage } from './pages/spots/SpotsPage'
 import { AppShell } from './shell/AppShell'
 import { navAreas } from './shell/navigation'
@@ -27,11 +28,15 @@ export const router = createBrowserRouter([
           { path: '/events', element: <EventListPage /> },
           { path: '/events/new', element: <EventEditorPage /> },
           { path: '/events/categories', element: <CategoriesPage /> },
+          { path: '/events/categories/publish', element: <PublishReviewPage kind="categories" /> },
           { path: '/events/:id', element: <EventEditorPage /> },
+          { path: '/events/:id/publish', element: <PublishReviewPage kind="event" /> },
           { path: '/open-campus', element: <OpenCampusListPage /> },
           { path: '/open-campus/new', element: <OccurrenceEditorPage /> },
           { path: '/open-campus/:id', element: <OccurrenceEditorPage /> },
+          { path: '/open-campus/:id/publish', element: <PublishReviewPage kind="occurrence" /> },
           { path: '/spots', element: <SpotsPage /> },
+          { path: '/spots/publish', element: <PublishReviewPage kind="spot" /> },
           ...navAreas
             .filter((area) => !implemented.has(area.path))
             .map((area) => ({ path: area.path, element: <PlaceholderPage area={area} /> })),
