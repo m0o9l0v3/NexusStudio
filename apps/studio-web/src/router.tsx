@@ -9,13 +9,14 @@ import { OccurrenceEditorPage } from './pages/openCampus/OccurrenceEditorPage'
 import { OpenCampusListPage } from './pages/openCampus/OpenCampusListPage'
 import { PlaceholderPage } from './pages/PlaceholderPage'
 import { ReleasesPage } from './pages/releases/ReleasesPage'
+import { ValidationPage } from './pages/validation/ValidationPage'
 import { PublishReviewPage } from './publishing/PublishReviewPage'
 import { SpotsPage } from './pages/spots/SpotsPage'
 import { AppShell } from './shell/AppShell'
 import { navAreas } from './shell/navigation'
 
 /** 専用の画面がある領域。それ以外は準備中の表示にする。 */
-const implemented = new Set(['/events', '/open-campus', '/spots', '/releases', '/logs'])
+const implemented = new Set(['/events', '/open-campus', '/spots', '/validation', '/releases', '/logs'])
 
 export const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
@@ -39,6 +40,7 @@ export const router = createBrowserRouter([
           { path: '/open-campus/:id/publish', element: <PublishReviewPage kind="occurrence" /> },
           { path: '/spots', element: <SpotsPage /> },
           { path: '/spots/publish', element: <PublishReviewPage kind="spot" /> },
+          { path: '/validation', element: <ValidationPage /> },
           { path: '/releases', element: <ReleasesPage /> },
           { path: '/logs', element: <LogsPage /> },
           ...navAreas
