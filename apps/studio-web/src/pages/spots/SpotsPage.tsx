@@ -12,7 +12,7 @@ import { Button } from '../../ui/Button'
 import { ChoiceGroup } from '../../ui/ChoiceGroup'
 import { cn } from '../../ui/cn'
 import { FilterChip } from '../../ui/FilterChip'
-import { InputField, SelectField, TextAreaField } from '../../ui/Field'
+import { InputField, TextAreaField } from '../../ui/Field'
 import { NoticeBanner } from '../../ui/NoticeBanner'
 import { StatusBadge, type StatusTone } from '../../ui/StatusBadge'
 
@@ -144,7 +144,7 @@ export function SpotsPage() {
 
         <aside aria-label="Spotの詳細" className="flex w-[344px] shrink-0 flex-col overflow-auto border-l border-border bg-surface px-4 pt-[18px] pb-6">
           {selectedId ? (
-            <SpotInspectorLoader key={selectedId} canonicalId={selectedId} buildings={directory.data?.buildings ?? []} floors={directory.data?.floors ?? []} />
+            <SpotInspectorLoader key={selectedId} canonicalId={selectedId} />
           ) : (
             <p className="text-[12px] leading-5 text-text-secondary">一覧からSpotを選ぶと、ここに詳細を表示します。</p>
           )}
@@ -154,9 +154,9 @@ export function SpotsPage() {
   )
 }
 
-function SpotInspectorLoader({ canonicalId, buildings, floors }: { canonicalId: string; buildings: string[]; floors: string[] }) {
+function SpotInspectorLoader({ canonicalId }: { canonicalId: string }) {
   const spot = useQuery({ queryKey: ['spot', canonicalId], queryFn: () => getSpot(canonicalId), staleTime: Infinity, refetchOnWindowFocus: false })
-  if (spot.data) return <SpotInspector initial={spot.data} buildings={buildings} floors={floors} />
+  if (spot.data) return <SpotInspector initial={spot.data} />
   if (spot.isPending) return <p role="status" className="text-[12px] leading-5 text-text-secondary">Spotを読み込んでいます。</p>
   const notFound = spot.error instanceof ApiError && spot.error.status === 404
   return (
@@ -171,7 +171,7 @@ function SpotInspectorLoader({ canonicalId, buildings, floors }: { canonicalId: 
   )
 }
 
-function SpotInspector({ initial, buildings, floors }: { initial: SpotDetail; buildings: string[]; floors: string[] }) {
+function SpotInspector({ initial }: { initial: SpotDetail }) {
   const queryClient = useQueryClient()
   const editor = useDraftEditor<SpotDetail, SpotDraft>({
     initial,
@@ -182,6 +182,7 @@ function SpotInspector({ initial, buildings, floors }: { initial: SpotDetail; bu
     latestFromConflict: (body) => (body as SpotConflict).latest!,
   })
   const { draft, base } = editor
+  const placement = (base ?? initial).placement
   const [aliasText, setAliasText] = useState(() => draft.aliases.join('\n'))
   const badge = publicationBadge({ isPublished: initial.isPublished, utilization: draft.utilization })
 
@@ -198,7 +199,7 @@ function SpotInspector({ initial, buildings, floors }: { initial: SpotDetail; bu
 
   if (editor.conflict) {
     const describe = (spot: SpotDraft) =>
-      [`名称：${spot.name || '（未入力）'}`, `別名：${spot.aliases.join('、') || 'なし'}`, `建物・階：${spot.buildingName ?? '未確認'}・${spot.floorName ?? '未確認'}`, `利用状態：${spot.utilization === 'noNewSelection' ? '新規選択停止' : '選択できる'}`].join('\n')
+      [`名称：${spot.name || '（未入力）'}`, `別名：${spot.aliases.join('、') || 'なし'}`, `利用状態：${spot.utilization === 'noNewSelection' ? '新規選択停止' : '選択できる'}`].join('\n')
     return (
       <CompareRows
         rows={[{ label: 'Spotの属性', mine: describe(editor.conflict.mine), latest: describe(editor.conflict.latest.draft) }]}
@@ -236,28 +237,12 @@ function SpotInspector({ initial, buildings, floors }: { initial: SpotDetail; bu
           editor.update((current) => ({ ...current, aliases }))
         }}
       />
+      {/* 建物・階は地図と一緒に公開するため、ここでは変更しない（28 S4-2。編集は Map Data で行う）。 */}
       <div className="grid grid-cols-2 gap-2">
-        <SelectField
-          label="建物"
-          value={draft.buildingName ?? ''}
-          onChange={(event) => editor.update((current) => ({ ...current, buildingName: event.target.value || null }))}
-        >
-          <option value="">未確認</option>
-          {buildings.map((name) => (
-            <option key={name} value={name}>
-              {name}
-            </option>
-          ))}
-        </SelectField>
-        <SelectField label="階" value={draft.floorName ?? ''} onChange={(event) => editor.update((current) => ({ ...current, floorName: event.target.value || null }))}>
-          <option value="">未確認</option>
-          {floors.map((name) => (
-            <option key={name} value={name}>
-              {name}
-            </option>
-          ))}
-        </SelectField>
+        <ReadOnlyField label="建物" value={placement.buildingName ?? '未確認'} tone={placement.buildingName ? undefined : 'warning'} />
+        <ReadOnlyField label="階" value={placement.floorName ?? '未確認'} tone={placement.floorName ? undefined : 'warning'} />
       </div>
+      <p className="-mt-1 text-[11px] leading-[19px] text-text-secondary">建物・階は地図と一緒に公開するため、Map Data で変更します。</p>
       {draft.utilization === 'withdrawn' ? (
         <NoticeBanner>このSpotは取り下げ済みです。再開は公開機能（Step 4）と合わせて扱います。</NoticeBanner>
       ) : (

@@ -8,8 +8,9 @@ using StudioApi.Models;
 
 namespace StudioApi.Reference;
 
+/// <summary>Spot単独で公開する属性（28 S4-2）。建物・階・位置・経路の接続は地図と一緒に公開するため含めない。</summary>
 /// <param name="Utilization">available（選択できる）／noNewSelection（新規選択停止）。取り下げ（withdrawn）は公開と合わせて扱うため、ここでは新たに設定できない。</param>
-public sealed record SpotDraft(string? Name, IReadOnlyList<string> Aliases, string? BuildingName, string? FloorName, string Utilization);
+public sealed record SpotDraft(string? Name, IReadOnlyList<string> Aliases, string Utilization);
 
 public sealed record SpotEventReference(Guid EventId, string? EventTitle, int SlotCount);
 
@@ -20,7 +21,11 @@ public sealed record SpotDetail(
     EditorRef? UpdatedBy,
     bool IsPublished,
     SpotDraft Draft,
+    SpotPlacement Placement,
     IReadOnlyList<SpotEventReference> DraftEvents);
+
+/// <summary>建物・階。地図の公開単位に属し、Spot画面では変更できない（28 S4-2。編集は Map Data で行う）。</summary>
+public sealed record SpotPlacement(string? BuildingName, string? FloorName);
 
 public sealed record SaveSpotRequest(Guid OperationId, long RowVersion, SpotDraft? Draft);
 
@@ -107,10 +112,7 @@ public static class SpotEndpoints
             return TypedResults.Conflict(await ConflictAsync(db, id));
         }
 
-        var placements = await db.Spots.AsNoTracking().Select(s => new { s.BuildingName, s.FloorName }).ToListAsync();
-        var knownBuildings = placements.Select(p => p.BuildingName).OfType<string>().ToHashSet(StringComparer.Ordinal);
-        var knownFloors = placements.Select(p => p.FloorName).OfType<string>().ToHashSet(StringComparer.Ordinal);
-        var problems = Validate(request.Draft, spot, knownBuildings, knownFloors);
+        var problems = Validate(request.Draft, spot);
         if (problems.Count > 0)
         {
             return TypedResults.BadRequest(ReferenceValidationProblem.Invalid(problems));
@@ -118,8 +120,6 @@ public static class SpotEndpoints
 
         var draft = Normalize(request.Draft!);
         spot.Name = draft.Name ?? string.Empty;
-        spot.BuildingName = draft.BuildingName;
-        spot.FloorName = draft.FloorName;
         spot.Utilization = draft.Utilization;
         spot.NameAliases.RemoveAll(a => !draft.Aliases.Contains(a.Alias, StringComparer.Ordinal));
         foreach (var alias in draft.Aliases.Where(a => spot.NameAliases.All(existingAlias => existingAlias.Alias != a)))
@@ -138,7 +138,7 @@ public static class SpotEndpoints
             : TypedResults.Ok((await LoadDetailAsync(db, id))!);
     }
 
-    private static List<DraftProblem> Validate(SpotDraft? draft, Spot spot, HashSet<string> knownBuildings, HashSet<string> knownFloors)
+    private static List<DraftProblem> Validate(SpotDraft? draft, Spot spot)
     {
         var problems = new List<DraftProblem>();
         if (draft is null)
@@ -155,17 +155,6 @@ public static class SpotEndpoints
         if (draft.Aliases is null || draft.Aliases.Count > 50 || draft.Aliases.Any(a => a is null || a.Trim().Length is 0 or > 200))
         {
             problems.Add(new("aliases", "invalid_aliases", "別名は1件200文字以内・50件以内で、空の別名は登録できません。"));
-        }
-
-        // 建物・階は正式な候補から選ぶ（09 SP-09）。候補は登録済みのSpotが使っている値。
-        if (draft.BuildingName is not null && draft.BuildingName != spot.BuildingName && !knownBuildings.Contains(draft.BuildingName))
-        {
-            problems.Add(new("buildingName", "unknown_building", "登録済みの建物から選んでください。"));
-        }
-
-        if (draft.FloorName is not null && draft.FloorName != spot.FloorName && !knownFloors.Contains(draft.FloorName))
-        {
-            problems.Add(new("floorName", "unknown_floor", "登録済みの階から選んでください。"));
         }
 
         var allowed = spot.Utilization == SpotUtilization.Withdrawn
@@ -208,7 +197,8 @@ public static class SpotEndpoints
             spot.UpdatedAt,
             ReferenceSaving.Editor(spot.UpdatedBy, names),
             spot.IsPublished,
-            new SpotDraft(spot.Name, spot.NameAliases.Select(a => a.Alias).Order(StringComparer.CurrentCulture).ToList(), spot.BuildingName, spot.FloorName, spot.Utilization),
+            new SpotDraft(spot.Name, spot.NameAliases.Select(a => a.Alias).Order(StringComparer.CurrentCulture).ToList(), spot.Utilization),
+            new SpotPlacement(spot.BuildingName, spot.FloorName),
             references.SlotsAtSpot(spot.CanonicalId)
                 .GroupBy(r => (r.EventId, r.EventTitle))
                 .Select(g => new SpotEventReference(g.Key.EventId, g.Key.EventTitle, g.Count()))

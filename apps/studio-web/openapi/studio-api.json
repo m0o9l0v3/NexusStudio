@@ -1853,6 +1853,7 @@
           "updatedBy",
           "isPublished",
           "draft",
+          "placement",
           "draftEvents"
         ],
         "type": "object",
@@ -1887,6 +1888,9 @@
           "draft": {
             "$ref": "#/components/schemas/SpotDraft"
           },
+          "placement": {
+            "$ref": "#/components/schemas/SpotPlacement"
+          },
           "draftEvents": {
             "type": "array",
             "items": {
@@ -1899,8 +1903,6 @@
         "required": [
           "name",
           "aliases",
-          "buildingName",
-          "floorName",
           "utilization"
         ],
         "type": "object",
@@ -1916,18 +1918,6 @@
             "items": {
               "type": "string"
             }
-          },
-          "buildingName": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "floorName": {
-            "type": [
-              "null",
-              "string"
-            ]
           },
           "utilization": {
             "type": "string"
@@ -1999,6 +1989,27 @@
           },
           "utilization": {
             "type": "string"
+          }
+        }
+      },
+      "SpotPlacement": {
+        "required": [
+          "buildingName",
+          "floorName"
+        ],
+        "type": "object",
+        "properties": {
+          "buildingName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "floorName": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },

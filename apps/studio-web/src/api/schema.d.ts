@@ -1117,13 +1117,12 @@ export interface components {
             updatedBy: null | components["schemas"]["EditorRef"];
             isPublished: boolean;
             draft: components["schemas"]["SpotDraft"];
+            placement: components["schemas"]["SpotPlacement"];
             draftEvents: components["schemas"]["SpotEventReference"][];
         };
         SpotDraft: {
             name: null | string;
             aliases: string[];
-            buildingName: null | string;
-            floorName: null | string;
             utilization: string;
         };
         SpotEventReference: {
@@ -1141,6 +1140,10 @@ export interface components {
             floorName: null | string;
             isPublished: boolean;
             utilization: string;
+        };
+        SpotPlacement: {
+            buildingName: null | string;
+            floorName: null | string;
         };
         SpotSearchResult: {
             /** Format: int32 */

@@ -127,7 +127,7 @@ public sealed class ReferenceImporter(StudioDbContext db, TimeProvider timeProvi
             MarkImported(spot, now);
             db.ReferenceRevisions.Add(ReferenceSaving.NewRevision(
                 ReferenceRevisionKind.Spot, spot.CanonicalId,
-                new SpotDraft(spot.Name, spot.NameAliases.Select(a => a.Alias).ToList(), spot.BuildingName, spot.FloorName, spot.Utilization),
+                new SpotDraft(spot.Name, spot.NameAliases.Select(a => a.Alias).ToList(), spot.Utilization),
                 null, now, ReferenceRevisionSource.Import, null));
         }
 
