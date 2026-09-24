@@ -2,6 +2,8 @@ using Microsoft.EntityFrameworkCore;
 using StudioApi.Admin;
 using StudioApi.Auth;
 using StudioApi.Data;
+using StudioApi.Events;
+using StudioApi.Reference;
 using StudioApi.Services.MapValidation;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -17,6 +19,7 @@ if (string.IsNullOrWhiteSpace(connectionString))
 builder.Services.AddDbContext<StudioDbContext>(options => options.UseNpgsql(connectionString));
 builder.Services.AddSingleton<MapDatasetValidator>();
 builder.Services.AddStudioAuth(builder.Environment);
+builder.Services.AddScoped<ReferenceImporter>();
 builder.Services.AddProblemDetails();
 builder.Services.AddOpenApi();
 
@@ -29,6 +32,14 @@ if (args.Length > 0 && args[0] == "admin")
     var service = scope.ServiceProvider.GetRequiredService<AdminAccountService>();
     return await AdminCommand.RunAsync(
         args[1..], service, Console.In, Console.Out, Console.Error, interactive: !Console.IsInputRedirected);
+}
+
+// 運用者用の参照データ取り込み（開催回・開催日・カテゴリ・Spot）。起動時のシードの代わりに明示的に実行する。
+if (args.Length > 0 && args[0] == "reference")
+{
+    await using var scope = app.Services.CreateAsyncScope();
+    var importer = scope.ServiceProvider.GetRequiredService<ReferenceImporter>();
+    return await ReferenceCommand.RunAsync(args[1..], importer, Console.Out, Console.Error);
 }
 
 if (app.Environment.IsDevelopment())
@@ -45,6 +56,8 @@ app.UseMiddleware<CsrfValidationMiddleware>();
 // マイグレーション適用は `dotnet ef database update` を明示的に実行すること。
 app.MapGet("/health", () => Results.Ok(new { status = "ok" })).AllowAnonymous();
 app.MapAuthEndpoints();
+app.MapReferenceEndpoints();
+app.MapEventEndpoints();
 
 await app.RunAsync();
 return 0;
