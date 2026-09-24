@@ -17,7 +17,7 @@ if (string.IsNullOrWhiteSpace(connectionString))
         "既定の接続文字列はコードに置きません（Step 0-d）。");
 }
 
-builder.Services.AddDbContext<StudioDbContext>(options => options.UseNpgsql(connectionString));
+builder.Services.AddDbContext<StudioDbContext>(options => options.UseStudioNpgsql(connectionString));
 builder.Services.AddSingleton<MapDatasetValidator>();
 builder.Services.AddStudioAuth(builder.Environment);
 builder.Services.AddScoped<ReferenceImporter>();

@@ -83,6 +83,7 @@ docker compose up -d postgres   # ホスト側は5433番ポート（nexus-mobile
 ## アーキテクチャ上の重要な設計判断
 
 - **接続文字列に既定値を持たせない**（Step 0-d）。`appsettings.json` に `ConnectionStrings` を書かない。`ConnectionStrings__StudioDatabase` が未設定なら起動時に例外を投げて即座に失敗させる。`nexus-mobile/apps/admin-api` の「動く既定値」問題（本番資格情報と誤用されうる）を再発させない。
+- **マイグレーション履歴も `studio` schema に置く**（`StudioDbContextOptions.UseStudioNpgsql`）。public schema に履歴表を作らない。2026-09-24 より前に適用したDBは `apps/studio-api/Database/move-migrations-history-to-studio.sql` を一度だけ実行してから `database update` する。
 - **起動時にDBへ副作用を起こさない**（Step 0-c）。マイグレーション適用・シードを `Program.cs` に書かない。`nexus-mobile` の `DbSeeder` が起動のたびに本番DBへマイグレーションを自動適用する設計ミスを繰り返さない。
 - **canonical ID を生成・正規化・推測するコードを書かない。** 文字列として厳密一致で保持する（大文字小文字を含む）。部屋IDの規則（`{building}_{floor}_{type}_{seq:03}`）が未確定のため、規則確定後にデータ移行だけで済むようにする。
 - **MapDataset Schema・validatorの契約は `nexus-mobile` を正とする。** `docs/schemas/` はpinしたコピーであり、Studio側で勝手に緩めない。同一性は `PinnedSchemaHashTests` のSHA-256確認で担保する。nexus-mobile側でSchemaが更新されたら、コピーとテスト内のhash値を意図的に更新すること。

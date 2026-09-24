@@ -54,7 +54,18 @@ docker compose up -d postgres   # ホスト側5433番ポート
 
 ConnectionStrings__StudioDatabase="Host=localhost;Port=5433;Database=nexus_studio;Username=studio;Password=<.envと同じ値>" \
   dotnet tool run dotnet-ef database update   # マイグレーション適用（起動時の自動適用はしない）
+```
 
+マイグレーション履歴は `studio."__EFMigrationsHistory"` に記録します（public schema には作りません）。
+2026-09-24 より前のStudioで一度でもマイグレーションを適用したDBは、上の `database update` の前に一度だけ次を実行してください（新規のDBでは不要。何度実行しても結果は同じです）。
+
+```bash
+psql "<接続文字列>" -v ON_ERROR_STOP=1 -f apps/studio-api/Database/move-migrations-history-to-studio.sql
+```
+
+APIの起動：
+
+```bash
 ConnectionStrings__StudioDatabase="Host=localhost;Port=5433;Database=nexus_studio;Username=studio;Password=<.envと同じ値>" \
   dotnet run   # http://localhost:5001（Studio Webの開発サーバーが /api をここへ中継する）
 ```
