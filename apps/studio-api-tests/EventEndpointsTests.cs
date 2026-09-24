@@ -125,7 +125,7 @@ public sealed class EventEndpointsTests : IAsyncLifetime
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         Assert.Equal(1, body!["rowVersion"]!.GetValue<long>());
-        Assert.Equal("unpublished", body["publication"]!.GetValue<string>());
+        Assert.Equal("unpublished", body["publication"]!["state"]!.GetValue<string>());
         Assert.Equal("m09", body["updatedBy"]!["displayName"]!.GetValue<string>());
 
         var (emptyResponse, _) = await CreateAsync(EmptyDraft());

@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using StudioApi.Data;
 using StudioApi.Events;
 using StudioApi.Models;
+using StudioApi.Publishing;
 
 namespace StudioApi.Reference;
 
@@ -20,7 +21,8 @@ public sealed record OccurrenceDetail(
     long RowVersion,
     DateTimeOffset? UpdatedAt,
     EditorRef? UpdatedBy,
-    string Publication,
+    Guid? RevisionId,
+    PublicationSummary Publication,
     OccurrenceDraft Draft,
     IReadOnlyList<SlotReference> References);
 
@@ -37,7 +39,7 @@ public sealed record SaveOccurrenceRequest(Guid OperationId, long RowVersion, Oc
 
 public sealed record CreateOccurrenceRequest(Guid OperationId, OccurrenceDraft? Draft);
 
-/// <summary>開催回・開催日・一般公開時間・開催日の中止（08 OC-01〜OC-13）。公開・履歴・復旧は Step 4。</summary>
+/// <summary>開催回・開催日・一般公開時間・開催日の中止（08 OC-01〜OC-13）。公開は Releases（/api/releases）で行う。</summary>
 public static partial class OccurrenceEndpoints
 {
     public const int MaxDays = 100;
@@ -59,6 +61,7 @@ public static partial class OccurrenceEndpoints
     {
         var occurrences = await db.Occurrences.AsNoTracking().Include(o => o.Days).ToListAsync();
         var references = await EventReferenceIndex.LoadAsync(db);
+        var publications = await PublicationIndex.LoadAsync(db, PublishTargetKind.Occurrence);
         var names = await ReferenceSaving.DisplayNamesAsync(db, occurrences.Select(o => o.UpdatedBy));
         return TypedResults.Ok(occurrences
             .OrderBy(o => o.Days.Count == 0 ? DateOnly.MaxValue : o.Days.Min(d => d.Date))
@@ -68,7 +71,7 @@ public static partial class OccurrenceEndpoints
                 o.Name,
                 o.Days.OrderBy(d => d.Date).Select(ToItem).ToList(),
                 references.EventsInOccurrence(o.Id),
-                PublicationState.Unpublished,
+                PublicationState.Of(publications.Find(PublishTargetKind.Occurrence, o.Id.ToString()), o.CurrentRevisionId),
                 o.UpdatedAt,
                 ReferenceSaving.Editor(o.UpdatedBy, names)))
             .ToList());
@@ -101,8 +104,9 @@ public static partial class OccurrenceEndpoints
         var occurrence = new Occurrence { Id = Guid.CreateVersion7(), RowVersion = 1, UpdatedAt = now, UpdatedBy = adminId };
         Apply(occurrence, request.Draft!, db);
         db.Occurrences.Add(occurrence);
-        db.ReferenceRevisions.Add(ReferenceSaving.NewRevision(
+        var created = ReferenceSaving.AddRevision(db, occurrence, ReferenceSaving.NewRevision(
             ReferenceRevisionKind.Occurrence, occurrence.Id.ToString(), Normalize(request.Draft!), adminId, now, ReferenceRevisionSource.Editor, request.OperationId));
+        OperationLogs.AddSave(db, request.OperationId, adminId, now, PublishTargetKind.Occurrence, occurrence.Id.ToString(), PublishCandidate.OccurrenceLabel(occurrence.Name), created.RevisionId);
 
         if (await ReferenceSaving.TrySaveAsync(db, request.OperationId) == SaveOutcome.Replayed)
         {
@@ -169,8 +173,9 @@ public static partial class OccurrenceEndpoints
 
             Apply(occurrence, request.Draft!, db);
             ReferenceSaving.Touch(occurrence, adminId, now);
-            db.ReferenceRevisions.Add(ReferenceSaving.NewRevision(
+            var saved = ReferenceSaving.AddRevision(db, occurrence, ReferenceSaving.NewRevision(
                 ReferenceRevisionKind.Occurrence, id.ToString(), Normalize(request.Draft!), adminId, now, ReferenceRevisionSource.Editor, request.OperationId));
+            OperationLogs.AddSave(db, request.OperationId, adminId, now, PublishTargetKind.Occurrence, id.ToString(), PublishCandidate.OccurrenceLabel(occurrence.Name), saved.RevisionId);
             await db.SaveChangesAsync();
             await transaction.CommitAsync();
         });
@@ -338,13 +343,15 @@ public static partial class OccurrenceEndpoints
         }
 
         var references = await EventReferenceIndex.LoadAsync(db);
+        var publications = await PublicationIndex.LoadAsync(db, PublishTargetKind.Occurrence);
         var names = await ReferenceSaving.DisplayNamesAsync(db, [occurrence.UpdatedBy]);
         return new OccurrenceDetail(
             occurrence.Id,
             occurrence.RowVersion,
             occurrence.UpdatedAt,
             ReferenceSaving.Editor(occurrence.UpdatedBy, names),
-            PublicationState.Unpublished,
+            occurrence.CurrentRevisionId,
+            publications.Summarize(PublishTargetKind.Occurrence, occurrence.Id.ToString(), occurrence.CurrentRevisionId),
             ToDraft(occurrence),
             references.SlotsOnDays(occurrence.Days.Select(d => d.Id)).ToList());
     }

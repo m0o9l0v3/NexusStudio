@@ -2,7 +2,9 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Identity;
+using StudioApi.Data;
 using StudioApi.Models;
+using StudioApi.Publishing;
 
 namespace StudioApi.Auth;
 
@@ -33,8 +35,14 @@ public static class AuthEndpoints
         group.MapPost("/login", LoginAsync).AllowAnonymous();
 
         // 期限切れのセッションからでもCookieを消せるよう匿名を許可する。
-        group.MapPost("/logout", async (SignInManager<StudioAdmin> signInManager) =>
+        group.MapPost("/logout", async (SignInManager<StudioAdmin> signInManager, UserManager<StudioAdmin> userManager, ClaimsPrincipal principal, StudioDbContext db, TimeProvider timeProvider) =>
         {
+            if (userManager.GetUserId(principal) is { } adminId)
+            {
+                OperationLogs.Add(db, timeProvider.GetUtcNow(), OperationAction.SignOut, Guid.Parse(adminId), OperationStatus.Succeeded);
+                await db.SaveChangesAsync();
+            }
+
             await signInManager.SignOutAsync();
             return TypedResults.NoContent();
         }).AllowAnonymous();
@@ -48,6 +56,8 @@ public static class AuthEndpoints
         LoginRequest request,
         UserManager<StudioAdmin> userManager,
         SignInManager<StudioAdmin> signInManager,
+        StudioDbContext db,
+        TimeProvider timeProvider,
         ILoggerFactory loggerFactory)
     {
         if (string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrEmpty(request.Password))
@@ -65,6 +75,8 @@ public static class AuthEndpoints
             // 未登録のメールアドレスでも、登録済みと同程度の処理時間をかける。
             userManager.PasswordHasher.HashPassword(new StudioAdmin(), request.Password);
             logger.LogInformation("Login rejected: unknown email");
+            // 入力されたメールアドレスは残さない（パスワードを誤って入力した場合に秘密値を記録しないため）。
+            await LogAsync(db, timeProvider, OperationAction.SignInFailed, null, "登録されていないメールアドレス");
             return InvalidCredentials();
         }
 
@@ -74,11 +86,21 @@ public static class AuthEndpoints
             logger.LogInformation(
                 "Login rejected for admin {AdminId}: lockedOut={LockedOut} notAllowed={NotAllowed}",
                 user.Id, result.IsLockedOut, result.IsNotAllowed);
+            await LogAsync(db, timeProvider, OperationAction.SignInFailed, user.Id,
+                result.IsLockedOut ? "ロックアウト中" : result.IsNotAllowed ? "無効化されたアカウント" : "パスワードの誤り");
             return InvalidCredentials();
         }
 
         logger.LogInformation("Admin {AdminId} logged in", user.Id);
+        await LogAsync(db, timeProvider, OperationAction.SignIn, user.Id, null);
         return TypedResults.NoContent();
+    }
+
+    /// <summary>ログインの記録（利用者判断 2026-09-24）。応答には理由を出さないが、操作ログでは管理者が確認できる。</summary>
+    private static async Task LogAsync(StudioDbContext db, TimeProvider timeProvider, string action, Guid? adminId, string? detail)
+    {
+        OperationLogs.Add(db, timeProvider.GetUtcNow(), action, adminId, action == OperationAction.SignIn ? OperationStatus.Succeeded : OperationStatus.Failed, detail);
+        await db.SaveChangesAsync();
     }
 
     private static async Task<Results<Ok<SessionResponse>, UnauthorizedHttpResult>> MeAsync(

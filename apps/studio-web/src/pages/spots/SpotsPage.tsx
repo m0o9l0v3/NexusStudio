@@ -1,8 +1,7 @@
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useDeferredValue, useState } from 'react'
-import { useSearchParams } from 'react-router'
+import { useNavigate, useSearchParams } from 'react-router'
 import { ApiError } from '../../api/client'
-import type { SpotItem } from '../../api/reference'
 import { getSpot, listSpotDirectory, saveSpot, type SpotConflict, type SpotDetail, type SpotDraft } from '../../api/spots'
 import { CompareRows } from '../../editing/CompareRows'
 import { LeaveGuard } from '../../editing/LeaveGuard'
@@ -12,13 +11,14 @@ import { Button } from '../../ui/Button'
 import { ChoiceGroup } from '../../ui/ChoiceGroup'
 import { cn } from '../../ui/cn'
 import { FilterChip } from '../../ui/FilterChip'
-import { InputField, SelectField, TextAreaField } from '../../ui/Field'
+import { InputField, TextAreaField } from '../../ui/Field'
 import { NoticeBanner } from '../../ui/NoticeBanner'
-import { StatusBadge, type StatusTone } from '../../ui/StatusBadge'
+import { isLive, publicationBadge, reviewPath } from '../../publishing/publication'
+import { StatusBadge } from '../../ui/StatusBadge'
 
-function publicationBadge(spot: Pick<SpotItem, 'isPublished' | 'utilization'>): { label: string; tone: StatusTone } {
-  if (spot.utilization === 'withdrawn') return { label: '取り下げ済み', tone: 'neutral' }
-  return spot.isPublished ? { label: '公開中', tone: 'success' } : { label: '未公開', tone: 'warning' }
+/** 移行元で取り下げ済み（utilization=withdrawn）のSpotは、公開状態に関わらず取り下げ済みと表示する。 */
+function spotBadge(publication: string, utilization: string) {
+  return utilization === 'withdrawn' ? publicationBadge('withdrawn') : publicationBadge(publication)
 }
 
 /**
@@ -101,7 +101,7 @@ export function SpotsPage() {
               <ul className="flex flex-col gap-3">
                 {directory.data.items.map((spot) => {
                   const selected = spot.canonicalId === selectedId
-                  const badge = publicationBadge(spot)
+                  const badge = spotBadge(spot.publication, spot.utilization)
                   return (
                     <li key={spot.canonicalId}>
                       <button
@@ -144,7 +144,7 @@ export function SpotsPage() {
 
         <aside aria-label="Spotの詳細" className="flex w-[344px] shrink-0 flex-col overflow-auto border-l border-border bg-surface px-4 pt-[18px] pb-6">
           {selectedId ? (
-            <SpotInspectorLoader key={selectedId} canonicalId={selectedId} buildings={directory.data?.buildings ?? []} floors={directory.data?.floors ?? []} />
+            <SpotInspectorLoader key={selectedId} canonicalId={selectedId} />
           ) : (
             <p className="text-[12px] leading-5 text-text-secondary">一覧からSpotを選ぶと、ここに詳細を表示します。</p>
           )}
@@ -154,9 +154,9 @@ export function SpotsPage() {
   )
 }
 
-function SpotInspectorLoader({ canonicalId, buildings, floors }: { canonicalId: string; buildings: string[]; floors: string[] }) {
+function SpotInspectorLoader({ canonicalId }: { canonicalId: string }) {
   const spot = useQuery({ queryKey: ['spot', canonicalId], queryFn: () => getSpot(canonicalId), staleTime: Infinity, refetchOnWindowFocus: false })
-  if (spot.data) return <SpotInspector initial={spot.data} buildings={buildings} floors={floors} />
+  if (spot.data) return <SpotInspector initial={spot.data} />
   if (spot.isPending) return <p role="status" className="text-[12px] leading-5 text-text-secondary">Spotを読み込んでいます。</p>
   const notFound = spot.error instanceof ApiError && spot.error.status === 404
   return (
@@ -171,8 +171,9 @@ function SpotInspectorLoader({ canonicalId, buildings, floors }: { canonicalId: 
   )
 }
 
-function SpotInspector({ initial, buildings, floors }: { initial: SpotDetail; buildings: string[]; floors: string[] }) {
+function SpotInspector({ initial }: { initial: SpotDetail }) {
   const queryClient = useQueryClient()
+  const navigate = useNavigate()
   const editor = useDraftEditor<SpotDetail, SpotDraft>({
     initial,
     newDraft: () => initial.draft,
@@ -182,23 +183,35 @@ function SpotInspector({ initial, buildings, floors }: { initial: SpotDetail; bu
     latestFromConflict: (body) => (body as SpotConflict).latest!,
   })
   const { draft, base } = editor
+  const placement = (base ?? initial).placement
   const [aliasText, setAliasText] = useState(() => draft.aliases.join('\n'))
-  const badge = publicationBadge({ isPublished: initial.isPublished, utilization: draft.utilization })
+  const current = base ?? initial
+  const badge = spotBadge(current.publication.state, draft.utilization)
 
   async function save(): Promise<boolean> {
+    return (await saveDetail()) !== null
+  }
+
+  async function saveDetail(): Promise<SpotDetail | null> {
     const detail = await editor.save()
-    if (!detail) return false
+    if (!detail) return null
     setAliasText(detail.draft.aliases.join('\n'))
     queryClient.setQueryData(['spot', detail.canonicalId], detail)
     void queryClient.invalidateQueries({ queryKey: ['spot-directory'] })
     void queryClient.invalidateQueries({ queryKey: ['spots'] })
     void queryClient.invalidateQueries({ queryKey: ['spot-lookup'] })
-    return true
+    return detail
+  }
+
+  /** 公開確認へ。未保存の変更があれば先に保存する（11 §5）。 */
+  async function review() {
+    const saved = editor.dirty ? await saveDetail() : current
+    if (saved) void navigate(reviewPath('spot', saved.canonicalId), { state: { skipUnsavedGuard: true } })
   }
 
   if (editor.conflict) {
     const describe = (spot: SpotDraft) =>
-      [`名称：${spot.name || '（未入力）'}`, `別名：${spot.aliases.join('、') || 'なし'}`, `建物・階：${spot.buildingName ?? '未確認'}・${spot.floorName ?? '未確認'}`, `利用状態：${spot.utilization === 'noNewSelection' ? '新規選択停止' : '選択できる'}`].join('\n')
+      [`名称：${spot.name || '（未入力）'}`, `別名：${spot.aliases.join('、') || 'なし'}`, `利用状態：${spot.utilization === 'noNewSelection' ? '新規選択停止' : '選択できる'}`].join('\n')
     return (
       <CompareRows
         rows={[{ label: 'Spotの属性', mine: describe(editor.conflict.mine), latest: describe(editor.conflict.latest.draft) }]}
@@ -236,28 +249,12 @@ function SpotInspector({ initial, buildings, floors }: { initial: SpotDetail; bu
           editor.update((current) => ({ ...current, aliases }))
         }}
       />
+      {/* 建物・階は地図と一緒に公開するため、ここでは変更しない（28 S4-2。編集は Map Data で行う）。 */}
       <div className="grid grid-cols-2 gap-2">
-        <SelectField
-          label="建物"
-          value={draft.buildingName ?? ''}
-          onChange={(event) => editor.update((current) => ({ ...current, buildingName: event.target.value || null }))}
-        >
-          <option value="">未確認</option>
-          {buildings.map((name) => (
-            <option key={name} value={name}>
-              {name}
-            </option>
-          ))}
-        </SelectField>
-        <SelectField label="階" value={draft.floorName ?? ''} onChange={(event) => editor.update((current) => ({ ...current, floorName: event.target.value || null }))}>
-          <option value="">未確認</option>
-          {floors.map((name) => (
-            <option key={name} value={name}>
-              {name}
-            </option>
-          ))}
-        </SelectField>
+        <ReadOnlyField label="建物" value={placement.buildingName ?? '未確認'} tone={placement.buildingName ? undefined : 'warning'} />
+        <ReadOnlyField label="階" value={placement.floorName ?? '未確認'} tone={placement.floorName ? undefined : 'warning'} />
       </div>
+      <p className="-mt-1 text-[11px] leading-[19px] text-text-secondary">建物・階は地図と一緒に公開するため、Map Data で変更します。</p>
       {draft.utilization === 'withdrawn' ? (
         <NoticeBanner>このSpotは取り下げ済みです。再開は公開機能（Step 4）と合わせて扱います。</NoticeBanner>
       ) : (
@@ -292,7 +289,7 @@ function SpotInspector({ initial, buildings, floors }: { initial: SpotDetail; bu
 
       <div className="flex flex-col gap-1">
         <p className="text-[11px] leading-[19px] font-medium text-text-secondary">関連イベント</p>
-        <p className="text-[11px] leading-[19px] text-text-secondary">公開中：公開機能（Step 4）の実装後に表示します</p>
+        <p className="text-[11px] leading-[19px] text-text-secondary">公開中の関連イベント：公開確認の画面で確認できます</p>
         <p className="text-[11px] leading-[19px] text-text-primary">下書き：{base?.draftEvents.length ?? 0}件</p>
         <ul className="text-[11px] leading-[19px] text-text-secondary">
           {base?.draftEvents.map((reference) => (
@@ -306,10 +303,23 @@ function SpotInspector({ initial, buildings, floors }: { initial: SpotDetail; bu
       <Button className="w-full" onClick={() => void save()} disabled={editor.saveState === 'saving'}>
         {editor.saveState === 'saving' ? '保存中…' : '下書き保存'}
       </Button>
+      <div className="grid grid-cols-2 gap-2">
+        <Button variant="secondary" className="min-w-0" onClick={() => void review()} disabled={editor.saveState === 'saving' || editor.conflictOpen}>
+          {editor.dirty ? '保存して確認' : '公開内容を確認'}
+        </Button>
+        <Button
+          variant="danger"
+          className="min-w-0"
+          disabled={!isLive(current.publication.state)}
+          onClick={() => void navigate(reviewPath('spot', current.canonicalId, 'withdraw'))}
+        >
+          取り下げ
+        </Button>
+      </div>
       <Button variant="secondary" className="w-full" disabled title="Map Data と合わせて実装します">
         位置を変更
       </Button>
-      <p className="text-[10px] leading-6 text-text-secondary">位置の変更は Map Data と合わせて実装します。Spotの変更は地図全体の公開確認へ含める案です。</p>
+      <p className="text-[10px] leading-6 text-text-secondary">名称・別名・利用状態はこのSpotだけで公開します。位置・建物・階・経路は Map Data と一緒に公開します。</p>
 
       <LeaveGuard id="spot-editor" dirty={editor.dirty} saving={editor.saveState === 'saving'} canSave={!editor.conflictOpen} onSave={save} />
     </div>

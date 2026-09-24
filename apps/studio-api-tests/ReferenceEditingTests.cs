@@ -286,22 +286,34 @@ public sealed class ReferenceEditingTests : IAsyncLifetime
     public async Task Spot_IsFoundOnlyByTheExactCanonicalId()
     {
         Assert.Equal(HttpStatusCode.NotFound, (await _client.GetAsync("/api/spots/item?id=MB_F2_CR_2A")).StatusCode);
-        var (response, _) = await SendAsync(HttpMethod.Put, "/api/spots/item?id=MB_F2_CR_2A", Save(1, JsonNode.Parse("""{ "name": "x", "aliases": [], "buildingName": null, "floorName": null, "utilization": "available" }""")!));
+        var (response, _) = await SendAsync(HttpMethod.Put, "/api/spots/item?id=MB_F2_CR_2A", Save(1, JsonNode.Parse("""{ "name": "x", "aliases": [], "utilization": "available" }""")!));
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
-    [Theory]
-    [InlineData("buildingName", "存在しない建物", "unknown_building")]
-    [InlineData("floorName", "99階", "unknown_floor")]
-    [InlineData("utilization", "withdrawn", "invalid_value")]
-    public async Task Spot_RejectsUnknownPlacementsAndWithdrawal(string field, string value, string code)
+    [Fact]
+    public async Task Spot_RejectsWithdrawal()
     {
         var detail = await GetJsonAsync("/api/spots/item?id=mb_f2_cr_2b");
         var draft = detail["draft"]!.DeepClone();
-        draft[field] = value;
+        draft["utilization"] = "withdrawn";
         var (response, body) = await SendAsync(HttpMethod.Put, "/api/spots/item?id=mb_f2_cr_2b", Save(detail["rowVersion"]!.GetValue<long>(), draft));
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        Assert.Contains(body!["problems"]!.AsArray(), p => p!["code"]!.GetValue<string>() == code);
+        Assert.Contains(body!["problems"]!.AsArray(), p => p!["code"]!.GetValue<string>() == "invalid_value");
+    }
+
+    [Fact]
+    public async Task Spot_PlacementCannotBeChangedFromTheSpotEditor()
+    {
+        // 建物・階は地図と一緒に公開する（28 S4-2）。下書きに混ぜて送っても変わらない。
+        var detail = await GetJsonAsync("/api/spots/item?id=mb_f2_cr_2b");
+        var placement = detail["placement"]!.DeepClone();
+        var draft = detail["draft"]!.DeepClone();
+        draft["buildingName"] = "存在しない建物";
+        draft["floorName"] = "99階";
+        var (response, body) = await SendAsync(HttpMethod.Put, "/api/spots/item?id=mb_f2_cr_2b", Save(detail["rowVersion"]!.GetValue<long>(), draft));
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.True(JsonNode.DeepEquals(placement, body!["placement"]));
+        Assert.Null(body["draft"]!["buildingName"]);
     }
 
     [Fact]

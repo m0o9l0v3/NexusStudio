@@ -4,6 +4,7 @@ using StudioApi.Admin;
 using StudioApi.Auth;
 using StudioApi.Data;
 using StudioApi.Events;
+using StudioApi.Publishing;
 using StudioApi.Reference;
 using StudioApi.Services.MapValidation;
 
@@ -15,6 +16,8 @@ builder.Services.AddDbContext<StudioDbContext>(options => options.UseStudioNpgsq
 builder.Services.AddSingleton<MapDatasetValidator>();
 builder.Services.AddStudioAuth(builder.Environment);
 builder.Services.AddScoped<ReferenceImporter>();
+builder.Services.AddScoped<CandidateValidator>();
+builder.Services.AddScoped<PublishingService>();
 builder.Services.AddProblemDetails();
 // 数値を文字列で受け付けない（rowVersion等の型をOpenAPI・生成型でも数値だけにする）。
 builder.Services.ConfigureHttpJsonOptions(options => options.SerializerOptions.NumberHandling = JsonNumberHandling.Strict);
@@ -58,6 +61,7 @@ app.MapOccurrenceEndpoints();
 app.MapCategoryEndpoints();
 app.MapSpotEndpoints();
 app.MapEventEndpoints();
+app.MapReleaseEndpoints();
 
 await app.RunAsync();
 return 0;

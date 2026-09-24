@@ -179,7 +179,7 @@ export function VenuePickerDialog({ open, onOpenChange, addedIds, onSelect, retu
                 検索結果 {result.data.totalCount}件
                 {result.data.totalCount > items.length && `（先頭の${items.length}件を表示。条件を絞り込んでください）`}
               </p>
-              <ul id={listId} ref={listRef} role="listbox" aria-label="会場候補" className="flex min-h-0 flex-col gap-2 overflow-auto">
+              <ul id={listId} ref={listRef} role="listbox" aria-label="会場候補" className="flex min-h-0 flex-col gap-2 overflow-auto p-1">
                 {items.map((spot, index) => {
                   const availability = availabilityOf(spot, added)
                   return (
@@ -195,7 +195,8 @@ export function VenuePickerDialog({ open, onOpenChange, addedIds, onSelect, retu
                       className={cn(
                         'flex h-16 w-[680px] max-w-full shrink-0 items-center gap-2 rounded-lg border px-3',
                         availability === 'available' ? 'cursor-pointer bg-surface' : 'cursor-not-allowed bg-surface-subtle',
-                        index === active ? 'border-brand outline-2 outline-brand' : 'border-border',
+                        // 枠線は行の内側に描き、一覧のスクロール領域で切れないようにする。
+                        index === active ? 'border-brand outline-2 -outline-offset-2 outline-brand' : 'border-border',
                       )}
                     >
                       <VenueRowContent spot={spot} />

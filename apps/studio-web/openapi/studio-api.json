@@ -112,6 +112,39 @@
         }
       }
     },
+    "/api/operations/{operationId}": {
+      "get": {
+        "tags": [
+          "Releases"
+        ],
+        "parameters": [
+          {
+            "name": "operationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OperationResult"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      }
+    },
     "/api/auth/csrf": {
       "get": {
         "tags": [
@@ -740,6 +773,137 @@
           }
         }
       }
+    },
+    "/api/releases/preview": {
+      "post": {
+        "tags": [
+          "Releases"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PreviewRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublishPreview"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublishBadRequest"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/releases": {
+      "post": {
+        "tags": [
+          "Releases"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublishRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OperationResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublishBadRequest"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublishRejected"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublishRejected"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/releases/{id}": {
+      "get": {
+        "tags": [
+          "Releases"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReleaseSummary"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -813,6 +977,7 @@
           "rowVersion",
           "updatedAt",
           "updatedBy",
+          "revisionId",
           "publication",
           "items"
         ],
@@ -839,8 +1004,15 @@
               }
             ]
           },
+          "revisionId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
           "publication": {
-            "type": "string"
+            "$ref": "#/components/schemas/PublicationSummary"
           },
           "items": {
             "type": "array",
@@ -872,6 +1044,33 @@
           "referenceCount": {
             "type": "integer",
             "format": "int32"
+          }
+        }
+      },
+      "CategorySides": {
+        "required": [
+          "published",
+          "candidate"
+        ],
+        "type": "object",
+        "properties": {
+          "published": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/CategoryDraft"
+            }
+          },
+          "candidate": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/CategoryDraft"
+            }
           }
         }
       },
@@ -1045,7 +1244,7 @@
             "$ref": "#/components/schemas/AdminRef"
           },
           "publication": {
-            "type": "string"
+            "$ref": "#/components/schemas/PublicationSummary"
           },
           "draft": {
             "$ref": "#/components/schemas/EventDraft"
@@ -1154,6 +1353,35 @@
           },
           "updatedBy": {
             "$ref": "#/components/schemas/AdminRef"
+          }
+        }
+      },
+      "EventSides": {
+        "required": [
+          "published",
+          "candidate"
+        ],
+        "type": "object",
+        "properties": {
+          "published": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/EventDraft"
+              }
+            ]
+          },
+          "candidate": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/EventDraft"
+              }
+            ]
           }
         }
       },
@@ -1312,6 +1540,7 @@
           "rowVersion",
           "updatedAt",
           "updatedBy",
+          "revisionId",
           "publication",
           "draft",
           "references"
@@ -1343,8 +1572,15 @@
               }
             ]
           },
+          "revisionId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
           "publication": {
-            "type": "string"
+            "$ref": "#/components/schemas/PublicationSummary"
           },
           "draft": {
             "$ref": "#/components/schemas/OccurrenceDraft"
@@ -1459,6 +1695,35 @@
           }
         }
       },
+      "OccurrenceSides": {
+        "required": [
+          "published",
+          "candidate"
+        ],
+        "type": "object",
+        "properties": {
+          "published": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/OccurrenceDraft"
+              }
+            ]
+          },
+          "candidate": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/OccurrenceDraft"
+              }
+            ]
+          }
+        }
+      },
       "OcDayDraft": {
         "required": [
           "id",
@@ -1536,6 +1801,393 @@
           },
           "status": {
             "type": "string"
+          }
+        }
+      },
+      "OperationResult": {
+        "required": [
+          "operationId",
+          "status",
+          "startedAt",
+          "release",
+          "detail"
+        ],
+        "type": "object",
+        "properties": {
+          "operationId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string"
+          },
+          "startedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "release": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ReleaseSummary"
+              }
+            ]
+          },
+          "detail": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "PreviewDay": {
+        "required": [
+          "id",
+          "occurrenceId",
+          "date",
+          "publicStart",
+          "publicEnd",
+          "status"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "occurrenceId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "date": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "publicStart": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "publicEnd": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "status": {
+            "type": "string"
+          }
+        }
+      },
+      "PreviewItem": {
+        "required": [
+          "targetKind",
+          "targetId",
+          "label",
+          "action",
+          "revisionId",
+          "publication",
+          "event",
+          "occurrence",
+          "categories",
+          "spot"
+        ],
+        "type": "object",
+        "properties": {
+          "targetKind": {
+            "type": "string"
+          },
+          "targetId": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "action": {
+            "type": "string"
+          },
+          "revisionId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "publication": {
+            "$ref": "#/components/schemas/PublicationSummary"
+          },
+          "event": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/EventSides"
+              }
+            ]
+          },
+          "occurrence": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/OccurrenceSides"
+              }
+            ]
+          },
+          "categories": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/CategorySides"
+              }
+            ]
+          },
+          "spot": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/SpotSides"
+              }
+            ]
+          }
+        }
+      },
+      "PreviewReferences": {
+        "required": [
+          "days",
+          "spots",
+          "categories"
+        ],
+        "type": "object",
+        "properties": {
+          "days": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PreviewDay"
+            }
+          },
+          "spots": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PreviewSpot"
+            }
+          },
+          "categories": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CategoryDraft"
+            }
+          }
+        }
+      },
+      "PreviewRequest": {
+        "required": [
+          "entries"
+        ],
+        "type": "object",
+        "properties": {
+          "entries": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/PublishEntry"
+            }
+          }
+        }
+      },
+      "PreviewSpot": {
+        "required": [
+          "canonicalId",
+          "name",
+          "buildingName",
+          "floorName",
+          "utilization"
+        ],
+        "type": "object",
+        "properties": {
+          "canonicalId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "buildingName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "floorName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "utilization": {
+            "type": "string"
+          }
+        }
+      },
+      "PublicationSummary": {
+        "required": [
+          "state",
+          "publishedRevisionId",
+          "publishedAt"
+        ],
+        "type": "object",
+        "properties": {
+          "state": {
+            "type": "string"
+          },
+          "publishedRevisionId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "publishedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
+      "PublishBadRequest": {
+        "required": [
+          "code",
+          "title"
+        ],
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        }
+      },
+      "PublishEntry": {
+        "required": [
+          "targetKind",
+          "targetId",
+          "action",
+          "revisionId"
+        ],
+        "type": "object",
+        "properties": {
+          "targetKind": {
+            "type": "string"
+          },
+          "targetId": {
+            "type": "string"
+          },
+          "action": {
+            "type": "string"
+          },
+          "revisionId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          }
+        }
+      },
+      "PublishPreview": {
+        "required": [
+          "validation",
+          "items",
+          "published",
+          "candidate"
+        ],
+        "type": "object",
+        "properties": {
+          "validation": {
+            "$ref": "#/components/schemas/ValidationRunResult"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PreviewItem"
+            }
+          },
+          "published": {
+            "$ref": "#/components/schemas/PreviewReferences"
+          },
+          "candidate": {
+            "$ref": "#/components/schemas/PreviewReferences"
+          }
+        }
+      },
+      "PublishRejected": {
+        "required": [
+          "code",
+          "title",
+          "validation"
+        ],
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "validation": {
+            "$ref": "#/components/schemas/ValidationRunResult"
+          }
+        }
+      },
+      "PublishRequest": {
+        "required": [
+          "operationId",
+          "entries",
+          "confirmedValidationId",
+          "message"
+        ],
+        "type": "object",
+        "properties": {
+          "operationId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "entries": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/PublishEntry"
+            }
+          },
+          "confirmedValidationId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -1656,6 +2308,93 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/DraftProblem"
+            }
+          }
+        }
+      },
+      "ReleaseEntrySummary": {
+        "required": [
+          "targetKind",
+          "targetId",
+          "action",
+          "revisionId",
+          "previousRevisionId",
+          "label"
+        ],
+        "type": "object",
+        "properties": {
+          "targetKind": {
+            "type": "string"
+          },
+          "targetId": {
+            "type": "string"
+          },
+          "action": {
+            "type": "string"
+          },
+          "revisionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "previousRevisionId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "label": {
+            "type": "string"
+          }
+        }
+      },
+      "ReleaseSummary": {
+        "required": [
+          "releaseId",
+          "sequence",
+          "createdAt",
+          "createdBy",
+          "source",
+          "message",
+          "entries"
+        ],
+        "type": "object",
+        "properties": {
+          "releaseId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sequence": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "createdBy": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/EditorRef"
+              }
+            ]
+          },
+          "source": {
+            "type": "string"
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "entries": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReleaseEntrySummary"
             }
           }
         }
@@ -1851,8 +2590,10 @@
           "rowVersion",
           "updatedAt",
           "updatedBy",
-          "isPublished",
+          "revisionId",
+          "publication",
           "draft",
+          "placement",
           "draftEvents"
         ],
         "type": "object",
@@ -1881,11 +2622,21 @@
               }
             ]
           },
-          "isPublished": {
-            "type": "boolean"
+          "revisionId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "publication": {
+            "$ref": "#/components/schemas/PublicationSummary"
           },
           "draft": {
             "$ref": "#/components/schemas/SpotDraft"
+          },
+          "placement": {
+            "$ref": "#/components/schemas/SpotPlacement"
           },
           "draftEvents": {
             "type": "array",
@@ -1899,8 +2650,6 @@
         "required": [
           "name",
           "aliases",
-          "buildingName",
-          "floorName",
           "utilization"
         ],
         "type": "object",
@@ -1916,18 +2665,6 @@
             "items": {
               "type": "string"
             }
-          },
-          "buildingName": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "floorName": {
-            "type": [
-              "null",
-              "string"
-            ]
           },
           "utilization": {
             "type": "string"
@@ -1966,6 +2703,7 @@
           "buildingName",
           "floorName",
           "isPublished",
+          "publication",
           "utilization"
         ],
         "type": "object",
@@ -1997,8 +2735,32 @@
           "isPublished": {
             "type": "boolean"
           },
+          "publication": {
+            "type": "string"
+          },
           "utilization": {
             "type": "string"
+          }
+        }
+      },
+      "SpotPlacement": {
+        "required": [
+          "buildingName",
+          "floorName"
+        ],
+        "type": "object",
+        "properties": {
+          "buildingName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "floorName": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -2035,6 +2797,35 @@
           }
         }
       },
+      "SpotSides": {
+        "required": [
+          "published",
+          "candidate"
+        ],
+        "type": "object",
+        "properties": {
+          "published": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/SpotDraft"
+              }
+            ]
+          },
+          "candidate": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/SpotDraft"
+              }
+            ]
+          }
+        }
+      },
       "UpdateEventRequest": {
         "required": [
           "operationId",
@@ -2062,6 +2853,89 @@
             ]
           }
         }
+      },
+      "ValidationFinding": {
+        "required": [
+          "severity",
+          "code",
+          "message",
+          "targetKind",
+          "targetId",
+          "targetLabel",
+          "path"
+        ],
+        "type": "object",
+        "properties": {
+          "severity": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "targetKind": {
+            "type": "string"
+          },
+          "targetId": {
+            "type": "string"
+          },
+          "targetLabel": {
+            "type": "string"
+          },
+          "path": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "ValidationRunResult": {
+        "required": [
+          "id",
+          "createdAt",
+          "status",
+          "blockingCount",
+          "warningCount",
+          "entries",
+          "findings"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "status": {
+            "type": "string"
+          },
+          "blockingCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "warningCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "entries": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PublishEntry"
+            }
+          },
+          "findings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ValidationFinding"
+            }
+          }
+        }
       }
     }
   },
@@ -2071,6 +2945,9 @@
     },
     {
       "name": "Reference"
+    },
+    {
+      "name": "Releases"
     },
     {
       "name": "Auth"

@@ -33,6 +33,14 @@ public static class ReferenceSaving
         OperationId = operationId,
     };
 
+    /// <summary>Revision を追加し、対象の現在の版をそれに進める。</summary>
+    public static ReferenceRevision AddRevision(StudioDbContext db, IEditableReference target, ReferenceRevision revision)
+    {
+        db.ReferenceRevisions.Add(revision);
+        target.CurrentRevisionId = revision.RevisionId;
+        return revision;
+    }
+
     public static void Touch(IEditableReference target, Guid adminId, DateTimeOffset now)
     {
         target.RowVersion++;

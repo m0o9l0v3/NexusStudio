@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using StudioApi.Data;
 using StudioApi.Models;
+using StudioApi.Publishing;
 
 namespace StudioApi.Events;
 
@@ -14,12 +15,6 @@ public sealed record UpdateEventRequest(Guid OperationId, long RowVersion, Event
 
 public sealed record AdminRef(Guid Id, string DisplayName);
 
-/// <summary>公開状態。公開機能（Step 4）までは常に unpublished。手入力の状態は持たず、Releaseから算出する。</summary>
-public static class PublicationState
-{
-    public const string Unpublished = "unpublished";
-}
-
 public sealed record EventDetail(
     Guid Id,
     long RowVersion,
@@ -27,13 +22,14 @@ public sealed record EventDetail(
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt,
     AdminRef UpdatedBy,
-    string Publication,
+    PublicationSummary Publication,
     EventDraft Draft);
 
 /// <param name="Status">枠独自の開催状況（normal／cancelled）。</param>
 /// <param name="DayCancelled">所属する開催日そのものが中止か（親由来の中止。枠独自の中止とは別に持つ。07 §5）。</param>
 public sealed record EventSlotSummary(DateOnly? Date, string? TimeMode, string? Start, string? End, string Status, bool DayCancelled);
 
+/// <param name="Publication">unpublished／published／publishedWithChanges／withdrawn（07 §5）。</param>
 public sealed record EventListItem(
     Guid Id,
     string? Title,
@@ -75,6 +71,7 @@ public static class EventEndpoints
             select new { head, revision.Payload, admin.DisplayName }).ToListAsync();
 
         var days = await db.OcDays.AsNoTracking().ToDictionaryAsync(d => d.Id, d => new { d.Date, d.Status });
+        var publications = await PublicationIndex.LoadAsync(db, PublishTargetKind.Event);
 
         var items = rows.Select(row =>
         {
@@ -93,7 +90,7 @@ public static class EventEndpoints
                     })
                     .OrderBy(s => s.Date is null).ThenBy(s => s.Date).ThenBy(s => s.Start, StringComparer.Ordinal)
                     .ToList(),
-                PublicationState.Unpublished,
+                PublicationState.Of(publications.Find(PublishTargetKind.Event, row.head.EventId.ToString()), row.head.CurrentRevisionId),
                 row.head.UpdatedAt,
                 new AdminRef(row.head.UpdatedBy, row.DisplayName));
         });
@@ -109,10 +106,10 @@ public static class EventEndpoints
             items = items.Where(i => i.OccurrenceId == occurrence);
         }
 
-        if (!string.IsNullOrEmpty(publication))
-        {
-            items = items.Where(i => i.Publication == publication);
-        }
+        // 取り下げ済みは通常の一覧から除き、公開状態で「取り下げ済み」を選んだときだけ出す（07 §5、利用者判断 2026-09-24）。
+        items = string.IsNullOrEmpty(publication)
+            ? items.Where(i => i.Publication != PublicationState.Withdrawn)
+            : items.Where(i => i.Publication == publication);
 
         // 並べ替えは開催日時順・更新日時順（07 EV-15）。日時が未入力のイベントは開催日時順の末尾に置く。
         items = sort == "schedule"
@@ -164,6 +161,7 @@ public static class EventEndpoints
         var now = timeProvider.GetUtcNow();
         var eventId = Guid.CreateVersion7();
         var revision = NewRevision(eventId, request.Draft!, adminId, now, request.OperationId, baseRevisionId: null);
+        OperationLogs.AddSave(db, request.OperationId, adminId, now, PublishTargetKind.Event, eventId.ToString(), PublishCandidate.EventLabel(request.Draft!.Title), revision.RevisionId);
         db.EventHeads.Add(new EventHead
         {
             EventId = eventId,
@@ -229,6 +227,7 @@ public static class EventEndpoints
         var now = timeProvider.GetUtcNow();
         var revision = NewRevision(id, request.Draft!, adminId, now, request.OperationId, head.CurrentRevisionId);
         db.EventRevisions.Add(revision);
+        OperationLogs.AddSave(db, request.OperationId, adminId, now, PublishTargetKind.Event, id.ToString(), PublishCandidate.EventLabel(request.Draft!.Title), revision.RevisionId);
         head.CurrentRevisionId = revision.RevisionId;
         head.UpdatedAt = now;
         head.UpdatedBy = adminId;
@@ -254,6 +253,7 @@ public static class EventEndpoints
             join admin in db.Users.AsNoTracking() on head.UpdatedBy equals admin.Id
             where head.EventId == id
             select new { head, revision.Payload, admin.DisplayName }).SingleOrDefaultAsync();
+        var publications = row is null ? null : await PublicationIndex.LoadAsync(db, PublishTargetKind.Event);
 
         return row is null
             ? null
@@ -264,7 +264,7 @@ public static class EventEndpoints
                 row.head.CreatedAt,
                 row.head.UpdatedAt,
                 new AdminRef(row.head.UpdatedBy, row.DisplayName),
-                PublicationState.Unpublished,
+                publications!.Summarize(PublishTargetKind.Event, id.ToString(), row.head.CurrentRevisionId),
                 Deserialize(row.Payload));
     }
 

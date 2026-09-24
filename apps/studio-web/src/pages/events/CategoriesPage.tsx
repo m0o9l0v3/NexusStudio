@@ -5,6 +5,7 @@ import { getCategories, saveCategories, type CategoryConflict, type CategoryDraf
 import { CompareRows } from '../../editing/CompareRows'
 import { LeaveGuard } from '../../editing/LeaveGuard'
 import { useDraftEditor } from '../../editing/useDraftEditor'
+import { publicationBadge, reviewPath } from '../../publishing/publication'
 import { Toolbar } from '../../shell/Toolbar'
 import { Button } from '../../ui/Button'
 import { cn } from '../../ui/cn'
@@ -92,13 +93,21 @@ function CategoriesEditor({ initial }: { initial: CategoryListDetail }) {
     return true
   }
 
+  /** 公開確認へ。未保存の変更があれば先に保存する（11 §5）。 */
+  async function review() {
+    if (editor.dirty && !(await save())) return
+    void navigate(reviewPath('categories', 'categories'), { state: { skipUnsavedGuard: true } })
+  }
+
+  const publication = publicationBadge((editor.base ?? initial).publication.state)
+
   const describe = (items: Row[]) =>
     items.map((row, index) => `${index + 1}. ${row.name?.trim() || '（未入力）'}${row.selectable ? '' : '（新規選択停止）'}`).join('\n') || 'カテゴリなし'
 
   return (
     <>
       <Toolbar title="Events / カテゴリ管理">
-        <StatusBadge>未公開</StatusBadge>
+        <StatusBadge tone={publication.tone}>{publication.label}</StatusBadge>
         <StatusBadge tone={editor.statusBadge.tone}>
           <span role="status">{editor.statusBadge.label}</span>
         </StatusBadge>
@@ -109,8 +118,8 @@ function CategoriesEditor({ initial }: { initial: CategoryListDetail }) {
         <Button variant="secondary" onClick={() => void navigate('/events')}>
           Eventsへ戻る
         </Button>
-        <Button variant="secondary" disabled title="公開は Step 4 で実装します">
-          公開内容を確認
+        <Button variant="secondary" onClick={() => void review()} disabled={editor.saveState === 'saving' || editor.conflictOpen}>
+          {editor.dirty ? '保存して確認' : '公開内容を確認'}
         </Button>
       </Toolbar>
 
