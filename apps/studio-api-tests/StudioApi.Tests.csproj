@@ -27,6 +27,7 @@
   <ItemGroup>
     <None Include="../../docs/schemas/examples/map-dataset-geojson-v1.example.json" Link="Fixtures/map-dataset.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../../docs/samples/reference-sample.json" Link="Fixtures/reference-sample.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../studio-api/Database/move-migrations-history-to-studio.sql" Link="Fixtures/move-migrations-history-to-studio.sql" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

@@ -166,7 +166,7 @@ public sealed class MapDatasetTests
     public void AdminMigration_OnlyCreatesStudioSchemaTablesWithoutTouchingOthers()
     {
         using var db = new StudioDbContext(new DbContextOptionsBuilder<StudioDbContext>()
-            .UseNpgsql("Host=localhost;Database=unused;Username=unused;Password=unused").Options);
+            .UseStudioNpgsql("Host=localhost;Database=unused;Username=unused;Password=unused").Options);
         var sql = db.GetService<IMigrator>().GenerateScript(fromMigration: MigrationId, toMigration: "AddStudioAdmins");
         Assert.Contains("CREATE TABLE studio.admins", sql);
         Assert.Contains("CREATE UNIQUE INDEX ix_admins_normalized_email ON studio.admins", sql);
@@ -180,7 +180,7 @@ public sealed class MapDatasetTests
     public void EventMigration_OnlyCreatesStudioSchemaTablesWithoutTouchingOthers()
     {
         using var db = new StudioDbContext(new DbContextOptionsBuilder<StudioDbContext>()
-            .UseNpgsql("Host=localhost;Database=unused;Username=unused;Password=unused").Options);
+            .UseStudioNpgsql("Host=localhost;Database=unused;Username=unused;Password=unused").Options);
         var sql = db.GetService<IMigrator>().GenerateScript(fromMigration: "AddStudioAdmins", toMigration: "AddEventsAndReferenceData");
         foreach (var table in new[] { "event_heads", "event_revisions", "occurrences", "oc_days", "categories", "spots", "spot_name_aliases" })
         {
@@ -199,7 +199,7 @@ public sealed class MapDatasetTests
     public void Migration_GeneratesPostgreSqlStorageTypesUnderStudioSchemaOnly()
     {
         using var db = new StudioDbContext(new DbContextOptionsBuilder<StudioDbContext>()
-            .UseNpgsql("Host=localhost;Database=unused;Username=unused;Password=unused").Options);
+            .UseStudioNpgsql("Host=localhost;Database=unused;Username=unused;Password=unused").Options);
         var sql = db.GetService<IMigrator>().GenerateScript(toMigration: MigrationId);
         Assert.Contains("CREATE SCHEMA", sql);
         Assert.Contains("studio.map_datasets", sql);
@@ -210,5 +210,32 @@ public sealed class MapDatasetTests
         // public schemaのオブジェクトには一切触れない（Step 0-b）。
         Assert.DoesNotContain("public.", sql);
         Assert.DoesNotContain("ALTER TABLE", sql);
+    }
+
+    [Fact]
+    public void MigrationsHistory_IsKeptInStudioSchema()
+    {
+        using var db = new StudioDbContext(new DbContextOptionsBuilder<StudioDbContext>()
+            .UseStudioNpgsql("Host=localhost;Database=unused;Username=unused;Password=unused").Options);
+        var sql = db.GetService<IMigrator>().GenerateScript();
+
+        // 履歴表を public（search_path の既定）に作らない。本番で nexus-mobile の履歴表と混ざらないようにする。
+        Assert.Contains("CREATE TABLE IF NOT EXISTS studio.\"__EFMigrationsHistory\"", sql);
+        Assert.DoesNotContain("INSERT INTO \"__EFMigrationsHistory\"", sql);
+        Assert.Contains("INSERT INTO studio.\"__EFMigrationsHistory\"", sql);
+    }
+
+    [Fact]
+    public void HistoryMoveScript_CoversEveryMigrationRecordedBeforeTheFix()
+    {
+        // 修正前に public の履歴表へ記録された可能性があるのは、この3件だけ（以後は studio へ記録される）。
+        var script = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Fixtures", "move-migrations-history-to-studio.sql"));
+        string[] recordedBeforeFix = ["20260922142853_InitialCreate", "20260923125620_AddStudioAdmins", "20260924052526_AddEventsAndReferenceData"];
+        foreach (var id in recordedBeforeFix)
+        {
+            Assert.Contains($"'{id}'", script);
+        }
+
+        Assert.DoesNotContain("DROP TABLE", script);
     }
 }

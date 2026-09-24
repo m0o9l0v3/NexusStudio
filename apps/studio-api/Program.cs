@@ -11,7 +11,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 var connectionString = StudioDatabaseConfiguration.Resolve(builder.Configuration);
 
-builder.Services.AddDbContext<StudioDbContext>(options => options.UseNpgsql(connectionString));
+builder.Services.AddDbContext<StudioDbContext>(options => options.UseStudioNpgsql(connectionString));
 builder.Services.AddSingleton<MapDatasetValidator>();
 builder.Services.AddStudioAuth(builder.Environment);
 builder.Services.AddScoped<ReferenceImporter>();
