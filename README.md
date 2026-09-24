@@ -6,13 +6,14 @@ Nexus（[`nexus-mobile`](https://gitlab.com/11h27m/nexus-mobile)）の管理ポ�
 
 ## 現在の実装状態
 
-**Step 0（基盤整備）・Step 1（認証＋App Shell）・Step 2（イベント1件の編集と下書き保存）が完了。Step 3 以降は未着手です。**
+**Step 0〜3 が完了（Step 3 の Spots は一覧・属性編集まで）。Step 4（検証・公開・履歴・復旧）以降は未着手です。**
 
 | Step | 内容 | 状態 |
 |---|---|---|
 | Step 0 | リポジトリ骨格、`studio` schema、MapDataset validatorの移植 | ✅ 完了 |
 | Step 1 | ASP.NET Core Identity認証、管理者コマンド、ログイン画面、App Shell（Sidebar/Workspace） | ✅ 完了（各領域の本文は準備中表示） |
 | Step 2 | イベント1件の編集と下書き保存（Revision/head、rowVersion・operationId、参照データの取り込み） | ✅ 完了（公開はStep 4） |
+| Step 3 | 開催回・開催日・カテゴリ・Spotの編集、開催枠の中止 | ✅ 完了（Spotsの地図・位置変更は Map Data と合わせて実装） |
 
 詳細は [`CLAUDE.md`](CLAUDE.md) を参照してください。
 
@@ -85,7 +86,7 @@ npm run build
 
 ### 参照データ（開催回・開催日・カテゴリ・Spot）
 
-Step 3 で編集画面を作るまでは、取り込みコマンドで登録します。起動時には取り込みません。IDで突き合わせて追加・更新し、ファイルに無い行は削除しません。1件でも不正な行があれば何も書き込みません。
+画面（Open Campus・カテゴリ管理・Spots）で編集できるほか、取り込みコマンドでもまとめて登録できます。起動時には取り込みません。IDで突き合わせて追加・更新し、ファイルに無い行は削除しません。1件でも不正な行があれば何も書き込みません。
 
 ```bash
 cd apps/studio-api
