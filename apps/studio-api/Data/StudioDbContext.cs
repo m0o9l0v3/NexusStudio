@@ -309,9 +309,15 @@ public sealed class StudioDbContext(DbContextOptions<StudioDbContext> options)
 
         modelBuilder.Entity<ValidationRun>(entity =>
         {
-            entity.ToTable("validation_runs", table => table.HasCheckConstraint("ck_validation_runs_status", "status IN ('ok', 'failed')"));
+            entity.ToTable("validation_runs", table =>
+            {
+                table.HasCheckConstraint("ck_validation_runs_status", "status IN ('ok', 'failed')");
+                table.HasCheckConstraint("ck_validation_runs_kind", "kind IN ('candidate', 'draft')");
+            });
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.Kind).HasColumnName("kind").HasDefaultValue(ValidationRunKind.Candidate).IsRequired();
+            entity.HasIndex(e => new { e.Kind, e.Id }).HasDatabaseName("ix_validation_runs_kind_id");
             entity.Property(e => e.CreatedAt).HasColumnName("created_at");
             entity.Property(e => e.CreatedBy).HasColumnName("created_by");
             entity.Property(e => e.Entries).HasColumnName("entries").HasColumnType("jsonb").IsRequired();

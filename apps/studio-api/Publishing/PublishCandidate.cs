@@ -88,12 +88,22 @@ public sealed class PublishCandidate
     /// <summary>現在のカテゴリ（カテゴリ一覧の復旧で、既存のカテゴリを失わせないため。11 §7）。</summary>
     public IReadOnlySet<Guid> CurrentCategoryIds { get; init; } = new HashSet<Guid>();
 
-    public static async Task<PublishCandidate> BuildAsync(StudioDbContext db, IReadOnlyList<PublishEntry> entries)
+    /// <summary>候補の土台（現在の公開データとSpotの行）。全下書き診断では一度だけ読み、対象ごとの候補で使い回す。</summary>
+    public sealed record Base(List<Publication> Publications, PublishedSet Published, Dictionary<string, Spot> SpotRows);
+
+    public static async Task<Base> LoadBaseAsync(StudioDbContext db)
     {
         var publications = await db.Publications.AsNoTracking().ToListAsync();
-        var before = await LoadPublishedAsync(db, publications.Where(p => p.State == PublicationRowState.Published).ToList());
+        return new Base(
+            publications,
+            await LoadPublishedAsync(db, publications.Where(p => p.State == PublicationRowState.Published).ToList()),
+            (await db.Spots.AsNoTracking().Include(s => s.NameAliases).ToListAsync()).ToDictionary(s => s.CanonicalId, StringComparer.Ordinal));
+    }
+
+    public static async Task<PublishCandidate> BuildAsync(StudioDbContext db, IReadOnlyList<PublishEntry> entries, Base? shared = null)
+    {
+        var (publications, before, spotRows) = shared ?? await LoadBaseAsync(db);
         var after = before.Clone();
-        var spotRows = (await db.Spots.AsNoTracking().Include(s => s.NameAliases).ToListAsync()).ToDictionary(s => s.CanonicalId, StringComparer.Ordinal);
 
         var items = new List<CandidateItem>();
         foreach (var entry in entries)

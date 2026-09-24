@@ -1051,6 +1051,47 @@
           }
         }
       }
+    },
+    "/api/validation/draft": {
+      "post": {
+        "tags": [
+          "Validation"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DraftDiagnosisResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/validation/draft/latest": {
+      "get": {
+        "tags": [
+          "Validation"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DraftDiagnosisResult"
+                }
+              }
+            }
+          },
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1275,6 +1316,80 @@
         "properties": {
           "token": {
             "type": "string"
+          }
+        }
+      },
+      "DiagnosisArea": {
+        "required": [
+          "targetKind",
+          "targetCount",
+          "blockingCount",
+          "warningCount",
+          "infoCount"
+        ],
+        "type": "object",
+        "properties": {
+          "targetKind": {
+            "type": "string"
+          },
+          "targetCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "blockingCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "warningCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "infoCount": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "DraftDiagnosisResult": {
+        "required": [
+          "id",
+          "createdAt",
+          "createdBy",
+          "status",
+          "stale",
+          "areas",
+          "findings"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "createdBy": {
+            "$ref": "#/components/schemas/EditorRef"
+          },
+          "status": {
+            "type": "string"
+          },
+          "stale": {
+            "type": "boolean"
+          },
+          "areas": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DiagnosisArea"
+            }
+          },
+          "findings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ValidationFinding"
+            }
           }
         }
       },
@@ -3407,6 +3522,9 @@
     },
     {
       "name": "Logs"
+    },
+    {
+      "name": "Validation"
     }
   ]
 }

@@ -108,7 +108,7 @@ public sealed class PublishingService(StudioDbContext db, CandidateValidator val
         }
 
         var confirmed = await db.ValidationRuns.AsNoTracking().SingleOrDefaultAsync(r => r.Id == confirmedValidationId);
-        if (confirmed is null || confirmed.CreatedBy != adminId)
+        if (confirmed is null || confirmed.CreatedBy != adminId || confirmed.Kind != ValidationRunKind.Candidate)
         {
             return new(PublishOutcomeKind.InvalidRequest, Error: "確認した検証結果が見つかりません。公開内容を確認し直してください。");
         }
