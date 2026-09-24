@@ -31,8 +31,9 @@ public sealed record ReferenceImportResult(bool Succeeded, IReadOnlyList<string>
 /// 参照データ（開催回・開催日・カテゴリ・Spot）をJSONファイルから取り込む。運用者が明示的に実行するコマンド専用で、
 /// 起動時には実行しない（Step 0-c）。IDで突き合わせて追加・更新だけを行い、ファイルに無い行は削除しない。
 /// 1件でも不正なら何も書き込まない。
+/// 取り込んだ対象は版（RowVersion）を進めて Revision を残すため、画面で編集中の管理者には保存競合として伝わる。
 /// </summary>
-public sealed class ReferenceImporter(StudioDbContext db)
+public sealed class ReferenceImporter(StudioDbContext db, TimeProvider timeProvider)
 {
     public async Task<ReferenceImportResult> ImportAsync(ReferenceFile file)
     {
@@ -44,19 +45,28 @@ public sealed class ReferenceImporter(StudioDbContext db)
 
         await using var transaction = await db.Database.BeginTransactionAsync();
         var counts = new Dictionary<string, (int Added, int Updated)>();
+        var now = timeProvider.GetUtcNow();
+        var touchedOccurrences = new List<Occurrence>();
+        var touchedSpots = new List<Spot>();
 
         foreach (var source in file.Occurrences ?? [])
         {
-            var occurrence = await db.Occurrences.FindAsync(source.Id);
+            var occurrence = await db.Occurrences.Include(o => o.Days).SingleOrDefaultAsync(o => o.Id == source.Id);
             Count(counts, "開催回", occurrence is null);
-            occurrence ??= db.Occurrences.Add(new Occurrence { Id = source.Id }).Entity;
+            occurrence ??= db.Occurrences.Add(new Occurrence { Id = source.Id, RowVersion = 0 }).Entity;
             occurrence.Name = source.Name.Trim();
+            touchedOccurrences.Add(occurrence);
 
             foreach (var sourceDay in source.Days ?? [])
             {
                 var day = await db.OcDays.FindAsync(sourceDay.Id);
                 Count(counts, "開催日", day is null);
-                day ??= db.OcDays.Add(new OcDay { Id = sourceDay.Id }).Entity;
+                if (day is null)
+                {
+                    day = new OcDay { Id = sourceDay.Id };
+                    occurrence.Days.Add(day);
+                }
+
                 day.OccurrenceId = source.Id;
                 day.Date = sourceDay.Date;
                 day.PublicStart = ParseTime(sourceDay.PublicStart);
@@ -81,7 +91,8 @@ public sealed class ReferenceImporter(StudioDbContext db)
             // canonical ID はファイルの文字列をそのまま使う（前後の空白もIDの一部とみなして拒否済み）。
             var spot = await db.Spots.Include(s => s.NameAliases).SingleOrDefaultAsync(s => s.CanonicalId == source.CanonicalId);
             Count(counts, "Spot", spot is null);
-            spot ??= db.Spots.Add(new Spot { CanonicalId = source.CanonicalId }).Entity;
+            spot ??= db.Spots.Add(new Spot { CanonicalId = source.CanonicalId, RowVersion = 0 }).Entity;
+            touchedSpots.Add(spot);
             spot.Name = source.Name.Trim();
             spot.BuildingName = source.Building;
             spot.FloorName = source.Floor;
@@ -93,6 +104,31 @@ public sealed class ReferenceImporter(StudioDbContext db)
             {
                 spot.NameAliases.Add(new SpotNameAlias { CanonicalId = source.CanonicalId, Alias = alias });
             }
+        }
+
+        foreach (var occurrence in touchedOccurrences)
+        {
+            MarkImported(occurrence, now);
+            db.ReferenceRevisions.Add(ReferenceSaving.NewRevision(
+                ReferenceRevisionKind.Occurrence, occurrence.Id.ToString(), OccurrenceEndpoints.ToDraft(occurrence), null, now, ReferenceRevisionSource.Import, null));
+        }
+
+        if (file.Categories is { Count: > 0 })
+        {
+            MarkImported(await db.CategoryListStates.SingleAsync(), now);
+            var categories = db.Categories.Local.Concat(await db.Categories.ToListAsync()).Distinct().OrderBy(c => c.SortOrder).ToList();
+            db.ReferenceRevisions.Add(ReferenceSaving.NewRevision(
+                ReferenceRevisionKind.Categories, ReferenceRevisionKind.Categories,
+                categories.Select(c => new CategoryDraft(c.Id, c.Name, c.Selectable)).ToList(), null, now, ReferenceRevisionSource.Import, null));
+        }
+
+        foreach (var spot in touchedSpots)
+        {
+            MarkImported(spot, now);
+            db.ReferenceRevisions.Add(ReferenceSaving.NewRevision(
+                ReferenceRevisionKind.Spot, spot.CanonicalId,
+                new SpotDraft(spot.Name, spot.NameAliases.Select(a => a.Alias).ToList(), spot.BuildingName, spot.FloorName, spot.Utilization),
+                null, now, ReferenceRevisionSource.Import, null));
         }
 
         await db.SaveChangesAsync();
@@ -170,6 +206,13 @@ public sealed class ReferenceImporter(StudioDbContext db)
         }
 
         return errors;
+    }
+
+    private static void MarkImported(IEditableReference target, DateTimeOffset now)
+    {
+        target.RowVersion++;
+        target.UpdatedAt = now;
+        target.UpdatedBy = null;
     }
 
     private static TimeOnly? ParseTime(string? value) => ParseTime(value, out _);

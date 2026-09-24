@@ -54,6 +54,9 @@ app.UseMiddleware<CsrfValidationMiddleware>();
 app.MapGet("/health", () => Results.Ok(new { status = "ok" })).AllowAnonymous();
 app.MapAuthEndpoints();
 app.MapReferenceEndpoints();
+app.MapOccurrenceEndpoints();
+app.MapCategoryEndpoints();
+app.MapSpotEndpoints();
 app.MapEventEndpoints();
 
 await app.RunAsync();

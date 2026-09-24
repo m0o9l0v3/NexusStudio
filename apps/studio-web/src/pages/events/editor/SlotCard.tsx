@@ -1,12 +1,12 @@
 import { forwardRef, useEffect, useRef, useState } from 'react'
 import type { EventSlot, Participation, SlotVenue, TimeMode } from '../../../api/events'
 import type { OccurrenceItem, SpotItem } from '../../../api/reference'
-import { formatDateLong, formatDayOption, formatHours, formatSlotHeading, moveVenue, participationLabels, timeModeLabels, type DraftIssue, type ReferenceIndex } from '../../../events/model'
+import { cancellationOf, formatDateLong, formatDayOption, formatHours, formatSlotHeading, moveVenue, participationLabels, timeModeLabels, type DraftIssue, type ReferenceIndex } from '../../../events/model'
 import { Button } from '../../../ui/Button'
 import { ChoiceGroup } from '../../../ui/ChoiceGroup'
 import { cn } from '../../../ui/cn'
 import { Dialog, DialogActions } from '../../../ui/Dialog'
-import { InputField, SelectField } from '../../../ui/Field'
+import { InputField, SelectField, TextAreaField } from '../../../ui/Field'
 import { NoticeBanner } from '../../../ui/NoticeBanner'
 import { StatusBadge } from '../../../ui/StatusBadge'
 import { VenuePickerDialog, VenueRowContent } from './VenuePickerDialog'
@@ -50,6 +50,7 @@ export const SlotCard = forwardRef<HTMLButtonElement, SlotCardProps>(function Sl
         <StatusBadge>{venueCount}</StatusBadge>
         <StatusBadge>{slot.participation ? participationLabels[slot.participation as Participation].replace('時間内は', '') : '参加案内未選択'}</StatusBadge>
         {slot.status === 'cancelled' && <StatusBadge tone="danger">中止</StatusBadge>}
+        {cancellationOf(slot, index) === 'day' && <StatusBadge tone="danger">開催日中止</StatusBadge>}
         {blocking.length > 0 ? (
           <StatusBadge tone="danger">公開阻止 {blocking.length}件</StatusBadge>
         ) : warnings.length > 0 ? (
@@ -167,6 +168,33 @@ function ExpandedSlot({ slot, index, occurrence, spots, issues, heading, venueCo
         invalid={Boolean(issueFor('participation'))}
         message={issueFor('participation')?.message}
       />
+
+      <ChoiceGroup<'normal' | 'cancelled'>
+        label="開催状況（この枠）"
+        name={`slot-status-${slot.slotId}`}
+        value={slot.status as 'normal' | 'cancelled'}
+        choices={[
+          { value: 'normal', label: '通常' },
+          { value: 'cancelled', label: 'この枠を中止' },
+        ]}
+        // 通常へ戻しても、入力した中止案内は下書きに残す（誤操作で消さない）。
+        onChange={(status) => update({ status })}
+        optionWidthClass="w-[168px]"
+      />
+      {slot.status === 'cancelled' && (
+        <TextAreaField
+          label="中止案内"
+          rows={2}
+          value={slot.cancelNote ?? ''}
+          onChange={(event) => update({ cancelNote: event.target.value || null })}
+          message={issueFor('cancel')?.message}
+        />
+      )}
+      {day?.status === 'cancelled' && (
+        <NoticeBanner tone="warning">
+          {formatDateLong(day.date)}は開催日として中止されています（Open Campus）。この日に属する枠へ親由来の中止を反映します。枠独自の中止理由は別に保持し、開催日の中止を解除しても枠独自の中止は解除しません。
+        </NoticeBanner>
+      )}
 
       <div className="flex items-center gap-3">
         <h4 className="text-[13px] leading-[21px] font-medium text-text-primary">会場 {slot.venues.length}件</h4>

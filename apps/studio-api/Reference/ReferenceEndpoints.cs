@@ -110,7 +110,7 @@ public static class ReferenceEndpoints
     private static OcDayItem ToItem(OcDay day) => new(
         day.Id, day.Date, day.PublicStart?.ToString("HH:mm"), day.PublicEnd?.ToString("HH:mm"), day.Status);
 
-    private static SpotItem ToItem(Spot spot) => new(
+    internal static SpotItem ToItem(Spot spot) => new(
         spot.CanonicalId,
         spot.Name,
         spot.NameAliases.Select(a => a.Alias).Order(StringComparer.CurrentCulture).ToList(),
