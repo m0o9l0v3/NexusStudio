@@ -8,12 +8,15 @@
 export class ApiError extends Error {
   readonly status: number
   readonly code: string | undefined
+  /** 応答本文（JSON）。409の最新内容や400の項目別エラーを読むために使う。 */
+  readonly body: unknown
 
-  constructor(status: number, code: string | undefined, title: string | undefined) {
+  constructor(status: number, code: string | undefined, title: string | undefined, body?: unknown) {
     super(title ?? `HTTP ${status}`)
     this.name = 'ApiError'
     this.status = status
     this.code = code
+    this.body = body
   }
 }
 
@@ -76,7 +79,7 @@ async function send(method: string, path: string, body?: unknown, csrf?: string)
 
   if (!response.ok) {
     const problem = await readProblem(response)
-    throw new ApiError(response.status, problem.code, problem.title)
+    throw new ApiError(response.status, problem.code, problem.title, problem)
   }
 
   return response
