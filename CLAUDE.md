@@ -17,11 +17,11 @@ Nexus Studio は、Nexus（`gitlab.com/11h27m/nexus-mobile`）の管理ポータ
 - Figmaモックアップは Phase 1（Login・Events編集・保存/競合/期限切れ・一覧状態）まで作成済み（2026-09-23確認）。Phase 2（Open Campus・カテゴリ管理・Map Data・Validation・Releases履歴・Logs・中止/取り下げ）は未作成。
 - Step 2 完了内容: `studio.event_heads`/`event_revisions`（rowVersion・operationId）、`/api/events`、参照表（開催回・開催日・カテゴリ・Spot。読み取り専用）と取り込みコマンド（`dotnet run -- reference import --file ...`）、Events一覧と1画面に統合した編集画面（2026-09-24 利用者判断）、OpenAPI文書と生成型（`apps/studio-web/openapi/`・`src/api/schema.d.ts`）。
 - Step 3 完了内容: 開催回（開催日を含む）・カテゴリ一覧・Spotの下書き編集（現在の下書き＋rowVersion と不変の `studio.reference_revisions`）。Open Campus 一覧・編集、Events内のカテゴリ管理、開催枠の中止（開催日の中止とは別に保持）、Spots の一覧・Inspector。Open Campus とカテゴリ管理の画面は Figma に無く、2026-09-24 に利用者が承認した構成案で作った。
-- Spots の地図表示と位置の変更（Figma SP02〜SP04）は、Map Data の技術検証と Spot の公開単位の判断（15 v01 修正提案8、15 v02 §9.1）の後に実装する。
+- Spots の地図表示と位置の変更（Figma SP02〜SP04）は、Map Data の技術検証の後に実装する。
+- **Step 4 着手前の判断（2026-09-24）は `docs/決定事項/28` に記録済み。** 地図の公開・復旧は Studio に完全一本化（nexus-mobile の #20・#55〜#61・#63〜#66 はクローズ済み）。Spot は名称・別名・説明・利用状態を Spot 単独で、位置・建物・階・経路の接続を地図と一緒に公開する（Spot 画面の建物・階は読み取り専用に変える）。終日枠は参照だけを公開し配信時に解決、開催回・カテゴリも Step 4 で公開対象、復旧は下書きの退避まで、Figma に無い画面は構成案の承認後に実装。
 - 参照データは取り込みコマンドでも登録できる（版を進めて Revision を残す）。開発用の設計用サンプルは `docs/samples/reference-sample.json`。
 - 画面の保存処理は `apps/studio-web/src/editing/useDraftEditor.ts`（Open Campus・カテゴリ・Spot）と Events 編集画面で共通の考え方（operationId の再利用、409で上書きしない、［最新の内容を読み込む］）。
 - Figma画面棚卸しの成果物（`docs/決定事項/22`〜`24`、Issue #1）は未作成。
-- 地図公開機構の二重開発を避ける整理案（15 v02 §9.1、A/B/C案）は利用者判断待ち。
 
 ## リポジトリ構成
 
@@ -33,7 +33,7 @@ nexusstudio/
 │   └── studio-api-tests/ # xUnit
 ├── docs/
 │   ├── schemas/           # nexus-mobileからpinしたMapDataset GeoJSON Schema（SHA-256で同一性確認）
-│   └── 決定事項/           # 意思決定記録（00〜27、日付・版が新しいものが正）
+│   └── 決定事項/           # 意思決定記録（00〜28、日付・版が新しいものが正）
 ├── docker-compose.yml     # PostgreSQL検証環境のみ
 └── NexusStudio.slnx
 ```
@@ -109,6 +109,7 @@ docker compose up -d postgres   # ホスト側は5433番ポート（nexus-mobile
 | `docs/UI補完記録.md` | Figmaに描かれていない部分をエージェントが補完した記録 |
 | `docs/決定事項/26_...canonical_ID対応表.md` | 部屋canonical IDの対応表 |
 | `docs/決定事項/27_...別セッション移行プロンプト.md` | このリポジトリとnexus-mobileの並行作業の引き継ぎ記録 |
+| `docs/決定事項/28_...Step4着手前の判断記録.md` | 地図公開のStudio一本化、Spotの公開単位、Step 4 の範囲（2026-09-24 利用者決定） |
 | `nexus-mobile/docs/decisions/E0-7-studio-scope-split.md` | nexus-mobile側からみたStudio分離の決定記録 |
 
 ## UI実装とFigmaの関係
