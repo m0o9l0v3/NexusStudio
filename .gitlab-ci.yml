@@ -23,6 +23,7 @@ studio-migration-script:
   stage: verify
   image: mcr.microsoft.com/dotnet/sdk:10.0
   script:
+    - dotnet restore NexusStudio.slnx
     - dotnet tool restore
     - export STUDIO_MIGRATION_CONNECTION='Host=localhost;Database=unused;Username=placeholder;Password=not-a-real-secret'
     - mkdir -p artifacts/studio
