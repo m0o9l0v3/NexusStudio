@@ -6,7 +6,7 @@ import { getReference } from '../../api/reference'
 import { formatDateShort, indexReference } from '../../events/model'
 import { Toolbar } from '../../shell/Toolbar'
 import { Button } from '../../ui/Button'
-import { cn } from '../../ui/cn'
+import { FilterChip } from '../../ui/FilterChip'
 import { NoticeBanner } from '../../ui/NoticeBanner'
 import { StatusBadge } from '../../ui/StatusBadge'
 
@@ -19,7 +19,18 @@ const publicationLabels: Record<string, { label: string; tone: 'neutral' | 'succ
 const updatedFormat = new Intl.DateTimeFormat('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Tokyo' })
 
 /** 一覧の要約：単一枠なら日付と時刻、複数枠なら日付の並び（07 §4.1、Figma E01）。 */
+/** 開催状況：枠独自の中止と開催日の中止を合わせた実効的な中止から算出する（07 EV-09）。 */
+function cancellationSummary(item: EventListItem): string {
+  const cancelled = item.slots.filter((slot) => slot.status === 'cancelled' || slot.dayCancelled).length
+  if (cancelled === 0) return ''
+  return cancelled === item.slots.length ? '｜全枠中止' : `｜一部中止（${cancelled}枠）`
+}
+
 function summarize(item: EventListItem): string {
+  return summarizeSchedule(item) + cancellationSummary(item)
+}
+
+function summarizeSchedule(item: EventListItem): string {
   const dated = item.slots.filter((slot) => slot.date)
   if (dated.length === 0) return item.slotCount === 0 ? '開催枠なし' : '開催日未選択'
   if (item.slots.length === 1) {
@@ -66,7 +77,12 @@ export function EventListPage() {
               <h2 className="text-[22px] leading-[30px] font-bold text-text-primary">イベント</h2>
               <p className="text-[12px] leading-5 text-text-secondary">開催枠・会場・公開状態を確認します</p>
             </div>
-            <Button onClick={() => void navigate('/events/new')}>新規イベント</Button>
+            <div className="flex gap-2">
+              <Button variant="secondary" onClick={() => void navigate('/events/categories')}>
+                カテゴリ管理
+              </Button>
+              <Button onClick={() => void navigate('/events/new')}>新規イベント</Button>
+            </div>
           </div>
 
           <div className="mt-4 flex items-center gap-2" role="search">
@@ -140,23 +156,6 @@ export function EventListPage() {
         </div>
       </main>
     </>
-  )
-}
-
-function FilterChip({ label, value, active, onChange, children }: { label: string; value: string; active?: boolean; onChange: (value: string) => void; children: React.ReactNode }) {
-  return (
-    <select
-      aria-label={label}
-      value={value}
-      onChange={(event) => onChange(event.target.value)}
-      className={cn(
-        'field-sizing-content h-[25px] max-w-[280px] cursor-pointer appearance-none truncate rounded-full px-2.5 text-[11px] leading-[19px] font-medium',
-        'focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand',
-        (active ?? Boolean(value)) ? 'bg-brand-subtle text-brand' : 'bg-surface-subtle text-text-secondary',
-      )}
-    >
-      {children}
-    </select>
   )
 }
 

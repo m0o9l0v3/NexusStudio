@@ -1,6 +1,6 @@
 import type { EventDraft } from '../../../api/events'
 import type { SpotItem } from '../../../api/reference'
-import { previewLines, type ReferenceIndex } from '../../../events/model'
+import { cancellationOf, previewLines, type ReferenceIndex } from '../../../events/model'
 import { StatusBadge } from '../../../ui/StatusBadge'
 
 /**
@@ -12,6 +12,7 @@ export function PreviewPanel({ draft, index, spots, saved }: { draft: EventDraft
   const lines = previewLines(draft, index, spots)
   const empty = !draft.title?.trim() && !draft.description?.trim() && draft.slots.every((slot) => !slot.ocDayId && slot.venues.length === 0)
   const allVenuesShown = draft.slots.every((slot) => slot.venues.length > 0)
+  const hasCancelled = draft.slots.some((slot) => cancellationOf(slot, index) !== null)
 
   return (
     <aside aria-label="iOS Preview" className="flex w-[400px] shrink-0 flex-col gap-3 overflow-auto border-l border-border bg-surface p-[18px]">
@@ -35,7 +36,11 @@ export function PreviewPanel({ draft, index, spots, saved }: { draft: EventDraft
                   <p className="pl-1 text-[11px] leading-[19px] text-text-secondary">{line.detail}</p>
                 </div>
               ))}
-              {lines.length > 0 && allVenuesShown && <p className="text-[10px] leading-[18px] text-success">すべての会場を表示しています</p>}
+              {hasCancelled ? (
+                <p className="text-[10px] leading-[18px] text-danger">中止枠の案内を確認してください</p>
+              ) : (
+                lines.length > 0 && allVenuesShown && <p className="text-[10px] leading-[18px] text-success">すべての会場を表示しています</p>
+              )}
             </>
           )}
         </div>

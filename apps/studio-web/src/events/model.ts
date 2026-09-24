@@ -113,7 +113,7 @@ export type DraftIssue = {
   level: IssueLevel
   /** 対象の枠。共通情報の問題ではnull。 */
   slotId: string | null
-  field: 'title' | 'occurrence' | 'category' | 'slots' | 'day' | 'timeMode' | 'time' | 'participation' | 'venues' | 'venue'
+  field: 'title' | 'occurrence' | 'category' | 'slots' | 'day' | 'timeMode' | 'time' | 'participation' | 'venues' | 'venue' | 'cancel'
   canonicalSpotId?: string
   message: string
 }
@@ -180,6 +180,10 @@ export function findDraftIssues(
       push({ level: 'blocking', slotId: slot.slotId, field: 'participation', message: `参加案内が未選択です。${SAVE_OK}` })
     }
 
+    if (slot.status === 'cancelled' && !slot.cancelNote?.trim()) {
+      push({ level: 'warning', slotId: slot.slotId, field: 'cancel', message: '中止案内がありません。来場者向けの案内文を確認してください。' })
+    }
+
     if (slot.venues.length === 0) {
       push({ level: 'blocking', slotId: slot.slotId, field: 'venues', message: `公開には会場が必要です。${SAVE_OK}` })
     }
@@ -203,12 +207,25 @@ export function findDraftIssues(
 
 export type PreviewLine = { heading: string; detail: string }
 
+/** 枠独自の中止か、所属する開催日の中止（親由来）か。どちらでもなければnull（07 §5）。 */
+export function cancellationOf(slot: EventSlot, index: ReferenceIndex): 'slot' | 'day' | null {
+  if (slot.status === 'cancelled') return 'slot'
+  const day = slot.ocDayId ? index.days.get(slot.ocDayId) : undefined
+  return day?.status === 'cancelled' ? 'day' : null
+}
+
 export function previewLines(draft: EventDraft, index: ReferenceIndex, spots: Map<string, SpotItem>): PreviewLine[] {
   return sortSlotsForDisplay(draft.slots, index).map((slot) => {
     const day = slot.ocDayId ? index.days.get(slot.ocDayId) : undefined
     const date = day ? formatDateShort(day.date) : '日付未選択'
     const participation = slot.participation === 'atStart' ? '開始時刻に参加' : slot.participation === 'anytime' ? '随時参加可' : '参加案内未選択'
     const venueNames = slot.venues.map((venue) => spots.get(venue.canonicalSpotId)?.name ?? venue.canonicalSpotId)
+    const cancelled = cancellationOf(slot, index)
+    if (cancelled) {
+      const note = cancelled === 'slot' ? slot.cancelNote?.trim() : day?.status === 'cancelled' ? '開催日の中止' : ''
+      const time = slot.timeMode === 'allDay' ? '終日' : slot.timeMode === 'fixed' ? `${slot.fixed?.start ?? '--:--'}–${slot.fixed?.end ?? '--:--'}` : '時間未選択'
+      return { heading: `${date} ${time}`, detail: `中止・${venueNames.length}会場${note ? `（${note}）` : ''}` }
+    }
 
     if (slot.timeMode === 'allDay') {
       const hours = day ? formatHours(day) : null
