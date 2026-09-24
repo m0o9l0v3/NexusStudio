@@ -10,7 +10,7 @@ Nexus Studio は、Nexus（`gitlab.com/11h27m/nexus-mobile`）の管理ポータ
 
 ## 現在の実装状態（重要）
 
-**Step 0〜3 完了（Step 3 の Spots は一覧・Inspectorの属性編集まで）。Step 4 は3つのMRに分けて進行中で、1つ目（公開の基盤と公開の流れ）を実装した。Releases・Logs の画面と復旧、Validation の画面は未着手。**
+**Step 0〜3 完了（Step 3 の Spots は一覧・Inspectorの属性編集まで）。Step 4 は3つのMRに分けて進行中で、1つ目（公開の基盤と公開の流れ）と2つ目（Releases・Logs の画面と復旧）を実装した。Validation の画面は未着手。**
 
 - Step 0 完了内容: `studio-api`/`studio-web` のソリューション骨格、`studio` schema の EF Core マイグレーション、MapDataset validator の移植（テスト全件成功）。
 - Step 1 完了内容: Identity＋Cookie認証（`/api/auth/*`、CSRF検証、未認証は既定で拒否）、運用者用の管理者コマンド（`dotnet run -- admin ...`）、ログイン画面（L01〜L04・L06）、App Shell（Sidebar・Toolbar・管理者メニュー・再ログインダイアログL05）。各領域の本文は準備中表示。
@@ -20,6 +20,7 @@ Nexus Studio は、Nexus（`gitlab.com/11h27m/nexus-mobile`）の管理ポータ
 - Spots の地図表示と位置の変更（Figma SP02〜SP04）は、Map Data の技術検証の後に実装する。
 - **Step 4 着手前の判断（2026-09-24）は `docs/決定事項/28` に記録済み。** 地図の公開・復旧は Studio に完全一本化（nexus-mobile の #20・#55〜#61・#63〜#66 はクローズ済み）。Spot は名称・別名・説明・利用状態を Spot 単独で、位置・建物・階・経路の接続を地図と一緒に公開する（Spot 画面の建物・階は読み取り専用に変える）。終日枠は参照だけを公開し配信時に解決、開催回・カテゴリも Step 4 で公開対象、復旧は下書きの退避まで、Figma に無い画面は構成案の承認後に実装。
 - Step 4-1 実装内容: `studio.releases`／`release_entries`（不変）・`publications`（現在の公開版）・`validation_runs`・`operation_logs`。`/api/releases/preview`（公開候補の組み立てと検証）、`/api/releases`（公開・取り下げ。operationId・confirmedValidationId）、`/api/operations/{operationId}`（結果の照会）。公開状態は Publication と現在の版から算出する（`Publishing/PublicationIndex.cs`）。公開確認（R01）と公開結果（R02〜R05）はイベント・開催回・カテゴリ一覧・Spotで共通（`src/publishing/`）。保存・公開・取り込み・ログインを操作ログに記録する。追加の判断は `docs/決定事項/28` v02。
+- Step 4-2 実装内容: 過去に公開した版からの復旧（`action: restore`。未公開の下書きは退避し `release_entries.stashed_revision_id` に残す。下書きへ戻す操作と保持期間は未実装）。`/api/releases`（一覧）・`/api/releases/{id}`（当時の参照データを含む差分）・`/api/logs`。Releases・Logs の画面（一覧＋詳細）。
 - 参照データは取り込みコマンドでも登録できる（版を進めて Revision を残す）。開発用の設計用サンプルは `docs/samples/reference-sample.json`。
 - 画面の保存処理は `apps/studio-web/src/editing/useDraftEditor.ts`（Open Campus・カテゴリ・Spot）と Events 編集画面で共通の考え方（operationId の再利用、409で上書きしない、［最新の内容を読み込む］）。
 - Figma画面棚卸しの成果物（`docs/決定事項/22`〜`24`、Issue #1）は未作成。
