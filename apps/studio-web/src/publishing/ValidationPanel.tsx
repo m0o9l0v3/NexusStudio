@@ -2,7 +2,7 @@ import { Link } from 'react-router'
 import type { PublishAction, PublishPreview, TargetKind, ValidationFinding } from '../api/releases'
 import { Button } from '../ui/Button'
 import { StatusBadge } from '../ui/StatusBadge'
-import { editorPath, kindNouns } from './publication'
+import { describePath, editorPath, kindNouns } from './publication'
 
 type Props = {
   preview: PublishPreview | undefined
@@ -134,15 +134,4 @@ function FindingRow({ finding }: { finding: ValidationFinding }) {
       )}
     </li>
   )
-}
-
-/** slots[1].venues[0] → 開催枠2・会場1 */
-function describePath(path: string): string {
-  const slot = /slots\[(\d+)\]/.exec(path)
-  const venue = /venues\[(\d+)\]/.exec(path)
-  const day = /days\[(\d+)\]/.exec(path)
-  if (slot) return `開催枠${Number(slot[1]) + 1}${venue ? `・会場${Number(venue[1]) + 1}` : ''}`
-  if (day) return `開催日${Number(day[1]) + 1}`
-  const labels: Record<string, string> = { title: 'タイトル', description: '説明', categoryId: 'カテゴリ', occurrenceId: '開催回', name: '名称', utilization: '利用状態', items: 'カテゴリ', days: '開催日' }
-  return labels[path] ?? path
 }

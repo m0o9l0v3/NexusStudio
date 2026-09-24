@@ -516,4 +516,75 @@ public sealed class PublishingTests : IAsyncLifetime
         var id = publish["id"]!.GetValue<string>();
         Assert.Equal(id, (await GetJsonAsync($"/api/logs/{id}"))["id"]!.GetValue<string>());
     }
+
+    // ---- 全下書き診断（Step 4-3） ----
+
+    private async Task<JsonNode> DiagnoseAsync(HttpClient? client = null)
+    {
+        var (response, body) = await SendAsync(HttpMethod.Post, "/api/validation/draft", new JsonObject(), client);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        return body!;
+    }
+
+    private static JsonNode Area(JsonNode diagnosis, string kind)
+        => diagnosis["areas"]!.AsArray().Single(a => a!["targetKind"]!.GetValue<string>() == kind)!;
+
+    [Fact]
+    public async Task Diagnosis_ChecksUnpublishedDrafts_AndSkipsTargetsThatMatchThePublishedVersion()
+    {
+        Assert.Equal(HttpStatusCode.NoContent, (await _client.GetAsync("/api/validation/draft/latest")).StatusCode);
+        await PublishReferencesAsync();
+        var (id, _) = await CreateEventAsync(title: null);
+
+        var diagnosis = await DiagnoseAsync();
+        Assert.Equal("ok", diagnosis["status"]!.GetValue<string>());
+        Assert.False(diagnosis["stale"]!.GetValue<bool>());
+        Assert.Equal(1, Area(diagnosis, "event")["targetCount"]!.GetValue<int>());
+        // 公開済みで変更の無い開催回（9/20・9/21）とカテゴリ一覧は診断しない。未公開の秋の開催回は診断する。
+        Assert.Equal(1, Area(diagnosis, "occurrence")["targetCount"]!.GetValue<int>());
+        Assert.Equal(0, Area(diagnosis, "categories")["targetCount"]!.GetValue<int>());
+        // 取り込みで公開済みのSpotは対象外、未公開の mb_f2_cr_2b だけが対象。
+        Assert.Equal(1, Area(diagnosis, "spot")["targetCount"]!.GetValue<int>());
+        var finding = diagnosis["findings"]!.AsArray().Single(f => f!["code"]!.GetValue<string>() == "title_required")!;
+        Assert.Equal(id, finding["targetId"]!.GetValue<string>());
+
+        var latest = await GetJsonAsync("/api/validation/draft/latest");
+        Assert.Equal(diagnosis["id"]!.GetValue<string>(), latest["id"]!.GetValue<string>());
+    }
+
+    [Fact]
+    public async Task Diagnosis_IsMarkedStaleAfterADraftChanges()
+    {
+        var (id, _) = await CreateEventAsync();
+        await DiagnoseAsync();
+        await SaveEventAsync(id, draft => draft["title"] = "診断の後に変更");
+        Assert.True((await GetJsonAsync("/api/validation/draft/latest"))["stale"]!.GetValue<bool>());
+    }
+
+    [Fact]
+    public async Task Diagnosis_CannotBeUsedToConfirmAPublish()
+    {
+        await PublishReferencesAsync();
+        var (id, revision) = await CreateEventAsync();
+        var diagnosis = await DiagnoseAsync();
+        var (response, _) = await SendAsync(HttpMethod.Post, "/api/releases", new JsonObject
+        {
+            ["operationId"] = Guid.NewGuid().ToString(),
+            ["entries"] = new JsonArray(Entry("event", id, revisionId: revision)),
+            ["confirmedValidationId"] = diagnosis["id"]!.DeepClone(),
+            ["message"] = null,
+        });
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal("unpublished", (await GetJsonAsync($"/api/events/{id}"))["publication"]!["state"]!.GetValue<string>());
+    }
+
+    [Fact]
+    public async Task Diagnosis_ValidatorFailure_IsNotReportedAsNoProblems()
+    {
+        await CreateEventAsync(title: null);
+        await using var failing = _factory.WithWebHostBuilder(builder => builder.ConfigureTestServices(services => services.AddScoped<CandidateValidator, FailingValidator>()));
+        var diagnosis = await DiagnoseAsync(await LoginAsync(failing));
+        Assert.Equal("failed", diagnosis["status"]!.GetValue<string>());
+        Assert.Empty(diagnosis["findings"]!.AsArray());
+    }
 }

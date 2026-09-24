@@ -86,9 +86,11 @@ public static class PublicationRowState
 public sealed class ValidationRun
 {
     public Guid Id { get; set; }
+    /// <summary>candidate（公開候補の検証）／draft（全下書き診断）。公開の確認に使えるのは candidate だけ。</summary>
+    public string Kind { get; set; } = ValidationRunKind.Candidate;
     public DateTimeOffset CreatedAt { get; set; }
     public Guid CreatedBy { get; set; }
-    /// <summary>候補（対象・版・操作）のJSON。</summary>
+    /// <summary>候補（対象・版・操作）のJSON。全下書き診断では診断した対象。</summary>
     public string Entries { get; set; } = string.Empty;
     /// <summary>候補と、検証に使った公開データの版から作る値。一致しなければ再確認を求める。</summary>
     public string Fingerprint { get; set; } = string.Empty;
@@ -96,6 +98,13 @@ public sealed class ValidationRun
     public string Status { get; set; } = ValidationRunStatus.Ok;
     /// <summary>所見のJSON。</summary>
     public string Findings { get; set; } = string.Empty;
+}
+
+public static class ValidationRunKind
+{
+    public const string Candidate = "candidate";
+    /// <summary>全下書き診断（11 VA-01・VA-02）。ここでのエラーは無関係な公開を止めない（RA-01）。</summary>
+    public const string Draft = "draft";
 }
 
 public static class ValidationRunStatus

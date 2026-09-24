@@ -63,6 +63,7 @@ app.MapSpotEndpoints();
 app.MapEventEndpoints();
 app.MapReleaseEndpoints();
 app.MapLogEndpoints();
+app.MapDraftDiagnosisEndpoints();
 
 await app.RunAsync();
 return 0;
