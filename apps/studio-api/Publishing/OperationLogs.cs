@@ -13,6 +13,7 @@ public static class OperationLogs
             Id = Guid.CreateVersion7(),
             OperationId = operationId,
             StartedAt = now,
+            StartedAtMs = now.ToUnixTimeMilliseconds(),
             FinishedAt = now,
             ActorId = adminId,
             Action = OperationAction.Save,
@@ -28,6 +29,7 @@ public static class OperationLogs
         {
             Id = Guid.CreateVersion7(),
             StartedAt = now,
+            StartedAtMs = now.ToUnixTimeMilliseconds(),
             FinishedAt = now,
             ActorId = actorId,
             Action = action,

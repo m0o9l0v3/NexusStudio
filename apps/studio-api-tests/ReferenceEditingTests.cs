@@ -80,6 +80,18 @@ public sealed class ReferenceEditingTests : IAsyncLifetime
     // ---- 開催回・開催日 ----
 
     [Fact]
+    public async Task Occurrence_AddingADayToAnExistingOccurrence_Saves()
+    {
+        // 既存の開催回へ開催日を足す保存が、競合として拒否されていた不具合の再発防止。
+        var detail = await GetJsonAsync($"/api/occurrences/{SampleOccurrence}");
+        var draft = detail["draft"]!.DeepClone();
+        draft["days"]!.AsArray().Add(new JsonObject { ["id"] = Guid.NewGuid().ToString(), ["date"] = "2026-09-22", ["publicStart"] = null, ["publicEnd"] = null, ["status"] = "normal", ["cancelNote"] = null });
+        var (response, body) = await SendAsync(HttpMethod.Put, $"/api/occurrences/{SampleOccurrence}", Save(detail["rowVersion"]!.GetValue<long>(), draft));
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(3, body!["draft"]!["days"]!.AsArray().Count);
+    }
+
+    [Fact]
     public async Task Occurrence_CreateAndUpdate_RoundTripsDaysAndAdvancesTheVersion()
     {
         var dayId = Guid.NewGuid().ToString();

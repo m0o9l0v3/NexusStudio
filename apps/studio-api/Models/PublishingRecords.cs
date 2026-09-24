@@ -40,12 +40,18 @@ public sealed class ReleaseEntry
     public Guid? PreviousRevisionId { get; set; }
     /// <summary>画面に出す対象名（公開時点の名称）。</summary>
     public string Label { get; set; } = string.Empty;
+    /// <summary>復旧で戻した過去の版（復旧のときだけ）。<see cref="RevisionId"/> はその内容を写した新しい版。</summary>
+    public Guid? RestoredFromRevisionId { get; set; }
+    /// <summary>復旧の直前にあった未公開の下書きの版（退避。28 S4-5）。下書きに未公開の変更が無ければnull。</summary>
+    public Guid? StashedRevisionId { get; set; }
 }
 
 public static class ReleaseAction
 {
     public const string Publish = "publish";
     public const string Withdraw = "withdraw";
+    /// <summary>過去の版を新しい公開として反映する（11 RL-10〜RL-12）。</summary>
+    public const string Restore = "restore";
 }
 
 public static class PublishTargetKind
@@ -108,6 +114,8 @@ public sealed class OperationLog
     /// <summary>画面からの操作のID（保存・公開）。公開では結果の照会に使う（17 §4）。</summary>
     public Guid? OperationId { get; set; }
     public DateTimeOffset StartedAt { get; set; }
+    /// <summary>StartedAt のUNIX時刻（ミリ秒）。並べ替えと日付の絞り込みに使う（DateTimeOffset の比較を翻訳できないDBでも動くように）。</summary>
+    public long StartedAtMs { get; set; }
     public DateTimeOffset? FinishedAt { get; set; }
     public Guid? ActorId { get; set; }
     public string Action { get; set; } = string.Empty;

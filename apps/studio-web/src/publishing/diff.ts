@@ -15,8 +15,11 @@ type Names = { occurrences: Map<string, string> }
 
 const none = 'なし'
 
-/** 公開確認の左側に出す差分。取り下げでは「公開を終了する」ことだけを示す。 */
-export function diffRows(item: PreviewItem, published: PreviewReferences, candidate: PreviewReferences, names: Names): DiffRow[] {
+/** 差分の元になる2つの内容（公開確認の対象、または履歴の1件）。 */
+export type DiffSource = Pick<PreviewItem, 'action' | 'targetKind' | 'event' | 'occurrence' | 'categories' | 'spot'>
+
+/** 公開確認・履歴に出す差分。取り下げでは「公開を終了する」ことだけを示す。 */
+export function diffRows(item: DiffSource, published: PreviewReferences, candidate: PreviewReferences, names: Names): DiffRow[] {
   if (item.action === 'withdraw') {
     return [{ kind: '取り下げ', label: '公開', published: '公開中', candidate: '公開を終了（下書きと履歴は残ります）' }]
   }

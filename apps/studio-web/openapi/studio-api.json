@@ -870,6 +870,54 @@
             }
           }
         }
+      },
+      "get": {
+        "tags": [
+          "Releases"
+        ],
+        "parameters": [
+          {
+            "name": "targetKind",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "targetId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "action",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReleasePage"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/releases/{id}": {
@@ -894,7 +942,106 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ReleaseSummary"
+                  "$ref": "#/components/schemas/ReleaseDetail"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      }
+    },
+    "/api/logs": {
+      "get": {
+        "tags": [
+          "Logs"
+        ],
+        "parameters": [
+          {
+            "name": "action",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "actorId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "targetKind",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "date",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LogPage"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/logs/{id}": {
+      "get": {
+        "tags": [
+          "Logs"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LogItem"
                 }
               }
             }
@@ -1534,6 +1681,139 @@
           }
         }
       },
+      "LogItem": {
+        "required": [
+          "id",
+          "operationId",
+          "startedAt",
+          "finishedAt",
+          "actor",
+          "action",
+          "targetKind",
+          "targetId",
+          "targetLabel",
+          "status",
+          "releaseId",
+          "releaseSequence",
+          "revisionId",
+          "detail"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "operationId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "startedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "finishedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "actor": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/EditorRef"
+              }
+            ]
+          },
+          "action": {
+            "type": "string"
+          },
+          "targetKind": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "targetId": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "targetLabel": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "status": {
+            "type": "string"
+          },
+          "releaseId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "releaseSequence": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int64"
+          },
+          "revisionId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "detail": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "LogPage": {
+        "required": [
+          "items",
+          "nextOffset",
+          "actors"
+        ],
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LogItem"
+            }
+          },
+          "nextOffset": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "actors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EditorRef"
+            }
+          }
+        }
+      },
       "OccurrenceDetail": {
         "required": [
           "id",
@@ -1843,6 +2123,57 @@
           }
         }
       },
+      "PayloadSides": {
+        "required": [
+          "event",
+          "occurrence",
+          "categories",
+          "spot"
+        ],
+        "type": "object",
+        "properties": {
+          "event": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/EventSides"
+              }
+            ]
+          },
+          "occurrence": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/OccurrenceSides"
+              }
+            ]
+          },
+          "categories": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/CategorySides"
+              }
+            ]
+          },
+          "spot": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/SpotSides"
+              }
+            ]
+          }
+        }
+      },
       "PreviewDay": {
         "required": [
           "id",
@@ -1894,6 +2225,7 @@
           "action",
           "revisionId",
           "publication",
+          "currentRevisionId",
           "event",
           "occurrence",
           "categories",
@@ -1922,6 +2254,13 @@
           },
           "publication": {
             "$ref": "#/components/schemas/PublicationSummary"
+          },
+          "currentRevisionId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
           },
           "event": {
             "oneOf": [
@@ -2312,6 +2651,70 @@
           }
         }
       },
+      "ReleaseDetail": {
+        "required": [
+          "release",
+          "entries",
+          "published",
+          "candidate"
+        ],
+        "type": "object",
+        "properties": {
+          "release": {
+            "$ref": "#/components/schemas/ReleaseSummary"
+          },
+          "entries": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReleaseEntryDetail"
+            }
+          },
+          "published": {
+            "$ref": "#/components/schemas/PreviewReferences"
+          },
+          "candidate": {
+            "$ref": "#/components/schemas/PreviewReferences"
+          }
+        }
+      },
+      "ReleaseEntryDetail": {
+        "required": [
+          "entry",
+          "changes",
+          "stash",
+          "isCurrent",
+          "canRestore",
+          "currentPublication"
+        ],
+        "type": "object",
+        "properties": {
+          "entry": {
+            "$ref": "#/components/schemas/ReleaseEntrySummary"
+          },
+          "changes": {
+            "$ref": "#/components/schemas/PayloadSides"
+          },
+          "stash": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PayloadSides"
+              }
+            ]
+          },
+          "isCurrent": {
+            "type": "boolean"
+          },
+          "canRestore": {
+            "type": "boolean"
+          },
+          "currentPublication": {
+            "$ref": "#/components/schemas/PublicationSummary"
+          }
+        }
+      },
       "ReleaseEntrySummary": {
         "required": [
           "targetKind",
@@ -2319,7 +2722,9 @@
           "action",
           "revisionId",
           "previousRevisionId",
-          "label"
+          "label",
+          "restoredFromRevisionId",
+          "stashedRevisionId"
         ],
         "type": "object",
         "properties": {
@@ -2345,6 +2750,42 @@
           },
           "label": {
             "type": "string"
+          },
+          "restoredFromRevisionId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "stashedRevisionId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          }
+        }
+      },
+      "ReleasePage": {
+        "required": [
+          "items",
+          "nextBefore"
+        ],
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReleaseSummary"
+            }
+          },
+          "nextBefore": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int64"
           }
         }
       },
@@ -2963,6 +3404,9 @@
     },
     {
       "name": "Events"
+    },
+    {
+      "name": "Logs"
     }
   ]
 }

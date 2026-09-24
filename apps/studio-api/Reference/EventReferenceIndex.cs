@@ -49,6 +49,9 @@ public sealed class EventReferenceIndex
             .Where(slot => slot.Venues.Any(venue => string.Equals(venue.CanonicalSpotId, canonicalId, StringComparison.Ordinal)))
             .Select(slot => ToReference(entry.EventId, entry.Draft, slot)));
 
+    /// <summary>下書きのいずれかの枠が参照している開催日。</summary>
+    public HashSet<Guid> ReferencedDayIds() => AllSlots().Select(slot => slot.OcDayId).OfType<Guid>().ToHashSet();
+
     public int EventsInOccurrence(Guid occurrenceId) => _drafts.Count(entry => entry.Draft.OccurrenceId == occurrenceId);
 
     public int EventsInCategory(Guid categoryId) => _drafts.Count(entry => entry.Draft.CategoryId == categoryId);

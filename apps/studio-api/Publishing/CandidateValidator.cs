@@ -50,7 +50,7 @@ public class CandidateValidator(TimeProvider timeProvider)
                 continue;
             }
 
-            if (!PublishTargetKind.All.Contains(entry.TargetKind) || entry.Action is not (ReleaseAction.Publish or ReleaseAction.Withdraw))
+            if (!PublishTargetKind.All.Contains(entry.TargetKind) || entry.Action is not (ReleaseAction.Publish or ReleaseAction.Withdraw or ReleaseAction.Restore))
             {
                 add(FindingSeverity.Blocking, "invalid_entry", "公開できない対象か操作です。", null);
                 continue;
@@ -69,14 +69,20 @@ public class CandidateValidator(TimeProvider timeProvider)
                 continue;
             }
 
-            if (entry.RevisionId is null || entry.RevisionId != item.CurrentRevisionId || item.CandidatePayload is null)
+            if (entry.Action == ReleaseAction.Restore)
+            {
+                if (!ValidateRestore(candidate, item, add))
+                {
+                    continue;
+                }
+            }
+            else if (entry.RevisionId is null || entry.RevisionId != item.CurrentRevisionId || item.CandidatePayload is null)
             {
                 // 確認した版と現在の下書きが違う（別の画面で保存された）。古い確認結果で公開しない（07 E06）。
                 add(FindingSeverity.Blocking, "stale_revision", "確認した後に下書きが保存されました。最新の保存内容で確認し直してください。", null);
                 continue;
             }
-
-            if (state == PublicationState.Published)
+            else if (state == PublicationState.Published)
             {
                 add(FindingSeverity.Blocking, "no_changes", "公開中の内容と同じです。公開する変更がありません。", null);
                 continue;
@@ -86,6 +92,11 @@ public class CandidateValidator(TimeProvider timeProvider)
             {
                 case EventDraft draft:
                     ValidateEvent(candidate, Guid.Parse(entry.TargetId), draft, today, add);
+                    if (entry.Action == ReleaseAction.Restore && item.Original is not null)
+                    {
+                        CompareAllDayTimes(candidate, item.Original, draft, add);
+                    }
+
                     break;
                 case OccurrenceDraft draft:
                     ValidateOccurrence(candidate, Guid.Parse(entry.TargetId), draft, add, findings);
@@ -101,6 +112,103 @@ public class CandidateValidator(TimeProvider timeProvider)
 
         return findings;
     }
+
+    /// <summary>
+    /// 過去の版からの復旧（11 §6・§7）。戻す版が過去に公開されていたこと、現在の公開と違うことを確かめる。
+    /// 内容の検証は通常の公開と同じく、現在の関連データと組み合わせて行う。
+    /// </summary>
+    /// <returns>内容の検証へ進めるか。</returns>
+    private static bool ValidateRestore(PublishCandidate candidate, CandidateItem item, Add add)
+    {
+        if (item.CandidatePayload is null)
+        {
+            add(FindingSeverity.Blocking, "restore_revision_not_found", "戻す版が見つかりません。", null);
+            return false;
+        }
+
+        if (!item.WasPublished)
+        {
+            add(FindingSeverity.Blocking, "restore_revision_not_published", "戻せるのは過去に公開した版だけです。", null);
+            return false;
+        }
+
+        if (PublicationState.IsLive(PublicationState.Of(item.Publication, item.CurrentRevisionId))
+            && SamePayload(PublishedPayload(candidate.Before, item.Entry), item.CandidatePayload))
+        {
+            add(FindingSeverity.Blocking, "no_changes", "公開中の内容と同じです。戻す変更がありません。", null);
+            return false;
+        }
+
+        if (item.CurrentRevisionId != item.Publication?.RevisionId)
+        {
+            add(FindingSeverity.Info, "restore_stashes_draft", "未公開の下書きがあります。復旧の前に退避し、Releases の履歴から内容を確認できます。", null);
+        }
+
+        switch (item.CandidatePayload)
+        {
+            case List<CategoryDraft> items:
+                var missing = candidate.CurrentCategoryIds.Count(id => items.All(c => c.Id != id));
+                if (missing > 0)
+                {
+                    add(FindingSeverity.Blocking, "restore_category_missing", $"戻す版には、現在のカテゴリのうち{missing}件がありません。カテゴリは削除できないため、この版には戻せません。", "items");
+                }
+
+                break;
+            case OccurrenceDraft draft when candidate.CurrentOccurrenceDays.TryGetValue(Guid.Parse(item.Entry.TargetId), out var days):
+                foreach (var (dayId, date) in days.Where(d => candidate.DraftDayReferences.Contains(d.Key)))
+                {
+                    var restored = draft.Days.FirstOrDefault(d => d.Id == dayId);
+                    if (restored is null)
+                    {
+                        add(FindingSeverity.Blocking, "restore_day_in_use", $"{date:M月d日}はイベントの下書きが参照しているため、この開催日が無い版には戻せません。", "days");
+                    }
+                    else if (restored.Date != date)
+                    {
+                        add(FindingSeverity.Blocking, "restore_day_in_use", $"{date:M月d日}はイベントの下書きが参照しているため、日付が違う版（{restored.Date:M月d日}）には戻せません。", "days");
+                    }
+                }
+
+                break;
+        }
+
+        return true;
+    }
+
+    /// <summary>終日枠の時刻が、戻す版を公開していた当時と現在の開催時間で違えば示す（11 §7、RA-10）。</summary>
+    private static void CompareAllDayTimes(PublishCandidate candidate, PublishedSet original, EventDraft draft, Add add)
+    {
+        for (var i = 0; i < draft.Slots.Count; i++)
+        {
+            var slot = draft.Slots[i];
+            if (slot.TimeMode != "allDay" || slot.OcDayId is not { } dayId)
+            {
+                continue;
+            }
+
+            var then = original.FindDay(dayId)?.Day;
+            var now = candidate.After.FindDay(dayId)?.Day;
+            if (then is null || now is null || (then.PublicStart == now.PublicStart && then.PublicEnd == now.PublicEnd))
+            {
+                continue;
+            }
+
+            add(FindingSeverity.Warning, "restore_all_day_time_differs",
+                $"{now.Date:M月d日}の終日枠は、当時 {Hours(then)} でしたが、現在の開催時間 {Hours(now)} で公開されます。", $"slots[{i}]");
+        }
+    }
+
+    private static object? PublishedPayload(PublishedSet set, PublishEntry entry) => entry.TargetKind switch
+    {
+        PublishTargetKind.Event => Guid.TryParse(entry.TargetId, out var id) && set.Events.TryGetValue(id, out var e) ? e.Draft : null,
+        PublishTargetKind.Occurrence => Guid.TryParse(entry.TargetId, out var id) && set.Occurrences.TryGetValue(id, out var o) ? o.Draft : null,
+        PublishTargetKind.Categories => set.Categories?.Items,
+        PublishTargetKind.Spot => set.Spots.TryGetValue(entry.TargetId, out var s) ? s.Draft : null,
+        _ => null,
+    };
+
+    private static bool SamePayload(object? a, object? b)
+        => a is not null && b is not null
+           && System.Text.Json.JsonSerializer.Serialize(a, a.GetType(), EventDraftRules.JsonOptions) == System.Text.Json.JsonSerializer.Serialize(b, b.GetType(), EventDraftRules.JsonOptions);
 
     private delegate void Add(string severity, string code, string message, string? path);
 

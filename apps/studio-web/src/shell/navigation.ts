@@ -14,7 +14,7 @@ export const navAreas: NavArea[] = [
   { path: '/spots', label: 'Spots', subtitle: '地点・会場の公開版と下書きを管理', plannedStep: 'Step 3以降' },
   { path: '/open-campus', label: 'Open Campus', plannedStep: 'Step 3以降' },
   { path: '/map-data', label: 'Map Data', plannedStep: 'Step 3以降' },
-  { path: '/validation', label: 'Validation', plannedStep: 'Step 3以降' },
-  { path: '/releases', label: 'Releases', plannedStep: 'Step 3以降' },
-  { path: '/logs', label: 'Logs', plannedStep: 'Step 3以降' },
+  { path: '/validation', label: 'Validation', plannedStep: 'Step 4' },
+  { path: '/releases', label: 'Releases', subtitle: '公開・取り下げ・復旧の履歴', plannedStep: 'Step 4' },
+  { path: '/logs', label: 'Logs', subtitle: '保存・公開・ログインの記録', plannedStep: 'Step 4' },
 ]

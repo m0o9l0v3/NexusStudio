@@ -15,7 +15,8 @@ import { NoticeBanner } from '../ui/NoticeBanner'
 import { StatusBadge } from '../ui/StatusBadge'
 import { cn } from '../ui/cn'
 import { diffRows } from './diff'
-import { actionLabel, editorPath, kindNouns, publicationBadge } from './publication'
+import { DiffList } from './DiffList'
+import { actionLabel, actionVerbs, editorPath, kindNouns, publicationBadge } from './publication'
 import { ValidationPanel } from './ValidationPanel'
 
 type Target = { kind: TargetKind; id: string; action: PublishAction; revisionId: string | null; label: string }
@@ -30,7 +31,10 @@ export function PublishReviewPage({ kind }: { kind: TargetKind }) {
   const params = useParams()
   const [search] = useSearchParams()
   const id = kind === 'categories' ? 'categories' : kind === 'spot' ? (search.get('id') ?? '') : (params.id ?? '')
-  const action: PublishAction = search.get('action') === 'withdraw' ? 'withdraw' : 'publish'
+  const requested = search.get('action')
+  const action: PublishAction = requested === 'withdraw' || requested === 'restore' ? requested : 'publish'
+  // 復旧では戻す過去の版。公開では画面を開いた時点の現在の版。
+  const restoreRevision = action === 'restore' ? search.get('revision') : null
 
   // 公開するのは保存済みの現在の版。確認画面を開いた時点の版に固定する（11 §5）。
   const target = useQuery({
@@ -62,7 +66,26 @@ export function PublishReviewPage({ kind }: { kind: TargetKind }) {
     retry: false,
   })
 
-  if (target.data) return <PublishFlow key={`${kind}:${id}:${action}`} target={{ ...target.data, action }} />
+  if (action === 'restore' && !restoreRevision) {
+    return (
+      <>
+        <Toolbar title={`${areaLabels[kind]} / 復旧確認`} />
+        <main className="min-h-0 flex-1 overflow-auto px-6 pt-[22px] pb-10">
+          <NoticeBanner tone="blocking" className="w-[784px] max-w-full">
+            戻す版が指定されていません。Releases の履歴から［この版に戻す］を選び直してください。
+          </NoticeBanner>
+        </main>
+      </>
+    )
+  }
+
+  if (target.data)
+    return (
+      <PublishFlow
+        key={`${kind}:${id}:${action}:${restoreRevision ?? ''}`}
+        target={{ ...target.data, action, revisionId: restoreRevision ?? target.data.revisionId }}
+      />
+    )
 
   return (
     <>
@@ -108,7 +131,7 @@ function PublishFlow({ target }: { target: Target }) {
   })
   const reference = useQuery({ queryKey: ['reference'], queryFn: getReference })
   const back = editorPath(target.kind, target.id)
-  const verb = target.action === 'withdraw' ? '取り下げ' : '公開'
+  const verb = actionVerbs[target.action]
 
   function settle(result: OperationResult) {
     // 公開状態は各画面で算出して表示している。成功・失敗にかかわらず取り直す。
@@ -185,15 +208,18 @@ function PublishFlow({ target }: { target: Target }) {
             <div className="flex w-[776px] max-w-full flex-col gap-4">
               <div className="flex flex-wrap items-center gap-3">
                 <h2 className="text-[24px] leading-8 font-bold text-text-primary">
-                  {kindNouns[target.kind]}
-                  {target.kind === 'categories' ? '' : '1件'}の{verb}内容を確認
+                  {target.action === 'restore'
+                    ? `${kindNouns[target.kind]}を過去の版に戻す内容を確認`
+                    : `${kindNouns[target.kind]}${target.kind === 'categories' ? '' : '1件'}の${verb}内容を確認`}
                 </h2>
                 <StatusBadge tone="success">保存済み下書き</StatusBadge>
               </div>
               <p className="-mt-2 text-[12px] leading-5 text-text-secondary">
                 {target.action === 'withdraw'
                   ? '公開を終了します。下書きの内容は公開せず、そのまま残ります。'
-                  : target.kind === 'event'
+                  : target.action === 'restore'
+                    ? '過去に公開した版を、現在の関連データと組み合わせて検証し、新しい公開として反映します。下書きもこの版の内容になります。'
+                    : target.kind === 'event'
                     ? '確認した版だけを公開します。イベント内の開催枠・会場は一件全体で反映されます。'
                     : '確認した版だけを公開します。選んでいない下書きは公開しません。'}
               </p>
@@ -238,10 +264,16 @@ function ReviewContent({ preview, occurrenceNames }: { preview: PublishPreview; 
   const item = preview.items[0]
   const rows = diffRows(item, preview.published, preview.candidate, { occurrences: occurrenceNames })
   const status = publicationBadge(item.publication.state)
+  const stashes = item.action === 'restore' && item.currentRevisionId !== item.publication.publishedRevisionId
   return (
     <>
+      {stashes && (
+        <NoticeBanner tone="warning">
+          未公開の下書きがあります。復旧の前にその下書きを退避し、Releases の履歴から内容を確認できるようにします。下書きは戻す版の内容に置き換わります。
+        </NoticeBanner>
+      )}
       <section className="flex flex-col gap-2 rounded-lg border border-border bg-surface px-4 py-4">
-        <p className="text-[11px] leading-[19px] text-text-secondary">{item.action === 'withdraw' ? '取り下げ対象' : '公開対象'}</p>
+        <p className="text-[11px] leading-[19px] text-text-secondary">{item.action === 'withdraw' ? '取り下げ対象' : item.action === 'restore' ? '復旧対象' : '公開対象'}</p>
         <p className="text-[16px] leading-6 font-bold break-words text-text-primary">{item.label}</p>
         <div className="flex flex-wrap gap-2">
           <StatusBadge>{item.targetKind === 'event' ? 'イベント1件' : kindNouns[item.targetKind as TargetKind]}</StatusBadge>
@@ -249,7 +281,7 @@ function ReviewContent({ preview, occurrenceNames }: { preview: PublishPreview; 
           <StatusBadge tone={status.tone}>現在：{status.label}</StatusBadge>
         </div>
         <p className="text-[11px] leading-[19px] text-text-secondary">
-          {item.revisionId ? `対象の版：${item.revisionId.slice(-8)}　` : ''}
+          {item.revisionId ? `${item.action === 'restore' ? '戻す版' : '対象の版'}：${item.revisionId.slice(-8)}　` : ''}
           {item.publication.publishedRevisionId ? `公開中の版：${item.publication.publishedRevisionId.slice(-8)}` : '公開中の版：なし'}
         </p>
       </section>
@@ -258,24 +290,7 @@ function ReviewContent({ preview, occurrenceNames }: { preview: PublishPreview; 
         <h3 id="diff-heading" className="text-[16px] leading-6 font-bold text-text-primary">
           公開中との差分
         </h3>
-        {rows.length === 0 ? (
-          <p className="mt-3 text-[12px] leading-5 text-text-secondary">公開中の内容との違いはありません。</p>
-        ) : (
-          <ul className="mt-1 flex flex-col">
-            {rows.map((row, position) => (
-              <li key={position} className="flex flex-col gap-1.5 border-b border-border py-3.5 last:border-b-0">
-                <div className="flex items-center gap-2">
-                  <StatusBadge tone={row.kind === '削除' || row.kind === '取り下げ' ? 'danger' : 'neutral'}>{row.kind}</StatusBadge>
-                  <span className="text-[13px] leading-[21px] font-medium text-text-primary">{row.label}</span>
-                </div>
-                <div className="grid grid-cols-2 gap-4 text-[11px] leading-[19px] break-words">
-                  <p className="text-text-secondary">公開中：{row.published}</p>
-                  <p className="text-text-primary">公開候補：{row.candidate}</p>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
+        <DiffList rows={rows} after={item.action === 'restore' ? '戻す版' : '公開候補'} />
       </section>
     </>
   )
@@ -342,7 +357,11 @@ function ResultCard({
             {noun}を{verb}しました
           </h2>
           <p className="text-[12px] leading-5 text-text-secondary">
-            {target.action === 'withdraw' ? 'サーバー側で公開を終了した版が確定しました。下書きは残っています。' : 'サーバー側で整合した公開版が確定し、取得できる状態になりました。'}
+            {target.action === 'withdraw'
+              ? 'サーバー側で公開を終了した版が確定しました。下書きは残っています。'
+              : target.action === 'restore'
+                ? '過去の版を新しい公開として確定しました。退避した下書きは Release詳細から確認できます。'
+                : 'サーバー側で整合した公開版が確定し、取得できる状態になりました。'}
           </p>
           <dl className="grid grid-cols-[140px_1fr] gap-x-4 gap-y-2 rounded-lg bg-surface-subtle px-3.5 py-3.5 text-[12px] leading-5">
             <dt className="text-text-secondary">対象</dt>
@@ -364,10 +383,12 @@ function ResultCard({
             >
               {returnTo[target.kind](target.id).label}
             </Link>
-            {/* Releases 画面は次の段階で作る。それまでは Figma R03 と同じく無効で表示する。 */}
-            <Button variant="secondary" className="w-[184px]" disabled title="Releases 画面の実装後に表示します">
+            <Link
+              to={`/releases?id=${phase.result.release?.releaseId ?? ''}`}
+              className="flex h-10 w-[184px] items-center justify-center rounded-lg border border-border bg-surface text-[14px] leading-[22px] font-medium text-text-primary hover:bg-surface-subtle focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+            >
               Release詳細を見る
-            </Button>
+            </Link>
           </div>
         </>
       )}

@@ -941,7 +941,31 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        get: {
+            parameters: {
+                query?: {
+                    targetKind?: string;
+                    targetId?: string;
+                    action?: string;
+                    before?: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ReleasePage"];
+                    };
+                };
+            };
+        };
         put?: never;
         post: {
             parameters: {
@@ -1024,7 +1048,93 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["ReleaseSummary"];
+                        "application/json": components["schemas"]["ReleaseDetail"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/logs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    action?: string;
+                    status?: string;
+                    actorId?: string;
+                    targetKind?: string;
+                    date?: string;
+                    offset?: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["LogPage"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/logs/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["LogItem"];
                     };
                 };
                 /** @description Not Found */
@@ -1197,6 +1307,35 @@ export interface components {
             email: null | string;
             password: null | string;
         };
+        LogItem: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            operationId: null | string;
+            /** Format: date-time */
+            startedAt: string;
+            /** Format: date-time */
+            finishedAt: null | string;
+            actor: null | components["schemas"]["EditorRef"];
+            action: string;
+            targetKind: null | string;
+            targetId: null | string;
+            targetLabel: null | string;
+            status: string;
+            /** Format: uuid */
+            releaseId: null | string;
+            /** Format: int64 */
+            releaseSequence: null | number;
+            /** Format: uuid */
+            revisionId: null | string;
+            detail: null | string;
+        };
+        LogPage: {
+            items: components["schemas"]["LogItem"][];
+            /** Format: int32 */
+            nextOffset: null | number;
+            actors: components["schemas"]["EditorRef"][];
+        };
         OccurrenceDetail: {
             /** Format: uuid */
             id: string;
@@ -1266,6 +1405,12 @@ export interface components {
             release: null | components["schemas"]["ReleaseSummary"];
             detail: null | string;
         };
+        PayloadSides: {
+            event: null | components["schemas"]["EventSides"];
+            occurrence: null | components["schemas"]["OccurrenceSides"];
+            categories: null | components["schemas"]["CategorySides"];
+            spot: null | components["schemas"]["SpotSides"];
+        };
         PreviewDay: {
             /** Format: uuid */
             id: string;
@@ -1285,6 +1430,8 @@ export interface components {
             /** Format: uuid */
             revisionId: null | string;
             publication: components["schemas"]["PublicationSummary"];
+            /** Format: uuid */
+            currentRevisionId: null | string;
             event: null | components["schemas"]["EventSides"];
             occurrence: null | components["schemas"]["OccurrenceSides"];
             categories: null | components["schemas"]["CategorySides"];
@@ -1366,6 +1513,20 @@ export interface components {
             title: string;
             problems: components["schemas"]["DraftProblem"][];
         };
+        ReleaseDetail: {
+            release: components["schemas"]["ReleaseSummary"];
+            entries: components["schemas"]["ReleaseEntryDetail"][];
+            published: components["schemas"]["PreviewReferences"];
+            candidate: components["schemas"]["PreviewReferences"];
+        };
+        ReleaseEntryDetail: {
+            entry: components["schemas"]["ReleaseEntrySummary"];
+            changes: components["schemas"]["PayloadSides"];
+            stash: null | components["schemas"]["PayloadSides"];
+            isCurrent: boolean;
+            canRestore: boolean;
+            currentPublication: components["schemas"]["PublicationSummary"];
+        };
         ReleaseEntrySummary: {
             targetKind: string;
             targetId: string;
@@ -1375,6 +1536,15 @@ export interface components {
             /** Format: uuid */
             previousRevisionId: null | string;
             label: string;
+            /** Format: uuid */
+            restoredFromRevisionId: null | string;
+            /** Format: uuid */
+            stashedRevisionId: null | string;
+        };
+        ReleasePage: {
+            items: components["schemas"]["ReleaseSummary"][];
+            /** Format: int64 */
+            nextBefore: null | number;
         };
         ReleaseSummary: {
             /** Format: uuid */

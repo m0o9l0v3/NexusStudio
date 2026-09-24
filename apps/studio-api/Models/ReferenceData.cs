@@ -132,4 +132,6 @@ public static class ReferenceRevisionSource
 {
     public const string Editor = "editor";
     public const string Import = "import";
+    /// <summary>過去の版からの復旧で作った版。</summary>
+    public const string Restore = "restore";
 }

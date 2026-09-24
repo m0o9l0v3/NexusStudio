@@ -387,4 +387,133 @@ public sealed class PublishingTests : IAsyncLifetime
         var failed = Assert.Single(actions, a => a.Action == OperationAction.SignInFailed);
         Assert.DoesNotContain("wrong", failed.Detail ?? string.Empty);
     }
+
+    // ---- 復旧・履歴・操作ログ（Step 4-2） ----
+
+    private async Task<string> SaveEventAsync(string id, Action<JsonNode> change)
+    {
+        var detail = await GetJsonAsync($"/api/events/{id}");
+        var draft = detail["draft"]!.DeepClone();
+        change(draft);
+        var (response, body) = await SendAsync(HttpMethod.Put, $"/api/events/{id}", new JsonObject { ["operationId"] = Guid.NewGuid().ToString(), ["rowVersion"] = detail["rowVersion"]!.DeepClone(), ["draft"] = draft });
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        return body!["revisionId"]!.GetValue<string>();
+    }
+
+    [Fact]
+    public async Task Restore_PublishesTheOldVersion_AndStashesTheUnpublishedDraft()
+    {
+        await PublishReferencesAsync();
+        var (id, first) = await CreateEventAsync();
+        await PreviewAndPublishAsync(Entry("event", id, revisionId: first));
+        var second = await SaveEventAsync(id, draft => draft["title"] = "第2版");
+        await PreviewAndPublishAsync(Entry("event", id, revisionId: second));
+        var unpublished = await SaveEventAsync(id, draft => draft["title"] = "公開していない下書き");
+
+        var preview = await PreviewAsync(Entry("event", id, "restore", first));
+        Assert.Contains("restore_stashes_draft", Codes(preview, "info"));
+        var result = await PreviewAndPublishAsync(Entry("event", id, "restore", first));
+        var entry = result["release"]!["entries"]![0]!;
+        Assert.Equal("restore", entry["action"]!.GetValue<string>());
+        Assert.Equal(first, entry["restoredFromRevisionId"]!.GetValue<string>());
+        Assert.Equal(unpublished, entry["stashedRevisionId"]!.GetValue<string>());
+
+        // 下書きも戻した版の内容になり、公開中と一致する。退避した下書きは履歴の詳細から参照できる（RL-12、RA-09）。
+        var detail = await GetJsonAsync($"/api/events/{id}");
+        Assert.Equal("ロボット操作体験", detail["draft"]!["title"]!.GetValue<string>());
+        Assert.Equal("published", detail["publication"]!["state"]!.GetValue<string>());
+        var history = await GetJsonAsync($"/api/releases/{result["release"]!["releaseId"]!.GetValue<string>()}");
+        Assert.Equal("公開していない下書き", history["entries"]![0]!["stash"]!["event"]!["published"]!["title"]!.GetValue<string>());
+        Assert.Equal("第2版", history["entries"]![0]!["changes"]!["event"]!["published"]!["title"]!.GetValue<string>());
+    }
+
+    [Fact]
+    public async Task Restore_RequiresAVersionThatWasPublished()
+    {
+        await PublishReferencesAsync();
+        var (id, first) = await CreateEventAsync();
+        await PreviewAndPublishAsync(Entry("event", id, revisionId: first));
+        var neverPublished = await SaveEventAsync(id, draft => draft["title"] = "未公開の版");
+        Assert.Contains("restore_revision_not_published", Codes(await PreviewAsync(Entry("event", id, "restore", neverPublished))));
+        Assert.Contains("no_changes", Codes(await PreviewAsync(Entry("event", id, "restore", first))) );
+    }
+
+    [Fact]
+    public async Task Restore_Occurrence_CannotDropADayThatDraftsUse()
+    {
+        await PublishReferencesAsync();
+        var original = (await GetJsonAsync($"/api/occurrences/{Occurrence}"))["revisionId"]!.GetValue<string>();
+        var occurrence = await GetJsonAsync($"/api/occurrences/{Occurrence}");
+        var draft = occurrence["draft"]!.DeepClone();
+        var newDay = Guid.NewGuid().ToString();
+        draft["days"]!.AsArray().Add(new JsonObject { ["id"] = newDay, ["date"] = "2026-09-22", ["publicStart"] = "10:00", ["publicEnd"] = "15:00", ["status"] = "normal", ["cancelNote"] = null });
+        var (savedResponse, saved) = await SendAsync(HttpMethod.Put, $"/api/occurrences/{Occurrence}", new JsonObject { ["operationId"] = Guid.NewGuid().ToString(), ["rowVersion"] = occurrence["rowVersion"]!.DeepClone(), ["draft"] = draft });
+        Assert.True(savedResponse.IsSuccessStatusCode, saved?.ToJsonString());
+        await PreviewAndPublishAsync(Entry("occurrence", Occurrence, revisionId: saved!["revisionId"]!.GetValue<string>()));
+        await CreateEventAsync(dayId: newDay);
+
+        Assert.Contains("restore_day_in_use", Codes(await PreviewAsync(Entry("occurrence", Occurrence, "restore", original))));
+    }
+
+    [Fact]
+    public async Task Restore_WarnsWhenAllDayTimesDifferFromThen()
+    {
+        await PublishReferencesAsync();
+        var (id, first) = await CreateEventAsync();
+        await PreviewAndPublishAsync(Entry("event", id, revisionId: first));
+
+        var occurrence = await GetJsonAsync($"/api/occurrences/{Occurrence}");
+        var draft = occurrence["draft"]!.DeepClone();
+        draft["days"]![0]!["publicEnd"] = "17:00";
+        var (_, saved) = await SendAsync(HttpMethod.Put, $"/api/occurrences/{Occurrence}", new JsonObject { ["operationId"] = Guid.NewGuid().ToString(), ["rowVersion"] = occurrence["rowVersion"]!.DeepClone(), ["draft"] = draft });
+        await PreviewAndPublishAsync(Entry("occurrence", Occurrence, revisionId: saved!["revisionId"]!.GetValue<string>()));
+        var second = await SaveEventAsync(id, d => d["title"] = "第2版");
+        await PreviewAndPublishAsync(Entry("event", id, revisionId: second));
+
+        // 当時は 10:00–16:00、現在は 10:00–17:00（11 RA-10）。
+        Assert.Contains("restore_all_day_time_differs", Codes(await PreviewAsync(Entry("event", id, "restore", first)), "warning"));
+    }
+
+    [Fact]
+    public async Task ReleaseHistory_ListsNewestFirst_AndFiltersByTarget()
+    {
+        await PublishReferencesAsync();
+        var (id, first) = await CreateEventAsync();
+        await PreviewAndPublishAsync(Entry("event", id, revisionId: first));
+
+        var all = await GetJsonAsync("/api/releases");
+        var sequences = all["items"]!.AsArray().Select(i => i!["sequence"]!.GetValue<long>()).ToList();
+        Assert.Equal(new long[] { 3, 2, 1 }, sequences);
+        var events = await GetJsonAsync($"/api/releases?targetKind=event&targetId={id}");
+        var release = Assert.Single(events["items"]!.AsArray())!;
+
+        var detail = await GetJsonAsync($"/api/releases/{release["releaseId"]!.GetValue<string>()}");
+        var entry = detail["entries"]![0]!;
+        Assert.True(entry["isCurrent"]!.GetValue<bool>());
+        Assert.False(entry["canRestore"]!.GetValue<bool>());
+        Assert.Null(entry["changes"]!["event"]!["published"]);
+        Assert.Equal("ロボット操作体験", entry["changes"]!["event"]!["candidate"]!["title"]!.GetValue<string>());
+        // 当時の参照データ（終日の時刻）も返す。
+        Assert.Contains(detail["candidate"]!["days"]!.AsArray(), d => d!["id"]!.GetValue<string>() == Day0920);
+    }
+
+    [Fact]
+    public async Task Logs_CanBeFilteredByActionStatusAndDate()
+    {
+        await PublishReferencesAsync();
+        await CreateEventAsync();
+        await _factory.CreateClient().LoginAsync(password: "wrong password here");
+
+        var publishes = await GetJsonAsync("/api/logs?action=publish");
+        var publish = Assert.Single(publishes["items"]!.AsArray())!;
+        Assert.Equal(1, publish["releaseSequence"]!.GetValue<long>() - 1); // 取り込みの公開が #1
+        Assert.Equal("m09", publish["actor"]!["displayName"]!.GetValue<string>());
+
+        Assert.Single((await GetJsonAsync("/api/logs?status=failed"))["items"]!.AsArray());
+        Assert.NotEmpty((await GetJsonAsync("/api/logs?date=2026-09-10"))["items"]!.AsArray());
+        Assert.Empty((await GetJsonAsync("/api/logs?date=2026-09-11"))["items"]!.AsArray());
+
+        var id = publish["id"]!.GetValue<string>();
+        Assert.Equal(id, (await GetJsonAsync($"/api/logs/{id}"))["id"]!.GetValue<string>());
+    }
 }

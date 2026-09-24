@@ -19,6 +19,7 @@ public sealed record SpotSides(SpotDraft? Published, SpotDraft? Candidate);
 
 /// <summary>公開確認の対象1件（左：公開中との差分。17 §3）。種類に応じて1つの Sides だけが入る。</summary>
 /// <param name="Publication">現在の公開状態。</param>
+/// <param name="CurrentRevisionId">現在の下書きの版。公開中の版と違えば未公開の変更がある（復旧では退避の対象）。</param>
 public sealed record PreviewItem(
     string TargetKind,
     string TargetId,
@@ -26,6 +27,7 @@ public sealed record PreviewItem(
     string Action,
     Guid? RevisionId,
     PublicationSummary Publication,
+    Guid? CurrentRevisionId,
     EventSides? Event,
     OccurrenceSides? Occurrence,
     CategorySides? Categories,
@@ -59,7 +61,8 @@ public static class ReleaseEndpoints
         var group = app.MapGroup("/api/releases").WithTags("Releases");
         group.MapPost("/preview", PreviewAsync);
         group.MapPost("/", PublishAsync);
-        group.MapGet("/{id:guid}", GetAsync);
+        group.MapGet("/", ReleaseHistory.ListAsync);
+        group.MapGet("/{id:guid}", ReleaseHistory.GetAsync);
         app.MapGet("/api/operations/{operationId:guid}", GetOperationAsync).WithTags("Releases");
         return app;
     }
@@ -95,9 +98,6 @@ public static class ReleaseEndpoints
         };
     }
 
-    private static async Task<Results<Ok<ReleaseSummary>, NotFound>> GetAsync(Guid id, PublishingService publishing)
-        => await publishing.LoadReleaseAsync(id) is { } release ? TypedResults.Ok(release) : TypedResults.NotFound();
-
     /// <summary>結果確認中からの照会。記録が無ければ、その操作はサーバーに届いていない（何も反映していない）。</summary>
     private static async Task<Results<Ok<OperationResult>, NotFound>> GetOperationAsync(Guid operationId, PublishingService publishing)
         => await publishing.GetOperationAsync(operationId) is { } result ? TypedResults.Ok(result) : TypedResults.NotFound();
@@ -127,15 +127,20 @@ public static class ReleaseEndpoints
                 break;
         }
 
-        return new PreviewItem(entry.TargetKind, entry.TargetId, item.Label, entry.Action, entry.RevisionId, summary, eventSides, occurrenceSides, categorySides, spotSides);
+        return new PreviewItem(entry.TargetKind, entry.TargetId, item.Label, entry.Action, entry.RevisionId, summary, item.CurrentRevisionId, eventSides, occurrenceSides, categorySides, spotSides);
     }
 
     /// <summary>差分に出てくる開催日・Spot・カテゴリだけを返す。</summary>
     private static PreviewReferences References(PublishedSet set, PublishCandidate candidate, IReadOnlyList<PreviewItem> items)
+        => References(
+            set,
+            candidate.SpotRows,
+            items.SelectMany(i => new[] { i.Event?.Published, i.Event?.Candidate }).OfType<EventDraft>().ToList(),
+            items.Where(i => i.TargetKind == PublishTargetKind.Occurrence && Guid.TryParse(i.TargetId, out _)).Select(i => Guid.Parse(i.TargetId)).ToHashSet());
+
+    internal static PreviewReferences References(PublishedSet set, IReadOnlyDictionary<string, Spot> spotRows, IReadOnlyList<EventDraft> events, IReadOnlySet<Guid> occurrenceIds)
     {
-        var events = items.SelectMany(i => new[] { i.Event?.Published, i.Event?.Candidate }).OfType<EventDraft>().ToList();
         var dayIds = events.SelectMany(e => e.Slots).Select(s => s.OcDayId).OfType<Guid>().ToHashSet();
-        var occurrenceIds = items.Where(i => i.TargetKind == PublishTargetKind.Occurrence && Guid.TryParse(i.TargetId, out _)).Select(i => Guid.Parse(i.TargetId)).ToHashSet();
         var spotIds = events.SelectMany(e => e.Slots).SelectMany(s => s.Venues).Select(v => v.CanonicalSpotId).ToHashSet(StringComparer.Ordinal);
 
         var days = set.Occurrences
@@ -146,8 +151,8 @@ public static class ReleaseEndpoints
 
         // 公開されていないSpotも、名称が分かるよう現在の行から返す（公開状態は検証の所見で示す）。
         var spots = spotIds.Select(id => set.Spots.TryGetValue(id, out var published)
-                ? new PreviewSpot(id, published.Draft.Name ?? id, candidate.SpotRows.GetValueOrDefault(id)?.BuildingName, candidate.SpotRows.GetValueOrDefault(id)?.FloorName, published.Draft.Utilization)
-                : candidate.SpotRows.TryGetValue(id, out var row) ? new PreviewSpot(id, row.Name, row.BuildingName, row.FloorName, row.Utilization) : null)
+                ? new PreviewSpot(id, published.Draft.Name ?? id, spotRows.GetValueOrDefault(id)?.BuildingName, spotRows.GetValueOrDefault(id)?.FloorName, published.Draft.Utilization)
+                : spotRows.TryGetValue(id, out var row) ? new PreviewSpot(id, row.Name, row.BuildingName, row.FloorName, row.Utilization) : null)
             .OfType<PreviewSpot>()
             .ToList();
 
