@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
 using StudioApi.Admin;
 using StudioApi.Auth;
@@ -21,6 +22,8 @@ builder.Services.AddSingleton<MapDatasetValidator>();
 builder.Services.AddStudioAuth(builder.Environment);
 builder.Services.AddScoped<ReferenceImporter>();
 builder.Services.AddProblemDetails();
+// 数値を文字列で受け付けない（rowVersion等の型をOpenAPI・生成型でも数値だけにする）。
+builder.Services.ConfigureHttpJsonOptions(options => options.SerializerOptions.NumberHandling = JsonNumberHandling.Strict);
 builder.Services.AddOpenApi();
 
 var app = builder.Build();

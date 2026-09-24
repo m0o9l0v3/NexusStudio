@@ -110,12 +110,21 @@ public static class EventEndpoints
             items = items.Where(i => i.Publication == publication);
         }
 
-        items = sort == "title"
-            ? items.OrderBy(i => i.Title is null).ThenBy(i => i.Title, StringComparer.CurrentCulture)
+        // 並べ替えは開催日時順・更新日時順（07 EV-15）。日時が未入力のイベントは開催日時順の末尾に置く。
+        items = sort == "schedule"
+            ? items.OrderBy(i => FirstSchedule(i) is null).ThenBy(FirstSchedule, StringComparer.Ordinal).ThenByDescending(i => i.UpdatedAt)
             : items.OrderByDescending(i => i.UpdatedAt);
 
         return TypedResults.Ok(items.ToList());
     }
+
+    /// <summary>最も早い枠の "yyyy-MM-dd HH:mm"（終日は 00:00 とみなす）。日付が無ければnull。</summary>
+    private static string? FirstSchedule(EventListItem item)
+        => item.Slots
+            .Where(s => s.Date is not null)
+            .Select(s => $"{s.Date:yyyy-MM-dd} {(s.TimeMode == "allDay" ? "00:00" : s.Start ?? "99:99")}")
+            .Order(StringComparer.Ordinal)
+            .FirstOrDefault();
 
     private static async Task<Results<Ok<EventDetail>, NotFound>> GetAsync(Guid id, StudioDbContext db)
     {

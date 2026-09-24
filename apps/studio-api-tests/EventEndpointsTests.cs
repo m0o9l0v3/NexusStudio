@@ -296,5 +296,9 @@ public sealed class EventEndpointsTests : IAsyncLifetime
 
         var byOccurrence = await _client.GetFromJsonAsync<List<EventListItem>>("/api/events?occurrenceId=0199a000-0000-7000-8000-000000000001", Json);
         Assert.Equal(item.Id, Assert.Single(byOccurrence!).Id);
+
+        // 開催日時順では、日時が未入力のイベント（other）を末尾に置く。
+        var bySchedule = await _client.GetFromJsonAsync<List<EventListItem>>("/api/events?sort=schedule", Json);
+        Assert.Equal([item.Id, all.Single(i => i.Id != item.Id).Id], bySchedule!.Select(i => i.Id));
     }
 }
