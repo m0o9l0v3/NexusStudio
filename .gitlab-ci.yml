@@ -19,6 +19,21 @@ studio-api-check:
     - dotnet build NexusStudio.slnx --no-restore
     - dotnet test apps/studio-api-tests/StudioApi.Tests.csproj --no-build
 
+studio-migration-script:
+  stage: verify
+  image: mcr.microsoft.com/dotnet/sdk:10.0
+  script:
+    - dotnet tool restore
+    - export STUDIO_MIGRATION_CONNECTION='Host=localhost;Database=unused;Username=placeholder;Password=not-a-real-secret'
+    - mkdir -p artifacts/studio
+    - dotnet tool run dotnet-ef migrations script --idempotent --project apps/studio-api/StudioApi.csproj --startup-project apps/studio-api/StudioApi.csproj --output artifacts/studio/migrate.sql
+    - test -s artifacts/studio/migrate.sql
+    - grep -F 'studio."__EFMigrationsHistory"' artifacts/studio/migrate.sql
+    - sha256sum artifacts/studio/migrate.sql > artifacts/studio/migrate.sql.sha256
+  artifacts:
+    paths: [artifacts/studio/migrate.sql, artifacts/studio/migrate.sql.sha256]
+    expire_in: 30 days
+
 studio-web-check:
   stage: verify
   image: node:20
