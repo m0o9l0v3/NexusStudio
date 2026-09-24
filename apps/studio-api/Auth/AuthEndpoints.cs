@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Antiforgery;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Identity;
 using StudioApi.Models;
 
@@ -43,7 +44,7 @@ public static class AuthEndpoints
         return group;
     }
 
-    private static async Task<IResult> LoginAsync(
+    private static async Task<Results<NoContent, ProblemHttpResult>> LoginAsync(
         LoginRequest request,
         UserManager<StudioAdmin> userManager,
         SignInManager<StudioAdmin> signInManager,
@@ -80,7 +81,7 @@ public static class AuthEndpoints
         return TypedResults.NoContent();
     }
 
-    private static async Task<IResult> MeAsync(
+    private static async Task<Results<Ok<SessionResponse>, UnauthorizedHttpResult>> MeAsync(
         ClaimsPrincipal principal,
         UserManager<StudioAdmin> userManager,
         IConfiguration configuration)
@@ -98,7 +99,7 @@ public static class AuthEndpoints
             configuration["Studio:EnvironmentLabel"]));
     }
 
-    private static IResult InvalidCredentials() => TypedResults.Problem(
+    private static ProblemHttpResult InvalidCredentials() => TypedResults.Problem(
         statusCode: StatusCodes.Status401Unauthorized,
         title: "メールアドレスまたはパスワードが正しくありません。",
         extensions: new Dictionary<string, object?> { ["code"] = InvalidCredentialsCode });

@@ -10,6 +10,13 @@ public sealed class StudioDbContext(DbContextOptions<StudioDbContext> options)
     : IdentityUserContext<StudioAdmin, Guid>(options)
 {
     public DbSet<MapDataset> MapDatasets => Set<MapDataset>();
+    public DbSet<Occurrence> Occurrences => Set<Occurrence>();
+    public DbSet<OcDay> OcDays => Set<OcDay>();
+    public DbSet<Category> Categories => Set<Category>();
+    public DbSet<Spot> Spots => Set<Spot>();
+    public DbSet<SpotNameAlias> SpotNameAliases => Set<SpotNameAlias>();
+    public DbSet<EventHead> EventHeads => Set<EventHead>();
+    public DbSet<EventRevision> EventRevisions => Set<EventRevision>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -85,6 +92,109 @@ public sealed class StudioDbContext(DbContextOptions<StudioDbContext> options)
             entity.Property(e => e.LoginProvider).HasColumnName("login_provider");
             entity.Property(e => e.Name).HasColumnName("name");
             entity.Property(e => e.Value).HasColumnName("value");
+        });
+
+        ConfigureReferenceData(modelBuilder);
+        ConfigureEvents(modelBuilder);
+    }
+
+    private static void ConfigureReferenceData(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<Occurrence>(entity =>
+        {
+            entity.ToTable("occurrences");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.Name).HasColumnName("name").HasMaxLength(200).IsRequired();
+            entity.HasMany(e => e.Days).WithOne().HasForeignKey(d => d.OccurrenceId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<OcDay>(entity =>
+        {
+            entity.ToTable("oc_days", table =>
+            {
+                table.HasCheckConstraint("ck_oc_days_status", "status IN ('normal', 'cancelled')");
+                table.HasCheckConstraint("ck_oc_days_public_hours", "(public_start IS NULL) = (public_end IS NULL) AND (public_start IS NULL OR public_start < public_end)");
+            });
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.OccurrenceId).HasColumnName("occurrence_id");
+            entity.Property(e => e.Date).HasColumnName("date");
+            entity.Property(e => e.PublicStart).HasColumnName("public_start");
+            entity.Property(e => e.PublicEnd).HasColumnName("public_end");
+            entity.Property(e => e.Status).HasColumnName("status").IsRequired();
+            entity.Property(e => e.CancelNote).HasColumnName("cancel_note");
+            // 同じ日付でも開催回が違えば別の開催日（既存 oc_days.date のグローバルUNIQUEは踏襲しない。15 v01 §4.3）。
+            entity.HasIndex(e => new { e.OccurrenceId, e.Date }).IsUnique().HasDatabaseName("ix_oc_days_occurrence_id_date");
+        });
+
+        modelBuilder.Entity<Category>(entity =>
+        {
+            entity.ToTable("categories");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.Name).HasColumnName("name").HasMaxLength(100).IsRequired();
+            entity.Property(e => e.SortOrder).HasColumnName("sort_order");
+            entity.Property(e => e.Selectable).HasColumnName("selectable");
+        });
+
+        modelBuilder.Entity<Spot>(entity =>
+        {
+            entity.ToTable("spots", table =>
+                table.HasCheckConstraint("ck_spots_utilization", "utilization IN ('available', 'noNewSelection', 'withdrawn')"));
+            entity.HasKey(e => e.CanonicalId);
+            // PostgreSQLの既定照合順序で比較するため、大文字小文字が違うIDは別のSpotになる。
+            entity.Property(e => e.CanonicalId).HasColumnName("canonical_id").HasMaxLength(128);
+            entity.Property(e => e.Name).HasColumnName("name").HasMaxLength(200).IsRequired();
+            entity.Property(e => e.BuildingName).HasColumnName("building_name").HasMaxLength(100);
+            entity.Property(e => e.FloorName).HasColumnName("floor_name").HasMaxLength(100);
+            entity.Property(e => e.IsPublished).HasColumnName("is_published");
+            entity.Property(e => e.Utilization).HasColumnName("utilization").IsRequired();
+            entity.HasMany(e => e.NameAliases).WithOne().HasForeignKey(a => a.CanonicalId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<SpotNameAlias>(entity =>
+        {
+            entity.ToTable("spot_name_aliases");
+            entity.HasKey(e => new { e.CanonicalId, e.Alias });
+            entity.Property(e => e.CanonicalId).HasColumnName("canonical_id").HasMaxLength(128);
+            entity.Property(e => e.Alias).HasColumnName("alias").HasMaxLength(200);
+        });
+    }
+
+    private static void ConfigureEvents(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<EventHead>(entity =>
+        {
+            entity.ToTable("event_heads", table => table.HasCheckConstraint("ck_event_heads_row_version", "row_version > 0"));
+            entity.HasKey(e => e.EventId);
+            entity.Property(e => e.EventId).HasColumnName("event_id");
+            // current_revision_id は Revision を指すが、Revision → head の外部キーと循環するため制約は片方向だけに置く。
+            entity.Property(e => e.CurrentRevisionId).HasColumnName("current_revision_id");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+            entity.Property(e => e.CreatedBy).HasColumnName("created_by");
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+            entity.Property(e => e.UpdatedBy).HasColumnName("updated_by");
+            entity.Property(e => e.RowVersion).HasColumnName("row_version").IsConcurrencyToken();
+            entity.HasOne<StudioAdmin>().WithMany().HasForeignKey(e => e.CreatedBy).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<StudioAdmin>().WithMany().HasForeignKey(e => e.UpdatedBy).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<EventRevision>(entity =>
+        {
+            entity.ToTable("event_revisions");
+            entity.HasKey(e => e.RevisionId);
+            entity.Property(e => e.RevisionId).HasColumnName("revision_id");
+            entity.Property(e => e.EventId).HasColumnName("event_id");
+            entity.Property(e => e.Payload).HasColumnName("payload").HasColumnType("jsonb").IsRequired();
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+            entity.Property(e => e.CreatedBy).HasColumnName("created_by");
+            entity.Property(e => e.BaseRevisionId).HasColumnName("base_revision_id");
+            entity.Property(e => e.OperationId).HasColumnName("operation_id");
+            entity.HasIndex(e => e.OperationId).IsUnique().HasDatabaseName("ix_event_revisions_operation_id");
+            entity.HasIndex(e => new { e.EventId, e.CreatedAt }).HasDatabaseName("ix_event_revisions_event_id_created_at");
+            entity.HasOne<EventHead>().WithMany().HasForeignKey(e => e.EventId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<StudioAdmin>().WithMany().HasForeignKey(e => e.CreatedBy).OnDelete(DeleteBehavior.Restrict);
         });
     }
 }

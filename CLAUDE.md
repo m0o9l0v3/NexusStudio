@@ -10,12 +10,13 @@ Nexus Studio は、Nexus（`gitlab.com/11h27m/nexus-mobile`）の管理ポータ
 
 ## 現在の実装状態（重要）
 
-**Step 0（基盤整備）・Step 1（認証＋App Shell）完了。Step 2（イベント編集）以降は未着手。**
+**Step 0（基盤整備）・Step 1（認証＋App Shell）・Step 2（イベント1件の編集と下書き保存）完了。Step 3（開催情報・カテゴリ・Spotの編集）以降は未着手。**
 
 - Step 0 完了内容: `studio-api`/`studio-web` のソリューション骨格、`studio` schema の EF Core マイグレーション、MapDataset validator の移植（テスト全件成功）。
 - Step 1 完了内容: Identity＋Cookie認証（`/api/auth/*`、CSRF検証、未認証は既定で拒否）、運用者用の管理者コマンド（`dotnet run -- admin ...`）、ログイン画面（L01〜L04・L06）、App Shell（Sidebar・Toolbar・管理者メニュー・再ログインダイアログL05）。各領域の本文は準備中表示。
 - Figmaモックアップは Phase 1（Login・Events編集・保存/競合/期限切れ・一覧状態）まで作成済み（2026-09-23確認）。Phase 2（Open Campus・カテゴリ管理・Map Data・Validation・Releases履歴・Logs・中止/取り下げ）は未作成。
-- Step 2 は、Events編集画面の構成（「イベントを編集」「開催枠を編集」「共通情報を編集」「開催枠一覧」の4種を1画面へ統合するか）を利用者が確認してから着手する。
+- Step 2 完了内容: `studio.event_heads`/`event_revisions`（rowVersion・operationId）、`/api/events`、参照表（開催回・開催日・カテゴリ・Spot。読み取り専用）と取り込みコマンド（`dotnet run -- reference import --file ...`）、Events一覧と1画面に統合した編集画面（2026-09-24 利用者判断）、OpenAPI文書と生成型（`apps/studio-web/openapi/`・`src/api/schema.d.ts`）。
+- 参照データ（開催回・開催日・カテゴリ・Spot）は Step 3 で編集機能とRevisionを追加するまで、取り込みコマンドだけが書き込む。開発用の設計用サンプルは `docs/samples/reference-sample.json`。
 - Figma画面棚卸しの成果物（`docs/決定事項/22`〜`24`、Issue #1）は未作成。
 - 地図公開機構の二重開発を避ける整理案（15 v02 §9.1、A/B/C案）は利用者判断待ち。
 
@@ -38,7 +39,7 @@ nexusstudio/
 
 | Area | Stack |
 |---|---|
-| Studio Web | React 18 + TypeScript + Vite、Tailwind CSS v4（Figma Variablesを `src/index.css` の `@theme` に定義）、React Router 7（v8はReact 19必須のため）、TanStack Query、Radix（Dialog・DropdownMenu）。**MUIは持ち込まない** |
+| Studio Web | React 18 + TypeScript + Vite、Tailwind CSS v4（Figma Variablesを `src/index.css` の `@theme` に定義）、React Router 7（v8はReact 19必須のため）、TanStack Query、Radix（Dialog・DropdownMenu）、openapi-typescript（APIの型生成。TypeScript 6 は `overrides` で指定）。**MUIは持ち込まない** |
 | Studio API | ASP.NET Core 8→**.NET 10 LTS**、EF Core 10 + Npgsql、PostgreSQLの`studio` schemaを所有 |
 | DB | PostgreSQL。`nexus-mobile`と同一インスタンス内の別schema（`studio`）を想定。本リポジトリの検証環境は専用のDocker Compose PostgreSQL |
 
@@ -66,6 +67,13 @@ npm run build
 # 管理者アカウント（運用者のみ。パスワードは引数で渡さない）
 cd apps/studio-api
 dotnet run -- admin add --email <メールアドレス> --name <表示名>   # ほか disable / enable / reset-password / list
+
+# 参照データの取り込み（開催回・開催日・カテゴリ・Spot。起動時には取り込まない）
+dotnet run -- reference import --file ../../docs/samples/reference-sample.json   # 開発用の設計用サンプル
+
+# APIを変えたら：OpenAPI文書を更新して型を再生成する（CIで食い違いを検出する）
+STUDIO_UPDATE_OPENAPI=1 dotnet test ../studio-api-tests/StudioApi.Tests.csproj
+cd ../studio-web && npm run gen:api
 
 # 検証用DB
 cp .env.example .env   # STUDIO_DB_PASSWORD等を設定

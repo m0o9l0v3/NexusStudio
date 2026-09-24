@@ -1,0 +1,33 @@
+{
+  "_note": "設計用サンプル・正式データではありません。開発・検証環境で `dotnet run -- reference import --file ../../docs/samples/reference-sample.json` として取り込む。本番へ取り込まない。",
+  "occurrences": [
+    {
+      "id": "0199a000-0000-7000-8000-000000000001",
+      "name": "2026 オープンキャンパス（設計用サンプル）",
+      "days": [
+        { "id": "0199a000-0000-7000-8000-000000000101", "date": "2026-09-20", "publicStart": "10:00", "publicEnd": "16:00" },
+        { "id": "0199a000-0000-7000-8000-000000000102", "date": "2026-09-21", "publicStart": "10:00", "publicEnd": "15:00" }
+      ]
+    },
+    {
+      "id": "0199a000-0000-7000-8000-000000000002",
+      "name": "2026 秋のオープンキャンパス（設計用サンプル）",
+      "days": [
+        { "id": "0199a000-0000-7000-8000-000000000201", "date": "2026-11-03", "publicStart": "10:00", "publicEnd": "15:00" },
+        { "id": "0199a000-0000-7000-8000-000000000202", "date": "2026-11-04" }
+      ]
+    }
+  ],
+  "categories": [
+    { "id": "0199a000-0000-7000-8000-000000000301", "name": "体験", "sortOrder": 1, "selectable": true },
+    { "id": "0199a000-0000-7000-8000-000000000302", "name": "見学", "sortOrder": 2, "selectable": true },
+    { "id": "0199a000-0000-7000-8000-000000000303", "name": "相談", "sortOrder": 3, "selectable": true },
+    { "id": "0199a000-0000-7000-8000-000000000304", "name": "旧カテゴリ", "sortOrder": 9, "selectable": false }
+  ],
+  "spots": [
+    { "canonicalId": "mb_f2_cr_2a", "name": "2A教室", "aliases": ["2A"], "building": "本館", "floor": "2階", "isPublished": true, "utilization": "available" },
+    { "canonicalId": "mb_f2_cr_2b", "name": "2B教室", "aliases": ["2B"], "building": "本館", "floor": "2階", "isPublished": false, "utilization": "available" },
+    { "canonicalId": "sample_other_2a", "name": "2A教室", "aliases": [], "building": "別棟", "floor": "2階", "isPublished": true, "utilization": "noNewSelection" },
+    { "canonicalId": "sample_lobby_1f", "name": "受付ロビー", "aliases": ["エントランス"], "building": "本館", "floor": "1階", "isPublished": true, "utilization": "available" }
+  ]
+}

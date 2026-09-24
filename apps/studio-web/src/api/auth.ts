@@ -1,12 +1,8 @@
 import { apiJson, apiRequest, resetCsrfToken } from './client'
+import type { components } from './schema'
 
-export type Session = {
-  id: string
-  email: string
-  displayName: string
-  /** 検証環境などの表示名。未設定（本番想定）ならSidebarにバッジを出さない（UI-22）。 */
-  environmentLabel: string | null
-}
+/** environmentLabel：検証環境などの表示名。未設定（本番想定）ならSidebarにバッジを出さない（UI-22）。 */
+export type Session = components['schemas']['SessionResponse']
 
 export function fetchSession(): Promise<Session> {
   // 未ログインでの401は「ログイン画面へ」の通常経路。セッション切れの通知は認証済み画面側で判断する。

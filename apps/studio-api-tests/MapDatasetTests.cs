@@ -177,6 +177,25 @@ public sealed class MapDatasetTests
     }
 
     [Fact]
+    public void EventMigration_OnlyCreatesStudioSchemaTablesWithoutTouchingOthers()
+    {
+        using var db = new StudioDbContext(new DbContextOptionsBuilder<StudioDbContext>()
+            .UseNpgsql("Host=localhost;Database=unused;Username=unused;Password=unused").Options);
+        var sql = db.GetService<IMigrator>().GenerateScript(fromMigration: "AddStudioAdmins", toMigration: "AddEventsAndReferenceData");
+        foreach (var table in new[] { "event_heads", "event_revisions", "occurrences", "oc_days", "categories", "spots", "spot_name_aliases" })
+        {
+            Assert.Contains($"CREATE TABLE studio.{table} (", sql);
+        }
+
+        Assert.Contains("payload jsonb NOT NULL", sql);
+        Assert.Contains("CREATE UNIQUE INDEX ix_event_revisions_operation_id", sql);
+        Assert.Contains("CREATE UNIQUE INDEX ix_oc_days_occurrence_id_date", sql);
+        Assert.DoesNotContain("public.", sql);
+        Assert.DoesNotContain("DROP TABLE", sql);
+        Assert.DoesNotContain("ALTER TABLE", sql);
+    }
+
+    [Fact]
     public void Migration_GeneratesPostgreSqlStorageTypesUnderStudioSchemaOnly()
     {
         using var db = new StudioDbContext(new DbContextOptionsBuilder<StudioDbContext>()
