@@ -11,7 +11,3 @@ GRANT CONNECT ON DATABASE nexus_admin TO nexus_studio_migrator, nexus_studio_app
 CREATE SCHEMA studio AUTHORIZATION nexus_studio_migrator;
 REVOKE ALL ON SCHEMA studio FROM PUBLIC;
 GRANT USAGE ON SCHEMA studio TO nexus_studio_app;
-ALTER DEFAULT PRIVILEGES FOR ROLE nexus_studio_migrator IN SCHEMA studio
-  GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO nexus_studio_app;
-ALTER DEFAULT PRIVILEGES FOR ROLE nexus_studio_migrator IN SCHEMA studio
-  GRANT USAGE, SELECT ON SEQUENCES TO nexus_studio_app;

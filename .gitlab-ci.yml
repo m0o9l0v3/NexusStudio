@@ -103,12 +103,17 @@ studio-db-role-check:
     - export NEXUS_STUDIO_APP_PASSWORD=ci-disposable-runtime-password-654321
     - sh deploy/database/setup-studio-roles.sh
     - PGPASSWORD="$NEXUS_STUDIO_MIGRATOR_PASSWORD" psql -X -v ON_ERROR_STOP=1 -U nexus_studio_migrator -d nexus_admin -c 'CREATE TABLE studio.permission_probe(id integer PRIMARY KEY)'
+    - PGPASSWORD="$NEXUS_STUDIO_MIGRATOR_PASSWORD" psql -X -v ON_ERROR_STOP=1 -U nexus_studio_migrator -d nexus_admin -c 'CREATE TABLE studio."__EFMigrationsHistory"(id integer PRIMARY KEY)'
+    - psql -X -v ON_ERROR_STOP=1 -U postgres -d nexus_admin -f deploy/database/grant-studio-runtime.sql
     - PGPASSWORD="$NEXUS_STUDIO_APP_PASSWORD" psql -X -v ON_ERROR_STOP=1 -U nexus_studio_app -d nexus_admin -c 'INSERT INTO studio.permission_probe VALUES (1)'
     - PGPASSWORD="$NEXUS_STUDIO_APP_PASSWORD" psql -X -v ON_ERROR_STOP=1 -U nexus_studio_app -d nexus_admin -Atc 'SELECT count(*) FROM studio.permission_probe' | grep -qx 1
     - psql -X -v ON_ERROR_STOP=1 -U postgres -d nexus_admin -c 'CREATE TABLE public.private_probe(id integer)'
     - |
       if PGPASSWORD="$NEXUS_STUDIO_APP_PASSWORD" psql -X -v ON_ERROR_STOP=1 -U nexus_studio_app -d nexus_admin -c 'CREATE TABLE studio.forbidden(id integer)' >/dev/null 2>&1; then
         echo 'runtime role unexpectedly has DDL rights' >&2; exit 1
+      fi
+      if PGPASSWORD="$NEXUS_STUDIO_APP_PASSWORD" psql -X -v ON_ERROR_STOP=1 -U nexus_studio_app -d nexus_admin -c 'SELECT * FROM studio."__EFMigrationsHistory"' >/dev/null 2>&1; then
+        echo 'runtime role unexpectedly reads migration history' >&2; exit 1
       fi
       if PGPASSWORD="$NEXUS_STUDIO_APP_PASSWORD" psql -X -v ON_ERROR_STOP=1 -U nexus_studio_app -d nexus_admin -c 'SELECT * FROM public.private_probe' >/dev/null 2>&1; then
         echo 'runtime role unexpectedly reads public schema data' >&2; exit 1
