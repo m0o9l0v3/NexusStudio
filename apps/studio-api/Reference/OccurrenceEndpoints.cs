@@ -155,23 +155,7 @@ public static partial class OccurrenceEndpoints
         var outcome = await ReferenceSaving.TrySaveAsync(db, request.OperationId, async () =>
         {
             await using var transaction = await db.Database.BeginTransactionAsync();
-            // 同じ開催回の中で日付を入れ替えると、(occurrence_id, date) の一意制約に途中で当たる。
-            // 日付が変わる開催日を一度仮の日付へ退避してから、最終的な日付を書き込む。
-            var moving = request.Draft!.Days
-                .Select(draft => (draft, existing: occurrence.Days.SingleOrDefault(d => d.Id == draft.Id)))
-                .Where(pair => pair.existing is not null && pair.existing.Date != pair.draft.Date)
-                .ToList();
-            if (moving.Count > 0)
-            {
-                for (var i = 0; i < moving.Count; i++)
-                {
-                    moving[i].existing!.Date = DateOnly.MinValue.AddDays(i);
-                }
-
-                await db.SaveChangesAsync();
-            }
-
-            Apply(occurrence, request.Draft!, db);
+            await ApplyAsync(db, occurrence, request.Draft!);
             ReferenceSaving.Touch(occurrence, adminId, now);
             var saved = ReferenceSaving.AddRevision(db, occurrence, ReferenceSaving.NewRevision(
                 ReferenceRevisionKind.Occurrence, id.ToString(), Normalize(request.Draft!), adminId, now, ReferenceRevisionSource.Editor, request.OperationId));
@@ -294,6 +278,30 @@ public static partial class OccurrenceEndpoints
         return problems;
     }
 
+    /// <summary>
+    /// 下書きの内容を開催回の行へ反映する。呼び出し側のトランザクションの中で使う（途中で一度保存する）。
+    /// 同じ開催回の中で日付を入れ替えると、(occurrence_id, date) の一意制約に途中で当たる。
+    /// 日付が変わる開催日を一度仮の日付へ退避してから、最終的な日付を書き込む。
+    /// </summary>
+    internal static async Task ApplyAsync(StudioDbContext db, Occurrence occurrence, OccurrenceDraft draft)
+    {
+        var moving = draft.Days
+            .Select(day => (draft: day, existing: occurrence.Days.SingleOrDefault(d => d.Id == day.Id)))
+            .Where(pair => pair.existing is not null && pair.existing.Date != pair.draft.Date)
+            .ToList();
+        if (moving.Count > 0)
+        {
+            for (var i = 0; i < moving.Count; i++)
+            {
+                moving[i].existing!.Date = DateOnly.MinValue.AddDays(i);
+            }
+
+            await db.SaveChangesAsync();
+        }
+
+        Apply(occurrence, draft, db);
+    }
+
     private static void Apply(Occurrence occurrence, OccurrenceDraft draft, StudioDbContext db)
     {
         occurrence.Name = draft.Name?.Trim() ?? string.Empty;
@@ -310,7 +318,9 @@ public static partial class OccurrenceEndpoints
             var day = occurrence.Days.SingleOrDefault(d => d.Id == dayDraft.Id);
             if (day is null)
             {
+                // IDを画面側で発行するため、ナビゲーションへ足すだけだと既存行の更新と扱われる。追加として登録する。
                 day = new OcDay { Id = dayDraft.Id, OccurrenceId = occurrence.Id };
+                db.OcDays.Add(day);
                 occurrence.Days.Add(day);
             }
 

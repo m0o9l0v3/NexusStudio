@@ -183,7 +183,7 @@ public sealed class StudioDbContext(DbContextOptions<StudioDbContext> options)
             entity.ToTable("reference_revisions", table =>
             {
                 table.HasCheckConstraint("ck_reference_revisions_kind", "kind IN ('occurrence', 'categories', 'spot')");
-                table.HasCheckConstraint("ck_reference_revisions_source", "source IN ('editor', 'import')");
+                table.HasCheckConstraint("ck_reference_revisions_source", "source IN ('editor', 'import', 'restore')");
             });
             entity.HasKey(e => e.RevisionId);
             entity.Property(e => e.RevisionId).HasColumnName("revision_id");
@@ -275,7 +275,7 @@ public sealed class StudioDbContext(DbContextOptions<StudioDbContext> options)
             entity.ToTable("release_entries", table =>
             {
                 table.HasCheckConstraint("ck_release_entries_target_kind", $"target_kind IN ({targetKinds})");
-                table.HasCheckConstraint("ck_release_entries_action", "action IN ('publish', 'withdraw')");
+                table.HasCheckConstraint("ck_release_entries_action", "action IN ('publish', 'withdraw', 'restore')");
             });
             entity.HasKey(e => new { e.ReleaseId, e.TargetKind, e.TargetId });
             entity.Property(e => e.ReleaseId).HasColumnName("release_id");
@@ -285,6 +285,8 @@ public sealed class StudioDbContext(DbContextOptions<StudioDbContext> options)
             entity.Property(e => e.RevisionId).HasColumnName("revision_id");
             entity.Property(e => e.PreviousRevisionId).HasColumnName("previous_revision_id");
             entity.Property(e => e.Label).HasColumnName("label").HasMaxLength(500).IsRequired();
+            entity.Property(e => e.RestoredFromRevisionId).HasColumnName("restored_from_revision_id");
+            entity.Property(e => e.StashedRevisionId).HasColumnName("stashed_revision_id");
             entity.HasIndex(e => new { e.TargetKind, e.TargetId }).HasDatabaseName("ix_release_entries_target");
         });
 
@@ -331,7 +333,8 @@ public sealed class StudioDbContext(DbContextOptions<StudioDbContext> options)
             entity.Property(e => e.OperationId).HasColumnName("operation_id");
             entity.HasIndex(e => e.OperationId).IsUnique().HasFilter("operation_id IS NOT NULL").HasDatabaseName("ix_operation_logs_operation_id");
             entity.Property(e => e.StartedAt).HasColumnName("started_at");
-            entity.HasIndex(e => e.StartedAt).HasDatabaseName("ix_operation_logs_started_at");
+            entity.Property(e => e.StartedAtMs).HasColumnName("started_at_ms");
+            entity.HasIndex(e => e.StartedAtMs).HasDatabaseName("ix_operation_logs_started_at_ms");
             entity.Property(e => e.FinishedAt).HasColumnName("finished_at");
             entity.Property(e => e.ActorId).HasColumnName("actor_id");
             entity.Property(e => e.Action).HasColumnName("action").IsRequired();

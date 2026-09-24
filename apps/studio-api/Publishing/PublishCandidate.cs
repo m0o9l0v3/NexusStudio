@@ -12,8 +12,8 @@ namespace StudioApi.Publishing;
 /// <summary>公開・取り下げの対象1件。</summary>
 /// <param name="TargetKind">event／occurrence／categories／spot。</param>
 /// <param name="TargetId">イベントID・開催回ID・canonical ID。カテゴリ一覧は "categories"。</param>
-/// <param name="Action">publish／withdraw。</param>
-/// <param name="RevisionId">公開する版（確認した保存版）。取り下げでは指定しない。</param>
+/// <param name="Action">publish／withdraw／restore。</param>
+/// <param name="RevisionId">公開する版（確認した保存版）。復旧では戻す過去の版。取り下げでは指定しない。</param>
 public sealed record PublishEntry(string TargetKind, string TargetId, string Action, Guid? RevisionId);
 
 /// <summary>公開データ一式（ある時点の公開版、または公開後の候補）。</summary>
@@ -58,8 +58,12 @@ public sealed class CandidateItem
     /// <summary>現在の下書きの版。</summary>
     public Guid? CurrentRevisionId { get; init; }
     public Publication? Publication { get; init; }
-    /// <summary>公開する内容（公開のときだけ）。</summary>
+    /// <summary>公開する内容（公開・復旧のとき）。</summary>
     public object? CandidatePayload { get; init; }
+    /// <summary>復旧：戻す版が過去に公開されていたか。</summary>
+    public bool WasPublished { get; init; }
+    /// <summary>復旧：戻す版を公開していた当時の公開データ（終日の時刻の違いを示すため。11 RA-10）。</summary>
+    public PublishedSet? Original { get; init; }
 }
 
 /// <summary>
@@ -77,6 +81,12 @@ public sealed class PublishCandidate
     public required string Fingerprint { get; init; }
     /// <summary>Spotの取り下げ状態など、公開版に含まれない現在の情報。</summary>
     public required IReadOnlyDictionary<string, Spot> SpotRows { get; init; }
+    /// <summary>イベントの現在の下書きが参照している開催日（開催回の復旧で、参照中の開催日を消さないため）。</summary>
+    public IReadOnlySet<Guid> DraftDayReferences { get; init; } = new HashSet<Guid>();
+    /// <summary>復旧する開催回の、現在の開催日（ID → 日付）。</summary>
+    public IReadOnlyDictionary<Guid, Dictionary<Guid, DateOnly>> CurrentOccurrenceDays { get; init; } = new Dictionary<Guid, Dictionary<Guid, DateOnly>>();
+    /// <summary>現在のカテゴリ（カテゴリ一覧の復旧で、既存のカテゴリを失わせないため。11 §7）。</summary>
+    public IReadOnlySet<Guid> CurrentCategoryIds { get; init; } = new HashSet<Guid>();
 
     public static async Task<PublishCandidate> BuildAsync(StudioDbContext db, IReadOnlyList<PublishEntry> entries)
     {
@@ -98,10 +108,12 @@ public sealed class PublishCandidate
             }
             else if (item.Exists && entry.RevisionId is { } revisionId)
             {
-                var payload = await LoadPayloadAsync(db, entry.TargetKind, revisionId);
+                var payload = await LoadPayloadAsync(db, entry.TargetKind, entry.TargetId, revisionId);
                 if (payload is not null)
                 {
                     Put(after, entry, revisionId, payload);
+                    var restore = entry.Action == ReleaseAction.Restore;
+                    var publishedAt = restore ? await PublishedSequenceAsync(db, entry, revisionId) : null;
                     item = new CandidateItem
                     {
                         Entry = item.Entry,
@@ -110,12 +122,15 @@ public sealed class PublishCandidate
                         CurrentRevisionId = item.CurrentRevisionId,
                         Publication = item.Publication,
                         CandidatePayload = payload,
+                        WasPublished = publishedAt is not null,
+                        Original = publishedAt is { } sequence ? await LoadPublishedAtAsync(db, sequence) : null,
                     };
                     items[^1] = item;
                 }
             }
         }
 
+        var restoring = entries.Where(e => e.Action == ReleaseAction.Restore).Select(e => e.TargetKind).ToHashSet();
         return new PublishCandidate
         {
             Items = items,
@@ -123,7 +138,54 @@ public sealed class PublishCandidate
             After = after,
             Fingerprint = ComputeFingerprint(entries, items, publications),
             SpotRows = spotRows,
+            DraftDayReferences = restoring.Contains(PublishTargetKind.Occurrence)
+                ? (await EventReferenceIndex.LoadAsync(db)).ReferencedDayIds()
+                : new HashSet<Guid>(),
+            CurrentOccurrenceDays = await CurrentDaysAsync(db, entries),
+            CurrentCategoryIds = restoring.Contains(PublishTargetKind.Categories)
+                ? (await db.Categories.AsNoTracking().Select(c => c.Id).ToListAsync()).ToHashSet()
+                : new HashSet<Guid>(),
         };
+    }
+
+    private static async Task<Dictionary<Guid, Dictionary<Guid, DateOnly>>> CurrentDaysAsync(StudioDbContext db, IReadOnlyList<PublishEntry> entries)
+    {
+        var ids = entries
+            .Where(e => e.Action == ReleaseAction.Restore && e.TargetKind == PublishTargetKind.Occurrence && Guid.TryParse(e.TargetId, out _))
+            .Select(e => Guid.Parse(e.TargetId))
+            .ToList();
+        if (ids.Count == 0)
+        {
+            return [];
+        }
+
+        var days = await db.OcDays.AsNoTracking().Where(d => ids.Contains(d.OccurrenceId)).ToListAsync();
+        return ids.ToDictionary(id => id, id => days.Where(d => d.OccurrenceId == id).ToDictionary(d => d.Id, d => d.Date));
+    }
+
+    /// <summary>その版を公開（または復旧）した最後の Release の通し番号。公開されたことが無ければnull。</summary>
+    private static async Task<long?> PublishedSequenceAsync(StudioDbContext db, PublishEntry entry, Guid revisionId)
+        => await (
+            from e in db.ReleaseEntries.AsNoTracking()
+            join r in db.Releases.AsNoTracking() on e.ReleaseId equals r.ReleaseId
+            where e.TargetKind == entry.TargetKind && e.TargetId == entry.TargetId && e.RevisionId == revisionId && e.Action != ReleaseAction.Withdraw
+            select (long?)r.Sequence).MaxAsync();
+
+    /// <summary>通し番号 sequence の Release を反映した時点の公開データ（履歴の詳細・復旧の確認で使う。11 RL-09）。</summary>
+    public static async Task<PublishedSet> LoadPublishedAtAsync(StudioDbContext db, long sequence)
+    {
+        var entries = await (
+            from e in db.ReleaseEntries.AsNoTracking()
+            join r in db.Releases.AsNoTracking() on e.ReleaseId equals r.ReleaseId
+            where r.Sequence <= sequence
+            select new { e.TargetKind, e.TargetId, e.Action, e.RevisionId, e.ReleaseId, r.Sequence }).ToListAsync();
+        var rows = entries
+            .GroupBy(e => (e.TargetKind, e.TargetId))
+            .Select(g => g.MaxBy(e => e.Sequence)!)
+            .Where(e => e.Action != ReleaseAction.Withdraw)
+            .Select(e => new Publication { TargetKind = e.TargetKind, TargetId = e.TargetId, State = PublicationRowState.Published, RevisionId = e.RevisionId, ReleaseId = e.ReleaseId })
+            .ToList();
+        return await LoadPublishedAsync(db, rows);
     }
 
     /// <summary>
@@ -216,17 +278,17 @@ public sealed class PublishCandidate
         return set;
     }
 
-    /// <summary>指定した版の内容。対象の種類と一致しない版ならnull。</summary>
-    public static async Task<object?> LoadPayloadAsync(StudioDbContext db, string kind, Guid revisionId)
+    /// <summary>指定した版の内容。対象の版でなければnull。</summary>
+    public static async Task<object?> LoadPayloadAsync(StudioDbContext db, string kind, string targetId, Guid revisionId)
     {
         if (kind == PublishTargetKind.Event)
         {
             var revision = await db.EventRevisions.AsNoTracking().SingleOrDefaultAsync(r => r.RevisionId == revisionId);
-            return revision is null ? null : Deserialize<EventDraft>(revision.Payload);
+            return revision is null || revision.EventId.ToString() != targetId ? null : Deserialize<EventDraft>(revision.Payload);
         }
 
         var reference = await db.ReferenceRevisions.AsNoTracking().SingleOrDefaultAsync(r => r.RevisionId == revisionId && r.Kind == kind);
-        return reference is null ? null : DeserializePayload(kind, reference.Payload);
+        return reference is null || !string.Equals(reference.TargetId, targetId, StringComparison.Ordinal) ? null : DeserializePayload(kind, reference.Payload);
     }
 
     public static object DeserializePayload(string kind, string payload) => kind switch

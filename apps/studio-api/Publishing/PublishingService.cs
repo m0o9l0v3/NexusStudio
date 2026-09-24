@@ -18,7 +18,18 @@ public sealed record ValidationRunResult(
     IReadOnlyList<PublishEntry> Entries,
     IReadOnlyList<ValidationFinding> Findings);
 
-public sealed record ReleaseEntrySummary(string TargetKind, string TargetId, string Action, Guid RevisionId, Guid? PreviousRevisionId, string Label);
+/// <param name="Action">publish／withdraw／restore。</param>
+/// <param name="RestoredFromRevisionId">復旧で戻した過去の版。</param>
+/// <param name="StashedRevisionId">復旧の直前に退避した未公開の下書きの版。</param>
+public sealed record ReleaseEntrySummary(
+    string TargetKind,
+    string TargetId,
+    string Action,
+    Guid RevisionId,
+    Guid? PreviousRevisionId,
+    string Label,
+    Guid? RestoredFromRevisionId,
+    Guid? StashedRevisionId);
 
 public sealed record ReleaseSummary(
     Guid ReleaseId,
@@ -109,6 +120,7 @@ public sealed class PublishingService(StudioDbContext db, CandidateValidator val
             Id = Guid.CreateVersion7(),
             OperationId = operationId,
             StartedAt = now,
+            StartedAtMs = now.ToUnixTimeMilliseconds(),
             ActorId = adminId,
             Action = OperationAction.Publish,
             TargetKind = first.TargetKind,
@@ -217,7 +229,24 @@ public sealed class PublishingService(StudioDbContext db, CandidateValidator val
         {
             var publication = await db.Publications.SingleOrDefaultAsync(p => p.TargetKind == item.Entry.TargetKind && p.TargetId == item.Entry.TargetId);
             var withdraw = item.Entry.Action == ReleaseAction.Withdraw;
-            var revisionId = withdraw ? publication!.RevisionId : item.Entry.RevisionId!.Value;
+            var restore = item.Entry.Action == ReleaseAction.Restore;
+            Guid? stashed = null;
+            Guid revisionId;
+            if (withdraw)
+            {
+                revisionId = publication!.RevisionId;
+            }
+            else if (restore)
+            {
+                // 未公開の下書きがあれば退避してから、過去の版の内容を新しい下書きの版として写し、それを公開する（11 RL-12、28 S4-5）。
+                stashed = item.CurrentRevisionId != publication?.RevisionId ? item.CurrentRevisionId : null;
+                revisionId = await ApplyRestoreAsync(item, adminId, now);
+            }
+            else
+            {
+                revisionId = item.Entry.RevisionId!.Value;
+            }
+
             release.Entries.Add(new ReleaseEntry
             {
                 TargetKind = item.Entry.TargetKind,
@@ -226,6 +255,8 @@ public sealed class PublishingService(StudioDbContext db, CandidateValidator val
                 RevisionId = revisionId,
                 PreviousRevisionId = publication?.State == PublicationRowState.Published ? publication.RevisionId : null,
                 Label = Truncate(item.Label, 500),
+                RestoredFromRevisionId = restore ? item.Entry.RevisionId : null,
+                StashedRevisionId = stashed,
             });
 
             if (publication is null)
@@ -244,10 +275,95 @@ public sealed class PublishingService(StudioDbContext db, CandidateValidator val
         logRow.FinishedAt = now;
         logRow.ReleaseId = release.ReleaseId;
         logRow.Action = OperationAction.Publish;
-        logRow.Detail = entries.All(e => e.Action == ReleaseAction.Withdraw) ? "取り下げ" : entries.Any(e => e.Action == ReleaseAction.Withdraw) ? "公開・取り下げ" : "公開";
+        logRow.Detail = string.Join("・", entries.Select(e => e.Action).Distinct().Select(action => action switch
+        {
+            ReleaseAction.Withdraw => "取り下げ",
+            ReleaseAction.Restore => "復旧",
+            _ => "公開",
+        }));
         await db.SaveChangesAsync();
         await transaction.CommitAsync();
         return new(PublishOutcomeKind.Done, await ToResultAsync(logRow));
+    }
+
+    /// <summary>復旧：過去の版の内容を現在の下書きへ反映し、新しい版を作る。返すのは新しい版のID。</summary>
+    private async Task<Guid> ApplyRestoreAsync(CandidateItem item, Guid adminId, DateTimeOffset now)
+    {
+        var id = item.Entry.TargetId;
+        switch (item.CandidatePayload)
+        {
+            case EventDraft draft:
+            {
+                var head = await db.EventHeads.SingleAsync(h => h.EventId == Guid.Parse(id));
+                var revision = new EventRevision
+                {
+                    RevisionId = Guid.CreateVersion7(),
+                    EventId = head.EventId,
+                    Payload = JsonSerializer.Serialize(draft, EventDraftRules.JsonOptions),
+                    CreatedAt = now,
+                    CreatedBy = adminId,
+                    BaseRevisionId = head.CurrentRevisionId,
+                    OperationId = Guid.CreateVersion7(),
+                };
+                db.EventRevisions.Add(revision);
+                head.CurrentRevisionId = revision.RevisionId;
+                head.UpdatedAt = now;
+                head.UpdatedBy = adminId;
+                head.RowVersion++;
+                return revision.RevisionId;
+            }
+
+            case OccurrenceDraft draft:
+            {
+                var occurrence = await db.Occurrences.Include(o => o.Days).SingleAsync(o => o.Id == Guid.Parse(id));
+                await OccurrenceEndpoints.ApplyAsync(db, occurrence, draft);
+                ReferenceSaving.Touch(occurrence, adminId, now);
+                return ReferenceSaving.AddRevision(db, occurrence, ReferenceSaving.NewRevision(
+                    ReferenceRevisionKind.Occurrence, id, draft, adminId, now, ReferenceRevisionSource.Restore, null)).RevisionId;
+            }
+
+            case List<CategoryDraft> items:
+            {
+                var state = await db.CategoryListStates.SingleAsync();
+                var categories = await db.Categories.ToListAsync();
+                for (var i = 0; i < items.Count; i++)
+                {
+                    var category = categories.SingleOrDefault(c => c.Id == items[i].Id);
+                    if (category is null)
+                    {
+                        db.Categories.Add(category = new Category { Id = items[i].Id });
+                    }
+
+                    category.Name = items[i].Name?.Trim() ?? string.Empty;
+                    category.Selectable = items[i].Selectable;
+                    category.SortOrder = i + 1;
+                }
+
+                ReferenceSaving.Touch(state, adminId, now);
+                return ReferenceSaving.AddRevision(db, state, ReferenceSaving.NewRevision(
+                    ReferenceRevisionKind.Categories, ReferenceRevisionKind.Categories, items, adminId, now, ReferenceRevisionSource.Restore, null)).RevisionId;
+            }
+
+            case SpotDraft draft:
+            {
+                var spot = (await db.Spots.Include(s => s.NameAliases).Where(s => s.CanonicalId == id).ToListAsync())
+                    .Single(s => string.Equals(s.CanonicalId, id, StringComparison.Ordinal));
+                spot.Name = draft.Name?.Trim() ?? string.Empty;
+                spot.Utilization = draft.Utilization;
+                spot.NameAliases.RemoveAll(a => !draft.Aliases.Contains(a.Alias, StringComparer.Ordinal));
+                foreach (var alias in draft.Aliases.Where(a => spot.NameAliases.All(existing => existing.Alias != a)))
+                {
+                    spot.NameAliases.Add(new SpotNameAlias { CanonicalId = spot.CanonicalId, Alias = alias });
+                }
+
+                ReferenceSaving.Touch(spot, adminId, now);
+                return ReferenceSaving.AddRevision(db, spot, ReferenceSaving.NewRevision(
+                    ReferenceRevisionKind.Spot, id, draft, adminId, now, ReferenceRevisionSource.Restore, null)).RevisionId;
+            }
+
+            default:
+                throw new InvalidOperationException($"復旧できない対象です: {item.Entry.TargetKind}");
+        }
     }
 
     /// <summary>Release の通し番号。公開は直列化しているため最大値＋1で重複しない（重複すれば一意制約で失敗し、何も反映しない）。</summary>
@@ -301,7 +417,7 @@ public sealed class PublishingService(StudioDbContext db, CandidateValidator val
             release.Message,
             release.Entries
                 .OrderBy(e => Array.IndexOf(PublishTargetKind.All, e.TargetKind)).ThenBy(e => e.Label, StringComparer.CurrentCulture)
-                .Select(e => new ReleaseEntrySummary(e.TargetKind, e.TargetId, e.Action, e.RevisionId, e.PreviousRevisionId, e.Label))
+                .Select(ReleaseHistory.ToSummary)
                 .ToList());
     }
 
