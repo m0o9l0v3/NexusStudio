@@ -163,6 +163,20 @@ public sealed class MapDatasetTests
     }
 
     [Fact]
+    public void AdminMigration_OnlyCreatesStudioSchemaTablesWithoutTouchingOthers()
+    {
+        using var db = new StudioDbContext(new DbContextOptionsBuilder<StudioDbContext>()
+            .UseNpgsql("Host=localhost;Database=unused;Username=unused;Password=unused").Options);
+        var sql = db.GetService<IMigrator>().GenerateScript(fromMigration: MigrationId, toMigration: "AddStudioAdmins");
+        Assert.Contains("CREATE TABLE studio.admins", sql);
+        Assert.Contains("CREATE UNIQUE INDEX ix_admins_normalized_email ON studio.admins", sql);
+        Assert.DoesNotContain("public.", sql);
+        Assert.DoesNotContain("DROP TABLE", sql);
+        Assert.DoesNotContain("ALTER TABLE", sql);
+        Assert.DoesNotContain("map_datasets", sql);
+    }
+
+    [Fact]
     public void Migration_GeneratesPostgreSqlStorageTypesUnderStudioSchemaOnly()
     {
         using var db = new StudioDbContext(new DbContextOptionsBuilder<StudioDbContext>()
