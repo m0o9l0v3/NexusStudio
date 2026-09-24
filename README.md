@@ -6,13 +6,13 @@ Nexus（[`nexus-mobile`](https://gitlab.com/11h27m/nexus-mobile)）の管理ポ�
 
 ## 現在の実装状態
 
-**Step 0（基盤整備）と Step 1（認証＋App Shell）が完了。Step 2（イベント編集）以降は未着手です。**
+**Step 0（基盤整備）・Step 1（認証＋App Shell）・Step 2（イベント1件の編集と下書き保存）が完了。Step 3 以降は未着手です。**
 
 | Step | 内容 | 状態 |
 |---|---|---|
 | Step 0 | リポジトリ骨格、`studio` schema、MapDataset validatorの移植 | ✅ 完了 |
 | Step 1 | ASP.NET Core Identity認証、管理者コマンド、ログイン画面、App Shell（Sidebar/Workspace） | ✅ 完了（各領域の本文は準備中表示） |
-| Step 2 | イベント編集（Revision/head/楽観的排他制御） | 未着手 |
+| Step 2 | イベント1件の編集と下書き保存（Revision/head、rowVersion・operationId、参照データの取り込み） | ✅ 完了（公開はStep 4） |
 
 詳細は [`CLAUDE.md`](CLAUDE.md) を参照してください。
 
@@ -81,6 +81,24 @@ npm install
 npm run dev         # http://localhost:5173（/api は http://localhost:5001 へ中継）
 npm run typecheck
 npm run build
+```
+
+### 参照データ（開催回・開催日・カテゴリ・Spot）
+
+Step 3 で編集画面を作るまでは、取り込みコマンドで登録します。起動時には取り込みません。IDで突き合わせて追加・更新し、ファイルに無い行は削除しません。1件でも不正な行があれば何も書き込みません。
+
+```bash
+cd apps/studio-api
+dotnet run -- reference import --file ../../docs/samples/reference-sample.json   # 開発用の設計用サンプル（本番へ取り込まない）
+```
+
+### APIの型
+
+Studio Web は `apps/studio-web/openapi/studio-api.json` から生成した型（`src/api/schema.d.ts`）でAPIを呼びます。APIを変えたら次を実行します（食い違いはCIで検出されます）。
+
+```bash
+STUDIO_UPDATE_OPENAPI=1 dotnet test apps/studio-api-tests/StudioApi.Tests.csproj
+cd apps/studio-web && npm run gen:api
 ```
 
 ### テスト

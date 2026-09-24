@@ -24,5 +24,9 @@ studio-web-check:
   script:
     - cd apps/studio-web
     - npm ci
+    # APIの型（openapi/studio-api.json から生成）が最新であること。文書自体の最新性は studio-api-check のテストで確認する。
+    - npm run gen:api
+    - git diff --exit-code -- src/api/schema.d.ts
     - npm run typecheck
+    - npm run lint
     - npm run build
