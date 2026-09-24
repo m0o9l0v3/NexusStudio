@@ -62,3 +62,41 @@ studio-web-image:
   extends: .image-build
   script:
     - sh deploy/build-image.sh studio-web apps/studio-web/Dockerfile
+
+studio-db-role-check:
+  stage: verify
+  image: postgres:18.6-trixie
+  services:
+    - name: postgres:18.6-trixie
+      alias: postgres
+  variables:
+    POSTGRES_DB: nexus_admin
+    POSTGRES_USER: postgres
+    POSTGRES_PASSWORD: ci-disposable-postgres-password
+    PGHOST: postgres
+    PGPASSWORD: ci-disposable-postgres-password
+  script:
+    - sh -n deploy/database/setup-studio-roles.sh
+    - |
+      for attempt in $(seq 1 30); do
+        if pg_isready -h postgres -U postgres -d nexus_admin; then break; fi
+        sleep 1
+      done
+      pg_isready -h postgres -U postgres -d nexus_admin
+    - export NEXUS_STUDIO_MIGRATOR_PASSWORD=ci-disposable-migrator-password-123456
+    - export NEXUS_STUDIO_APP_PASSWORD=ci-disposable-runtime-password-654321
+    - sh deploy/database/setup-studio-roles.sh
+    - PGPASSWORD="$NEXUS_STUDIO_MIGRATOR_PASSWORD" psql -X -v ON_ERROR_STOP=1 -U nexus_studio_migrator -d nexus_admin -c 'CREATE TABLE studio.permission_probe(id integer PRIMARY KEY)'
+    - PGPASSWORD="$NEXUS_STUDIO_APP_PASSWORD" psql -X -v ON_ERROR_STOP=1 -U nexus_studio_app -d nexus_admin -c 'INSERT INTO studio.permission_probe VALUES (1)'
+    - PGPASSWORD="$NEXUS_STUDIO_APP_PASSWORD" psql -X -v ON_ERROR_STOP=1 -U nexus_studio_app -d nexus_admin -Atc 'SELECT count(*) FROM studio.permission_probe' | grep -qx 1
+    - psql -X -v ON_ERROR_STOP=1 -U postgres -d nexus_admin -c 'CREATE TABLE public.private_probe(id integer)'
+    - |
+      if PGPASSWORD="$NEXUS_STUDIO_APP_PASSWORD" psql -X -v ON_ERROR_STOP=1 -U nexus_studio_app -d nexus_admin -c 'CREATE TABLE studio.forbidden(id integer)' >/dev/null 2>&1; then
+        echo 'runtime role unexpectedly has DDL rights' >&2; exit 1
+      fi
+      if PGPASSWORD="$NEXUS_STUDIO_APP_PASSWORD" psql -X -v ON_ERROR_STOP=1 -U nexus_studio_app -d nexus_admin -c 'SELECT * FROM public.private_probe' >/dev/null 2>&1; then
+        echo 'runtime role unexpectedly reads public schema data' >&2; exit 1
+      fi
+      if PGPASSWORD="$NEXUS_STUDIO_MIGRATOR_PASSWORD" psql -X -v ON_ERROR_STOP=1 -U nexus_studio_migrator -d nexus_admin -c 'CREATE TABLE public.forbidden(id integer)' >/dev/null 2>&1; then
+        echo 'migration role unexpectedly writes to public schema' >&2; exit 1
+      fi
