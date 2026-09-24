@@ -2,12 +2,14 @@ namespace StudioApi.Models;
 
 // 開催回・開催日・カテゴリ・Spot（15 v01 §4.3）。
 // 各行は「現在の下書き」で、RowVersion による楽観的排他制御の対象。保存のたびに不変の ReferenceRevision を残す。
-// 公開（Release）は Step 4 で追加する。
+// 公開は Release（PublishingRecords.cs）で行い、公開状態は Publication から算出する。
 
 /// <summary>編集できる参照データの共通項目。</summary>
 public interface IEditableReference
 {
     long RowVersion { get; set; }
+    /// <summary>現在の下書きの内容を記録した ReferenceRevision。公開ではこの版を固定して扱う。</summary>
+    Guid? CurrentRevisionId { get; set; }
     DateTimeOffset? UpdatedAt { get; set; }
     /// <summary>最後に画面から保存した管理者。取り込みコマンドで更新した場合はnull。</summary>
     Guid? UpdatedBy { get; set; }
@@ -22,6 +24,7 @@ public sealed class Occurrence : IEditableReference
     public string? SourceNote { get; set; }
     public List<OcDay> Days { get; set; } = [];
     public long RowVersion { get; set; } = 1;
+    public Guid? CurrentRevisionId { get; set; }
     public DateTimeOffset? UpdatedAt { get; set; }
     public Guid? UpdatedBy { get; set; }
 }
@@ -65,13 +68,14 @@ public sealed class CategoryListState : IEditableReference
     public const int SingletonId = 1;
     public int Id { get; set; } = SingletonId;
     public long RowVersion { get; set; } = 1;
+    public Guid? CurrentRevisionId { get; set; }
     public DateTimeOffset? UpdatedAt { get; set; }
     public Guid? UpdatedBy { get; set; }
 }
 
 /// <summary>
 /// 会場として選べるSpot。canonical ID は大文字小文字を含めて厳密一致で保持し、生成・正規化・推測しない（CLAUDE.md）。
-/// Step 3 では名称・別名・建物・階・利用状態を編集する。位置・出典・経路は Map Data と合わせて扱う。
+/// 名称・別名・利用状態は Spot 単独で公開する。建物・階・位置・経路は地図と一緒に公開する（28 S4-2）。
 /// </summary>
 public sealed class Spot : IEditableReference
 {
@@ -79,10 +83,10 @@ public sealed class Spot : IEditableReference
     public string Name { get; set; } = string.Empty;
     public string? BuildingName { get; set; }
     public string? FloorName { get; set; }
-    public bool IsPublished { get; set; }
     public string Utilization { get; set; } = SpotUtilization.Available;
     public List<SpotNameAlias> NameAliases { get; set; } = [];
     public long RowVersion { get; set; } = 1;
+    public Guid? CurrentRevisionId { get; set; }
     public DateTimeOffset? UpdatedAt { get; set; }
     public Guid? UpdatedBy { get; set; }
 }

@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using StudioApi.Data;
 using StudioApi.Events;
 using StudioApi.Models;
+using StudioApi.Publishing;
 
 namespace StudioApi.Reference;
 
@@ -13,7 +14,7 @@ public sealed record CategoryDraft(Guid Id, string? Name, bool Selectable);
 public sealed record CategoryListItem(Guid Id, string Name, bool Selectable, int ReferenceCount);
 
 /// <param name="Items">配列の順序がカテゴリの表示順。</param>
-public sealed record CategoryListDetail(long RowVersion, DateTimeOffset? UpdatedAt, EditorRef? UpdatedBy, string Publication, IReadOnlyList<CategoryListItem> Items);
+public sealed record CategoryListDetail(long RowVersion, DateTimeOffset? UpdatedAt, EditorRef? UpdatedBy, Guid? RevisionId, PublicationSummary Publication, IReadOnlyList<CategoryListItem> Items);
 
 public sealed record SaveCategoriesRequest(Guid OperationId, long RowVersion, IReadOnlyList<CategoryDraft>? Items);
 
@@ -81,10 +82,11 @@ public static class CategoryEndpoints
         var adminId = ReferenceSaving.CurrentAdminId(principal, userManager);
         var now = timeProvider.GetUtcNow();
         ReferenceSaving.Touch(state, adminId, now);
-        db.ReferenceRevisions.Add(ReferenceSaving.NewRevision(
+        var revision = ReferenceSaving.AddRevision(db, state, ReferenceSaving.NewRevision(
             ReferenceRevisionKind.Categories, ReferenceRevisionKind.Categories,
             request.Items.Select(i => i with { Name = i.Name?.Trim() ?? string.Empty }).ToList(),
             adminId, now, ReferenceRevisionSource.Editor, request.OperationId));
+        OperationLogs.AddSave(db, request.OperationId, adminId, now, PublishTargetKind.Categories, PublishTargetKind.Categories, "カテゴリ一覧", revision.RevisionId);
 
         return await ReferenceSaving.TrySaveAsync(db, request.OperationId) == SaveOutcome.Conflict
             ? TypedResults.Conflict(new ReferenceConflict<CategoryListDetail>("conflict", "他の管理者がカテゴリ一覧を先に保存しました。", await LoadAsync(db)))
@@ -135,11 +137,13 @@ public static class CategoryEndpoints
         var categories = await db.Categories.AsNoTracking().OrderBy(c => c.SortOrder).ThenBy(c => c.Name).ToListAsync();
         var references = await EventReferenceIndex.LoadAsync(db);
         var names = await ReferenceSaving.DisplayNamesAsync(db, [state.UpdatedBy]);
+        var publications = await PublicationIndex.LoadAsync(db, PublishTargetKind.Categories);
         return new CategoryListDetail(
             state.RowVersion,
             state.UpdatedAt,
             ReferenceSaving.Editor(state.UpdatedBy, names),
-            PublicationState.Unpublished,
+            state.CurrentRevisionId,
+            publications.Summarize(PublishTargetKind.Categories, PublishTargetKind.Categories, state.CurrentRevisionId),
             categories.Select(c => new CategoryListItem(c.Id, c.Name, c.Selectable, references.EventsInCategory(c.Id))).ToList());
     }
 }

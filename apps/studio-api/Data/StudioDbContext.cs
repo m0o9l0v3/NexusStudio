@@ -19,6 +19,11 @@ public sealed class StudioDbContext(DbContextOptions<StudioDbContext> options)
     public DbSet<SpotNameAlias> SpotNameAliases => Set<SpotNameAlias>();
     public DbSet<EventHead> EventHeads => Set<EventHead>();
     public DbSet<EventRevision> EventRevisions => Set<EventRevision>();
+    public DbSet<Release> Releases => Set<Release>();
+    public DbSet<ReleaseEntry> ReleaseEntries => Set<ReleaseEntry>();
+    public DbSet<Publication> Publications => Set<Publication>();
+    public DbSet<ValidationRun> ValidationRuns => Set<ValidationRun>();
+    public DbSet<OperationLog> OperationLogs => Set<OperationLog>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -98,6 +103,7 @@ public sealed class StudioDbContext(DbContextOptions<StudioDbContext> options)
 
         ConfigureReferenceData(modelBuilder);
         ConfigureEvents(modelBuilder);
+        ConfigurePublishing(modelBuilder);
     }
 
     private static void ConfigureReferenceData(ModelBuilder modelBuilder)
@@ -159,7 +165,6 @@ public sealed class StudioDbContext(DbContextOptions<StudioDbContext> options)
             entity.Property(e => e.Name).HasColumnName("name").HasMaxLength(200).IsRequired();
             entity.Property(e => e.BuildingName).HasColumnName("building_name").HasMaxLength(100);
             entity.Property(e => e.FloorName).HasColumnName("floor_name").HasMaxLength(100);
-            entity.Property(e => e.IsPublished).HasColumnName("is_published");
             entity.Property(e => e.Utilization).HasColumnName("utilization").IsRequired();
             entity.HasMany(e => e.NameAliases).WithOne().HasForeignKey(a => a.CanonicalId).OnDelete(DeleteBehavior.Cascade);
             ConfigureEditable(entity);
@@ -199,6 +204,7 @@ public sealed class StudioDbContext(DbContextOptions<StudioDbContext> options)
         where T : class, IEditableReference
     {
         entity.Property(e => e.RowVersion).HasColumnName("row_version").HasDefaultValue(1L).IsConcurrencyToken();
+        entity.Property(e => e.CurrentRevisionId).HasColumnName("current_revision_id");
         entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
         entity.Property(e => e.UpdatedBy).HasColumnName("updated_by");
         entity.HasOne<StudioAdmin>().WithMany().HasForeignKey(e => e.UpdatedBy).OnDelete(DeleteBehavior.Restrict);
@@ -237,6 +243,106 @@ public sealed class StudioDbContext(DbContextOptions<StudioDbContext> options)
             entity.HasIndex(e => new { e.EventId, e.CreatedAt }).HasDatabaseName("ix_event_revisions_event_id_created_at");
             entity.HasOne<EventHead>().WithMany().HasForeignKey(e => e.EventId).OnDelete(DeleteBehavior.Restrict);
             entity.HasOne<StudioAdmin>().WithMany().HasForeignKey(e => e.CreatedBy).OnDelete(DeleteBehavior.Restrict);
+        });
+    }
+
+    private static void ConfigurePublishing(ModelBuilder modelBuilder)
+    {
+        const string targetKinds = "'event', 'occurrence', 'categories', 'spot'";
+
+        modelBuilder.Entity<Release>(entity =>
+        {
+            entity.ToTable("releases", table => table.HasCheckConstraint("ck_releases_source", "source IN ('studio', 'import')"));
+            entity.HasKey(e => e.ReleaseId);
+            entity.Property(e => e.ReleaseId).HasColumnName("release_id");
+            entity.Property(e => e.Sequence).HasColumnName("sequence");
+            entity.HasIndex(e => e.Sequence).IsUnique().HasDatabaseName("ix_releases_sequence");
+            entity.Property(e => e.OperationId).HasColumnName("operation_id");
+            // 同じ操作IDの再送で2つ目の Release を作らない（11 RA-05）。
+            entity.HasIndex(e => e.OperationId).IsUnique().HasFilter("operation_id IS NOT NULL").HasDatabaseName("ix_releases_operation_id");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+            entity.Property(e => e.CreatedBy).HasColumnName("created_by");
+            entity.Property(e => e.Source).HasColumnName("source").IsRequired();
+            entity.Property(e => e.Message).HasColumnName("message").HasMaxLength(500);
+            entity.Property(e => e.ValidationRunId).HasColumnName("validation_run_id");
+            entity.HasMany(e => e.Entries).WithOne().HasForeignKey(e => e.ReleaseId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<StudioAdmin>().WithMany().HasForeignKey(e => e.CreatedBy).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<ValidationRun>().WithMany().HasForeignKey(e => e.ValidationRunId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<ReleaseEntry>(entity =>
+        {
+            entity.ToTable("release_entries", table =>
+            {
+                table.HasCheckConstraint("ck_release_entries_target_kind", $"target_kind IN ({targetKinds})");
+                table.HasCheckConstraint("ck_release_entries_action", "action IN ('publish', 'withdraw')");
+            });
+            entity.HasKey(e => new { e.ReleaseId, e.TargetKind, e.TargetId });
+            entity.Property(e => e.ReleaseId).HasColumnName("release_id");
+            entity.Property(e => e.TargetKind).HasColumnName("target_kind");
+            entity.Property(e => e.TargetId).HasColumnName("target_id").HasMaxLength(128);
+            entity.Property(e => e.Action).HasColumnName("action").IsRequired();
+            entity.Property(e => e.RevisionId).HasColumnName("revision_id");
+            entity.Property(e => e.PreviousRevisionId).HasColumnName("previous_revision_id");
+            entity.Property(e => e.Label).HasColumnName("label").HasMaxLength(500).IsRequired();
+            entity.HasIndex(e => new { e.TargetKind, e.TargetId }).HasDatabaseName("ix_release_entries_target");
+        });
+
+        modelBuilder.Entity<Publication>(entity =>
+        {
+            entity.ToTable("publications", table =>
+            {
+                table.HasCheckConstraint("ck_publications_target_kind", $"target_kind IN ({targetKinds})");
+                table.HasCheckConstraint("ck_publications_state", "state IN ('published', 'withdrawn')");
+            });
+            entity.HasKey(e => new { e.TargetKind, e.TargetId });
+            entity.Property(e => e.TargetKind).HasColumnName("target_kind");
+            entity.Property(e => e.TargetId).HasColumnName("target_id").HasMaxLength(128);
+            entity.Property(e => e.State).HasColumnName("state").IsRequired();
+            entity.Property(e => e.RevisionId).HasColumnName("revision_id");
+            entity.Property(e => e.ReleaseId).HasColumnName("release_id");
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+            entity.HasOne<Release>().WithMany().HasForeignKey(e => e.ReleaseId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<ValidationRun>(entity =>
+        {
+            entity.ToTable("validation_runs", table => table.HasCheckConstraint("ck_validation_runs_status", "status IN ('ok', 'failed')"));
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+            entity.Property(e => e.CreatedBy).HasColumnName("created_by");
+            entity.Property(e => e.Entries).HasColumnName("entries").HasColumnType("jsonb").IsRequired();
+            entity.Property(e => e.Fingerprint).HasColumnName("fingerprint").IsRequired();
+            entity.Property(e => e.Status).HasColumnName("status").IsRequired();
+            entity.Property(e => e.Findings).HasColumnName("findings").HasColumnType("jsonb").IsRequired();
+            entity.HasOne<StudioAdmin>().WithMany().HasForeignKey(e => e.CreatedBy).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<OperationLog>(entity =>
+        {
+            entity.ToTable("operation_logs", table =>
+            {
+                table.HasCheckConstraint("ck_operation_logs_action", "action IN ('save', 'import', 'publish', 'signIn', 'signInFailed', 'signOut')");
+                table.HasCheckConstraint("ck_operation_logs_status", "status IN ('processing', 'succeeded', 'failed')");
+            });
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.OperationId).HasColumnName("operation_id");
+            entity.HasIndex(e => e.OperationId).IsUnique().HasFilter("operation_id IS NOT NULL").HasDatabaseName("ix_operation_logs_operation_id");
+            entity.Property(e => e.StartedAt).HasColumnName("started_at");
+            entity.HasIndex(e => e.StartedAt).HasDatabaseName("ix_operation_logs_started_at");
+            entity.Property(e => e.FinishedAt).HasColumnName("finished_at");
+            entity.Property(e => e.ActorId).HasColumnName("actor_id");
+            entity.Property(e => e.Action).HasColumnName("action").IsRequired();
+            entity.Property(e => e.TargetKind).HasColumnName("target_kind");
+            entity.Property(e => e.TargetId).HasColumnName("target_id").HasMaxLength(128);
+            entity.Property(e => e.TargetLabel).HasColumnName("target_label").HasMaxLength(500);
+            entity.Property(e => e.Status).HasColumnName("status").IsRequired();
+            entity.Property(e => e.ReleaseId).HasColumnName("release_id");
+            entity.Property(e => e.RevisionId).HasColumnName("revision_id");
+            entity.Property(e => e.Detail).HasColumnName("detail").HasMaxLength(2000);
+            entity.HasOne<StudioAdmin>().WithMany().HasForeignKey(e => e.ActorId).OnDelete(DeleteBehavior.Restrict);
         });
     }
 }

@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 using StudioApi.Data;
 using StudioApi.Models;
+using StudioApi.Publishing;
 
 namespace StudioApi.Reference;
 
@@ -11,6 +12,8 @@ public sealed record OccurrenceItem(Guid Id, string Name, IReadOnlyList<OcDayIte
 
 public sealed record CategoryItem(Guid Id, string Name, int SortOrder, bool Selectable);
 
+/// <param name="IsPublished">参加者向けに公開中か（公開中・未公開変更ありを含む）。</param>
+/// <param name="Publication">unpublished／published／publishedWithChanges／withdrawn。</param>
 public sealed record SpotItem(
     string CanonicalId,
     string Name,
@@ -18,6 +21,7 @@ public sealed record SpotItem(
     string? BuildingName,
     string? FloorName,
     bool IsPublished,
+    string Publication,
     string Utilization);
 
 /// <summary>イベント編集で選ぶ開催回・開催日・カテゴリ。</summary>
@@ -56,6 +60,7 @@ public static class ReferenceEndpoints
     private static async Task<Ok<SpotSearchResult>> SearchSpotsAsync(StudioDbContext db, string? q, string? building, string? floor)
     {
         var spots = await db.Spots.AsNoTracking().Include(s => s.NameAliases).ToListAsync();
+        var publications = await PublicationIndex.LoadAsync(db, PublishTargetKind.Spot);
         IEnumerable<Spot> matches = spots;
         if (!string.IsNullOrWhiteSpace(q))
         {
@@ -85,7 +90,7 @@ public static class ReferenceEndpoints
 
         return TypedResults.Ok(new SpotSearchResult(
             list.Count,
-            list.Take(MaxSpotResults).Select(ToItem).ToList(),
+            list.Take(MaxSpotResults).Select(s => ToItem(s, publications)).ToList(),
             spots.Select(s => s.BuildingName).OfType<string>().Distinct().Order(StringComparer.CurrentCulture).ToList(),
             spots.Select(s => s.FloorName).OfType<string>().Distinct().Order(StringComparer.CurrentCulture).ToList()));
     }
@@ -103,19 +108,25 @@ public static class ReferenceEndpoints
 
         var wanted = id.Distinct(StringComparer.Ordinal).Take(500).ToList();
         var spots = await db.Spots.AsNoTracking().Include(s => s.NameAliases).Where(s => wanted.Contains(s.CanonicalId)).ToListAsync();
+        var publications = await PublicationIndex.LoadAsync(db, PublishTargetKind.Spot);
         // DBの照合順序に関わらず、序数比較で一致したものだけを返す。
-        return TypedResults.Ok(spots.Where(s => wanted.Contains(s.CanonicalId, StringComparer.Ordinal)).Select(ToItem).ToList());
+        return TypedResults.Ok(spots.Where(s => wanted.Contains(s.CanonicalId, StringComparer.Ordinal)).Select(s => ToItem(s, publications)).ToList());
     }
 
     private static OcDayItem ToItem(OcDay day) => new(
         day.Id, day.Date, day.PublicStart?.ToString("HH:mm"), day.PublicEnd?.ToString("HH:mm"), day.Status);
 
-    internal static SpotItem ToItem(Spot spot) => new(
-        spot.CanonicalId,
-        spot.Name,
-        spot.NameAliases.Select(a => a.Alias).Order(StringComparer.CurrentCulture).ToList(),
-        spot.BuildingName,
-        spot.FloorName,
-        spot.IsPublished,
-        spot.Utilization);
+    internal static SpotItem ToItem(Spot spot, PublicationIndex publications)
+    {
+        var state = PublicationState.Of(publications.Find(PublishTargetKind.Spot, spot.CanonicalId), spot.CurrentRevisionId);
+        return new(
+            spot.CanonicalId,
+            spot.Name,
+            spot.NameAliases.Select(a => a.Alias).Order(StringComparer.CurrentCulture).ToList(),
+            spot.BuildingName,
+            spot.FloorName,
+            PublicationState.IsLive(state),
+            state,
+            spot.Utilization);
+    }
 }

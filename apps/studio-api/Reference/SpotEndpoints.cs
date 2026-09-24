@@ -5,11 +5,12 @@ using Microsoft.EntityFrameworkCore;
 using StudioApi.Data;
 using StudioApi.Events;
 using StudioApi.Models;
+using StudioApi.Publishing;
 
 namespace StudioApi.Reference;
 
 /// <summary>Spot単独で公開する属性（28 S4-2）。建物・階・位置・経路の接続は地図と一緒に公開するため含めない。</summary>
-/// <param name="Utilization">available（選択できる）／noNewSelection（新規選択停止）。取り下げ（withdrawn）は公開と合わせて扱うため、ここでは新たに設定できない。</param>
+/// <param name="Utilization">available（選択できる）／noNewSelection（新規選択停止）。withdrawn は移行元の取り下げ済みの値で、ここでは新たに設定できない（公開の取り下げは Releases で行う）。</param>
 public sealed record SpotDraft(string? Name, IReadOnlyList<string> Aliases, string Utilization);
 
 public sealed record SpotEventReference(Guid EventId, string? EventTitle, int SlotCount);
@@ -19,7 +20,8 @@ public sealed record SpotDetail(
     long RowVersion,
     DateTimeOffset? UpdatedAt,
     EditorRef? UpdatedBy,
-    bool IsPublished,
+    Guid? RevisionId,
+    PublicationSummary Publication,
     SpotDraft Draft,
     SpotPlacement Placement,
     IReadOnlyList<SpotEventReference> DraftEvents);
@@ -50,6 +52,7 @@ public static class SpotEndpoints
     private static async Task<Ok<SpotSearchResult>> DirectoryAsync(StudioDbContext db, string? q, string? building, string? floor)
     {
         var spots = await db.Spots.AsNoTracking().Include(s => s.NameAliases).ToListAsync();
+        var publications = await PublicationIndex.LoadAsync(db, PublishTargetKind.Spot);
         IEnumerable<Spot> matches = spots;
         if (!string.IsNullOrWhiteSpace(q))
         {
@@ -78,7 +81,7 @@ public static class SpotEndpoints
             .ToList();
         return TypedResults.Ok(new SpotSearchResult(
             list.Count,
-            list.Take(MaxDirectoryResults).Select(ReferenceEndpoints.ToItem).ToList(),
+            list.Take(MaxDirectoryResults).Select(s => ReferenceEndpoints.ToItem(s, publications)).ToList(),
             spots.Select(s => s.BuildingName).OfType<string>().Distinct().Order(StringComparer.CurrentCulture).ToList(),
             spots.Select(s => s.FloorName).OfType<string>().Distinct().Order(StringComparer.CurrentCulture).ToList()));
     }
@@ -130,8 +133,9 @@ public static class SpotEndpoints
         var adminId = ReferenceSaving.CurrentAdminId(principal, userManager);
         var now = timeProvider.GetUtcNow();
         ReferenceSaving.Touch(spot, adminId, now);
-        db.ReferenceRevisions.Add(ReferenceSaving.NewRevision(
+        var revision = ReferenceSaving.AddRevision(db, spot, ReferenceSaving.NewRevision(
             ReferenceRevisionKind.Spot, spot.CanonicalId, draft, adminId, now, ReferenceRevisionSource.Editor, request.OperationId));
+        OperationLogs.AddSave(db, request.OperationId, adminId, now, PublishTargetKind.Spot, spot.CanonicalId, PublishCandidate.SpotLabel(spot.Name, spot.CanonicalId), revision.RevisionId);
 
         return await ReferenceSaving.TrySaveAsync(db, request.OperationId) == SaveOutcome.Conflict
             ? TypedResults.Conflict(await ConflictAsync(db, id))
@@ -191,12 +195,14 @@ public static class SpotEndpoints
 
         var references = await EventReferenceIndex.LoadAsync(db);
         var names = await ReferenceSaving.DisplayNamesAsync(db, [spot.UpdatedBy]);
+        var publications = await PublicationIndex.LoadAsync(db, PublishTargetKind.Spot);
         return new SpotDetail(
             spot.CanonicalId,
             spot.RowVersion,
             spot.UpdatedAt,
             ReferenceSaving.Editor(spot.UpdatedBy, names),
-            spot.IsPublished,
+            spot.CurrentRevisionId,
+            publications.Summarize(PublishTargetKind.Spot, spot.CanonicalId, spot.CurrentRevisionId),
             new SpotDraft(spot.Name, spot.NameAliases.Select(a => a.Alias).Order(StringComparer.CurrentCulture).ToList(), spot.Utilization),
             new SpotPlacement(spot.BuildingName, spot.FloorName),
             references.SlotsAtSpot(spot.CanonicalId)

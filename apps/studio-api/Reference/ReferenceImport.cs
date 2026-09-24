@@ -2,6 +2,7 @@ using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using StudioApi.Data;
 using StudioApi.Models;
+using StudioApi.Publishing;
 
 namespace StudioApi.Reference;
 
@@ -32,6 +33,8 @@ public sealed record ReferenceImportResult(bool Succeeded, IReadOnlyList<string>
 /// 起動時には実行しない（Step 0-c）。IDで突き合わせて追加・更新だけを行い、ファイルに無い行は削除しない。
 /// 1件でも不正なら何も書き込まない。
 /// 取り込んだ対象は版（RowVersion）を進めて Revision を残すため、画面で編集中の管理者には保存競合として伝わる。
+/// isPublished=true のSpotは、移行元で公開中の内容として、取り込み元（source=import）の Release で公開する。
+/// isPublished=false でも、公開中のSpotを取り下げはしない（取り下げは画面の操作だけで行う）。
 /// </summary>
 public sealed class ReferenceImporter(StudioDbContext db, TimeProvider timeProvider)
 {
@@ -44,10 +47,17 @@ public sealed class ReferenceImporter(StudioDbContext db, TimeProvider timeProvi
         }
 
         await using var transaction = await db.Database.BeginTransactionAsync();
+        if (db.Database.IsNpgsql())
+        {
+            // 取り込みの公開記録（Release）も、画面からの公開と同じく1つずつ書く。
+            await db.Database.ExecuteSqlRawAsync("SELECT pg_advisory_xact_lock(7201)");
+        }
+
         var counts = new Dictionary<string, (int Added, int Updated)>();
         var now = timeProvider.GetUtcNow();
         var touchedOccurrences = new List<Occurrence>();
         var touchedSpots = new List<Spot>();
+        var publishedSpotIds = new HashSet<string>(StringComparer.Ordinal);
 
         foreach (var source in file.Occurrences ?? [])
         {
@@ -96,7 +106,11 @@ public sealed class ReferenceImporter(StudioDbContext db, TimeProvider timeProvi
             spot.Name = source.Name.Trim();
             spot.BuildingName = source.Building;
             spot.FloorName = source.Floor;
-            spot.IsPublished = source.IsPublished;
+            if (source.IsPublished)
+            {
+                publishedSpotIds.Add(source.CanonicalId);
+            }
+
             spot.Utilization = source.Utilization ?? SpotUtilization.Available;
             var aliases = (source.Aliases ?? []).Select(a => a.Trim()).Where(a => a.Length > 0).ToHashSet(StringComparer.Ordinal);
             spot.NameAliases.RemoveAll(a => !aliases.Contains(a.Alias));
@@ -109,15 +123,16 @@ public sealed class ReferenceImporter(StudioDbContext db, TimeProvider timeProvi
         foreach (var occurrence in touchedOccurrences)
         {
             MarkImported(occurrence, now);
-            db.ReferenceRevisions.Add(ReferenceSaving.NewRevision(
+            ReferenceSaving.AddRevision(db, occurrence, ReferenceSaving.NewRevision(
                 ReferenceRevisionKind.Occurrence, occurrence.Id.ToString(), OccurrenceEndpoints.ToDraft(occurrence), null, now, ReferenceRevisionSource.Import, null));
         }
 
         if (file.Categories is { Count: > 0 })
         {
-            MarkImported(await db.CategoryListStates.SingleAsync(), now);
+            var state = await db.CategoryListStates.SingleAsync();
+            MarkImported(state, now);
             var categories = db.Categories.Local.Concat(await db.Categories.ToListAsync()).Distinct().OrderBy(c => c.SortOrder).ToList();
-            db.ReferenceRevisions.Add(ReferenceSaving.NewRevision(
+            ReferenceSaving.AddRevision(db, state, ReferenceSaving.NewRevision(
                 ReferenceRevisionKind.Categories, ReferenceRevisionKind.Categories,
                 categories.Select(c => new CategoryDraft(c.Id, c.Name, c.Selectable)).ToList(), null, now, ReferenceRevisionSource.Import, null));
         }
@@ -125,15 +140,23 @@ public sealed class ReferenceImporter(StudioDbContext db, TimeProvider timeProvi
         foreach (var spot in touchedSpots)
         {
             MarkImported(spot, now);
-            db.ReferenceRevisions.Add(ReferenceSaving.NewRevision(
+            ReferenceSaving.AddRevision(db, spot, ReferenceSaving.NewRevision(
                 ReferenceRevisionKind.Spot, spot.CanonicalId,
                 new SpotDraft(spot.Name, spot.NameAliases.Select(a => a.Alias).ToList(), spot.Utilization),
                 null, now, ReferenceRevisionSource.Import, null));
         }
 
+        var messages = counts.Select(c => $"{c.Key}: 追加 {c.Value.Added}件・更新 {c.Value.Updated}件").ToList();
+        var releaseId = await PublishImportedSpotsAsync(touchedSpots.Where(s => publishedSpotIds.Contains(s.CanonicalId)).ToList(), now);
+        if (releaseId is not null)
+        {
+            messages.Add($"Spot: 公開 {publishedSpotIds.Count}件（取り込みの公開記録）");
+        }
+
+        OperationLogs.Add(db, now, OperationAction.Import, null, OperationStatus.Succeeded, string.Join("／", messages), releaseId);
         await db.SaveChangesAsync();
         await transaction.CommitAsync();
-        return new ReferenceImportResult(true, counts.Select(c => $"{c.Key}: 追加 {c.Value.Added}件・更新 {c.Value.Updated}件").ToList());
+        return new ReferenceImportResult(true, messages);
     }
 
     private static List<string> Validate(ReferenceFile file)
@@ -206,6 +229,54 @@ public sealed class ReferenceImporter(StudioDbContext db, TimeProvider timeProvi
         }
 
         return errors;
+    }
+
+    private async Task<Guid?> PublishImportedSpotsAsync(List<Spot> spots, DateTimeOffset now)
+    {
+        if (spots.Count == 0)
+        {
+            return null;
+        }
+
+        var release = new Release
+        {
+            ReleaseId = Guid.CreateVersion7(),
+            Sequence = (await db.Releases.MaxAsync(r => (long?)r.Sequence) ?? 0) + 1,
+            CreatedAt = now,
+            Source = ReleaseSource.Import,
+            Message = "参照データの取り込み（移行元で公開中のSpot）",
+        };
+        var ids = spots.Select(s => s.CanonicalId).ToList();
+        var publications = (await db.Publications.Where(p => p.TargetKind == PublishTargetKind.Spot && ids.Contains(p.TargetId)).ToListAsync())
+            .Where(p => ids.Contains(p.TargetId, StringComparer.Ordinal))
+            .ToDictionary(p => p.TargetId, StringComparer.Ordinal);
+
+        foreach (var spot in spots)
+        {
+            var publication = publications.GetValueOrDefault(spot.CanonicalId);
+            release.Entries.Add(new ReleaseEntry
+            {
+                TargetKind = PublishTargetKind.Spot,
+                TargetId = spot.CanonicalId,
+                Action = ReleaseAction.Publish,
+                RevisionId = spot.CurrentRevisionId!.Value,
+                PreviousRevisionId = publication?.State == PublicationRowState.Published ? publication.RevisionId : null,
+                Label = PublishCandidate.SpotLabel(spot.Name, spot.CanonicalId),
+            });
+
+            if (publication is null)
+            {
+                db.Publications.Add(publication = new Publication { TargetKind = PublishTargetKind.Spot, TargetId = spot.CanonicalId });
+            }
+
+            publication.State = PublicationRowState.Published;
+            publication.RevisionId = spot.CurrentRevisionId!.Value;
+            publication.ReleaseId = release.ReleaseId;
+            publication.UpdatedAt = now;
+        }
+
+        db.Releases.Add(release);
+        return release.ReleaseId;
     }
 
     private static void MarkImported(IEditableReference target, DateTimeOffset now)
