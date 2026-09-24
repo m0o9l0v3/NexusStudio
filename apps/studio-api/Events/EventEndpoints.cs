@@ -30,7 +30,9 @@ public sealed record EventDetail(
     string Publication,
     EventDraft Draft);
 
-public sealed record EventSlotSummary(DateOnly? Date, string? TimeMode, string? Start, string? End);
+/// <param name="Status">枠独自の開催状況（normal／cancelled）。</param>
+/// <param name="DayCancelled">所属する開催日そのものが中止か（親由来の中止。枠独自の中止とは別に持つ。07 §5）。</param>
+public sealed record EventSlotSummary(DateOnly? Date, string? TimeMode, string? Start, string? End, string Status, bool DayCancelled);
 
 public sealed record EventListItem(
     Guid Id,
@@ -72,7 +74,7 @@ public static class EventEndpoints
             join admin in db.Users on head.UpdatedBy equals admin.Id
             select new { head, revision.Payload, admin.DisplayName }).ToListAsync();
 
-        var dayDates = await db.OcDays.ToDictionaryAsync(d => d.Id, d => d.Date);
+        var days = await db.OcDays.AsNoTracking().ToDictionaryAsync(d => d.Id, d => new { d.Date, d.Status });
 
         var items = rows.Select(row =>
         {
@@ -84,9 +86,11 @@ public static class EventEndpoints
                 draft.Slots.Count,
                 draft.Slots.SelectMany(s => s.Venues).Select(v => v.CanonicalSpotId).Distinct(StringComparer.Ordinal).Count(),
                 draft.Slots
-                    .Select(s => new EventSlotSummary(
-                        s.OcDayId is { } dayId && dayDates.TryGetValue(dayId, out var date) ? date : null,
-                        s.TimeMode, s.Fixed?.Start, s.Fixed?.End))
+                    .Select(s =>
+                    {
+                        var day = s.OcDayId is { } dayId ? days.GetValueOrDefault(dayId) : null;
+                        return new EventSlotSummary(day?.Date, s.TimeMode, s.Fixed?.Start, s.Fixed?.End, s.Status, day?.Status == OcDayStatus.Cancelled);
+                    })
                     .OrderBy(s => s.Date is null).ThenBy(s => s.Date).ThenBy(s => s.Start, StringComparer.Ordinal)
                     .ToList(),
                 PublicationState.Unpublished,

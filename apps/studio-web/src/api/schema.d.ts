@@ -288,6 +288,385 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/occurrences": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["OccurrenceListItem"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CreateOccurrenceRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["OccurrenceDetail"];
+                    };
+                };
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["OccurrenceDetail"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ReferenceValidationProblem"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/occurrences/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["OccurrenceDetail"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["SaveOccurrenceRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["OccurrenceDetail"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ReferenceValidationProblem"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ReferenceConflictOfOccurrenceDetail"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/categories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CategoryListDetail"];
+                    };
+                };
+            };
+        };
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["SaveCategoriesRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CategoryListDetail"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ReferenceValidationProblem"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ReferenceConflictOfCategoryListDetail"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/spots/directory": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    q?: string;
+                    building?: string;
+                    floor?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SpotSearchResult"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/spots/item": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query: {
+                    id: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SpotDetail"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put: {
+            parameters: {
+                query: {
+                    id: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["SaveSpotRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SpotDetail"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ReferenceValidationProblem"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ReferenceConflictOfSpotDetail"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/events": {
         parameters: {
             query?: never;
@@ -472,6 +851,12 @@ export interface components {
             id: string;
             displayName: string;
         };
+        CategoryDraft: {
+            /** Format: uuid */
+            id: string;
+            name: null | string;
+            selectable: boolean;
+        };
         CategoryItem: {
             /** Format: uuid */
             id: string;
@@ -480,10 +865,32 @@ export interface components {
             sortOrder: number;
             selectable: boolean;
         };
+        CategoryListDetail: {
+            /** Format: int64 */
+            rowVersion: number;
+            /** Format: date-time */
+            updatedAt: null | string;
+            updatedBy: null | components["schemas"]["EditorRef"];
+            publication: string;
+            items: components["schemas"]["CategoryListItem"][];
+        };
+        CategoryListItem: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            selectable: boolean;
+            /** Format: int32 */
+            referenceCount: number;
+        };
         CreateEventRequest: {
             /** Format: uuid */
             operationId: string;
             draft: null | components["schemas"]["EventDraft"];
+        };
+        CreateOccurrenceRequest: {
+            /** Format: uuid */
+            operationId: string;
+            draft: null | components["schemas"]["OccurrenceDraft"];
         };
         CsrfTokenResponse: {
             token: string;
@@ -497,6 +904,11 @@ export interface components {
             code: string;
             title: string;
             problems: components["schemas"]["DraftProblem"][];
+        };
+        EditorRef: {
+            /** Format: uuid */
+            id: string;
+            displayName: string;
         };
         EventConflict: {
             code: string;
@@ -562,6 +974,8 @@ export interface components {
             timeMode: null | string;
             start: null | string;
             end: null | string;
+            status: string;
+            dayCancelled: boolean;
         };
         FixedTime: {
             start: null | string;
@@ -571,11 +985,50 @@ export interface components {
             email: null | string;
             password: null | string;
         };
+        OccurrenceDetail: {
+            /** Format: uuid */
+            id: string;
+            /** Format: int64 */
+            rowVersion: number;
+            /** Format: date-time */
+            updatedAt: null | string;
+            updatedBy: null | components["schemas"]["EditorRef"];
+            publication: string;
+            draft: components["schemas"]["OccurrenceDraft"];
+            references: components["schemas"]["SlotReference"][];
+        };
+        OccurrenceDraft: {
+            name: null | string;
+            sourceNote: null | string;
+            days: components["schemas"]["OcDayDraft"][];
+        };
         OccurrenceItem: {
             /** Format: uuid */
             id: string;
             name: string;
             days: components["schemas"]["OcDayItem"][];
+        };
+        OccurrenceListItem: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            days: components["schemas"]["OcDayItem"][];
+            /** Format: int32 */
+            relatedEventCount: number;
+            publication: string;
+            /** Format: date-time */
+            updatedAt: null | string;
+            updatedBy: null | components["schemas"]["EditorRef"];
+        };
+        OcDayDraft: {
+            /** Format: uuid */
+            id: string;
+            /** Format: date */
+            date: null | string;
+            publicStart: null | string;
+            publicEnd: null | string;
+            status: string;
+            cancelNote: null | string;
         };
         OcDayItem: {
             /** Format: uuid */
@@ -586,9 +1039,50 @@ export interface components {
             publicEnd: null | string;
             status: string;
         };
+        ReferenceConflictOfCategoryListDetail: {
+            code: string;
+            title: string;
+            latest: null | components["schemas"]["CategoryListDetail"];
+        };
+        ReferenceConflictOfOccurrenceDetail: {
+            code: string;
+            title: string;
+            latest: null | components["schemas"]["OccurrenceDetail"];
+        };
+        ReferenceConflictOfSpotDetail: {
+            code: string;
+            title: string;
+            latest: null | components["schemas"]["SpotDetail"];
+        };
         ReferenceData: {
             occurrences: components["schemas"]["OccurrenceItem"][];
             categories: components["schemas"]["CategoryItem"][];
+        };
+        ReferenceValidationProblem: {
+            code: string;
+            title: string;
+            problems: components["schemas"]["DraftProblem"][];
+        };
+        SaveCategoriesRequest: {
+            /** Format: uuid */
+            operationId: string;
+            /** Format: int64 */
+            rowVersion: number;
+            items: null | components["schemas"]["CategoryDraft"][];
+        };
+        SaveOccurrenceRequest: {
+            /** Format: uuid */
+            operationId: string;
+            /** Format: int64 */
+            rowVersion: number;
+            draft: null | components["schemas"]["OccurrenceDraft"];
+        };
+        SaveSpotRequest: {
+            /** Format: uuid */
+            operationId: string;
+            /** Format: int64 */
+            rowVersion: number;
+            draft: null | components["schemas"]["SpotDraft"];
         };
         SessionResponse: {
             /** Format: uuid */
@@ -597,9 +1091,47 @@ export interface components {
             displayName: string;
             environmentLabel: null | string;
         };
+        SlotReference: {
+            /** Format: uuid */
+            eventId: string;
+            eventTitle: null | string;
+            /** Format: uuid */
+            slotId: string;
+            /** Format: uuid */
+            ocDayId: null | string;
+            timeMode: null | string;
+            start: null | string;
+            end: null | string;
+            slotStatus: string;
+        };
         SlotVenue: {
             canonicalSpotId: string;
             note: null | string;
+        };
+        SpotDetail: {
+            canonicalId: string;
+            /** Format: int64 */
+            rowVersion: number;
+            /** Format: date-time */
+            updatedAt: null | string;
+            updatedBy: null | components["schemas"]["EditorRef"];
+            isPublished: boolean;
+            draft: components["schemas"]["SpotDraft"];
+            draftEvents: components["schemas"]["SpotEventReference"][];
+        };
+        SpotDraft: {
+            name: null | string;
+            aliases: string[];
+            buildingName: null | string;
+            floorName: null | string;
+            utilization: string;
+        };
+        SpotEventReference: {
+            /** Format: uuid */
+            eventId: string;
+            eventTitle: null | string;
+            /** Format: int32 */
+            slotCount: number;
         };
         SpotItem: {
             canonicalId: string;

@@ -184,6 +184,369 @@
         }
       }
     },
+    "/api/occurrences": {
+      "get": {
+        "tags": [
+          "OpenCampus"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/OccurrenceListItem"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "OpenCampus"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateOccurrenceRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OccurrenceDetail"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OccurrenceDetail"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReferenceValidationProblem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/occurrences/{id}": {
+      "get": {
+        "tags": [
+          "OpenCampus"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OccurrenceDetail"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "OpenCampus"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveOccurrenceRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OccurrenceDetail"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReferenceValidationProblem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReferenceConflictOfOccurrenceDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/categories": {
+      "get": {
+        "tags": [
+          "Categories"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CategoryListDetail"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Categories"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveCategoriesRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CategoryListDetail"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReferenceValidationProblem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReferenceConflictOfCategoryListDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/spots/directory": {
+      "get": {
+        "tags": [
+          "Spots"
+        ],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "building",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "floor",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpotSearchResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/spots/item": {
+      "get": {
+        "tags": [
+          "Spots"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpotDetail"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Spots"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveSpotRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpotDetail"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReferenceValidationProblem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReferenceConflictOfSpotDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/events": {
       "get": {
         "tags": [
@@ -397,6 +760,29 @@
           }
         }
       },
+      "CategoryDraft": {
+        "required": [
+          "id",
+          "name",
+          "selectable"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "selectable": {
+            "type": "boolean"
+          }
+        }
+      },
       "CategoryItem": {
         "required": [
           "id",
@@ -422,6 +808,73 @@
           }
         }
       },
+      "CategoryListDetail": {
+        "required": [
+          "rowVersion",
+          "updatedAt",
+          "updatedBy",
+          "publication",
+          "items"
+        ],
+        "type": "object",
+        "properties": {
+          "rowVersion": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "updatedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "updatedBy": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/EditorRef"
+              }
+            ]
+          },
+          "publication": {
+            "type": "string"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CategoryListItem"
+            }
+          }
+        }
+      },
+      "CategoryListItem": {
+        "required": [
+          "id",
+          "name",
+          "selectable",
+          "referenceCount"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "selectable": {
+            "type": "boolean"
+          },
+          "referenceCount": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
       "CreateEventRequest": {
         "required": [
           "operationId",
@@ -440,6 +893,29 @@
               },
               {
                 "$ref": "#/components/schemas/EventDraft"
+              }
+            ]
+          }
+        }
+      },
+      "CreateOccurrenceRequest": {
+        "required": [
+          "operationId",
+          "draft"
+        ],
+        "type": "object",
+        "properties": {
+          "operationId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "draft": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/OccurrenceDraft"
               }
             ]
           }
@@ -494,6 +970,22 @@
             "items": {
               "$ref": "#/components/schemas/DraftProblem"
             }
+          }
+        }
+      },
+      "EditorRef": {
+        "required": [
+          "id",
+          "displayName"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "displayName": {
+            "type": "string"
           }
         }
       },
@@ -733,7 +1225,9 @@
           "date",
           "timeMode",
           "start",
-          "end"
+          "end",
+          "status",
+          "dayCancelled"
         ],
         "type": "object",
         "properties": {
@@ -761,6 +1255,12 @@
               "null",
               "string"
             ]
+          },
+          "status": {
+            "type": "string"
+          },
+          "dayCancelled": {
+            "type": "boolean"
           }
         }
       },
@@ -806,6 +1306,85 @@
           }
         }
       },
+      "OccurrenceDetail": {
+        "required": [
+          "id",
+          "rowVersion",
+          "updatedAt",
+          "updatedBy",
+          "publication",
+          "draft",
+          "references"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "rowVersion": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "updatedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "updatedBy": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/EditorRef"
+              }
+            ]
+          },
+          "publication": {
+            "type": "string"
+          },
+          "draft": {
+            "$ref": "#/components/schemas/OccurrenceDraft"
+          },
+          "references": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SlotReference"
+            }
+          }
+        }
+      },
+      "OccurrenceDraft": {
+        "required": [
+          "name",
+          "sourceNote",
+          "days"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "sourceNote": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "days": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OcDayDraft"
+            }
+          }
+        }
+      },
       "OccurrenceItem": {
         "required": [
           "id",
@@ -826,6 +1405,102 @@
             "items": {
               "$ref": "#/components/schemas/OcDayItem"
             }
+          }
+        }
+      },
+      "OccurrenceListItem": {
+        "required": [
+          "id",
+          "name",
+          "days",
+          "relatedEventCount",
+          "publication",
+          "updatedAt",
+          "updatedBy"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "days": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OcDayItem"
+            }
+          },
+          "relatedEventCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "publication": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "updatedBy": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/EditorRef"
+              }
+            ]
+          }
+        }
+      },
+      "OcDayDraft": {
+        "required": [
+          "id",
+          "date",
+          "publicStart",
+          "publicEnd",
+          "status",
+          "cancelNote"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "date": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "publicStart": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "publicEnd": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "status": {
+            "type": "string"
+          },
+          "cancelNote": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -864,6 +1539,84 @@
           }
         }
       },
+      "ReferenceConflictOfCategoryListDetail": {
+        "required": [
+          "code",
+          "title",
+          "latest"
+        ],
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "latest": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/CategoryListDetail"
+              }
+            ]
+          }
+        }
+      },
+      "ReferenceConflictOfOccurrenceDetail": {
+        "required": [
+          "code",
+          "title",
+          "latest"
+        ],
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "latest": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/OccurrenceDetail"
+              }
+            ]
+          }
+        }
+      },
+      "ReferenceConflictOfSpotDetail": {
+        "required": [
+          "code",
+          "title",
+          "latest"
+        ],
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "latest": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/SpotDetail"
+              }
+            ]
+          }
+        }
+      },
       "ReferenceData": {
         "required": [
           "occurrences",
@@ -882,6 +1635,111 @@
             "items": {
               "$ref": "#/components/schemas/CategoryItem"
             }
+          }
+        }
+      },
+      "ReferenceValidationProblem": {
+        "required": [
+          "code",
+          "title",
+          "problems"
+        ],
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "problems": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DraftProblem"
+            }
+          }
+        }
+      },
+      "SaveCategoriesRequest": {
+        "required": [
+          "operationId",
+          "rowVersion",
+          "items"
+        ],
+        "type": "object",
+        "properties": {
+          "operationId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "rowVersion": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "items": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/CategoryDraft"
+            }
+          }
+        }
+      },
+      "SaveOccurrenceRequest": {
+        "required": [
+          "operationId",
+          "rowVersion",
+          "draft"
+        ],
+        "type": "object",
+        "properties": {
+          "operationId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "rowVersion": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "draft": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/OccurrenceDraft"
+              }
+            ]
+          }
+        }
+      },
+      "SaveSpotRequest": {
+        "required": [
+          "operationId",
+          "rowVersion",
+          "draft"
+        ],
+        "type": "object",
+        "properties": {
+          "operationId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "rowVersion": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "draft": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/SpotDraft"
+              }
+            ]
           }
         }
       },
@@ -912,6 +1770,63 @@
           }
         }
       },
+      "SlotReference": {
+        "required": [
+          "eventId",
+          "eventTitle",
+          "slotId",
+          "ocDayId",
+          "timeMode",
+          "start",
+          "end",
+          "slotStatus"
+        ],
+        "type": "object",
+        "properties": {
+          "eventId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "eventTitle": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "slotId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "ocDayId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "timeMode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "start": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "end": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "slotStatus": {
+            "type": "string"
+          }
+        }
+      },
       "SlotVenue": {
         "required": [
           "canonicalSpotId",
@@ -927,6 +1842,119 @@
               "null",
               "string"
             ]
+          }
+        }
+      },
+      "SpotDetail": {
+        "required": [
+          "canonicalId",
+          "rowVersion",
+          "updatedAt",
+          "updatedBy",
+          "isPublished",
+          "draft",
+          "draftEvents"
+        ],
+        "type": "object",
+        "properties": {
+          "canonicalId": {
+            "type": "string"
+          },
+          "rowVersion": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "updatedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "updatedBy": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/EditorRef"
+              }
+            ]
+          },
+          "isPublished": {
+            "type": "boolean"
+          },
+          "draft": {
+            "$ref": "#/components/schemas/SpotDraft"
+          },
+          "draftEvents": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SpotEventReference"
+            }
+          }
+        }
+      },
+      "SpotDraft": {
+        "required": [
+          "name",
+          "aliases",
+          "buildingName",
+          "floorName",
+          "utilization"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "aliases": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "buildingName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "floorName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "utilization": {
+            "type": "string"
+          }
+        }
+      },
+      "SpotEventReference": {
+        "required": [
+          "eventId",
+          "eventTitle",
+          "slotCount"
+        ],
+        "type": "object",
+        "properties": {
+          "eventId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "eventTitle": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "slotCount": {
+            "type": "integer",
+            "format": "int32"
           }
         }
       },
@@ -1046,6 +2074,15 @@
     },
     {
       "name": "Auth"
+    },
+    {
+      "name": "OpenCampus"
+    },
+    {
+      "name": "Categories"
+    },
+    {
+      "name": "Spots"
     },
     {
       "name": "Events"

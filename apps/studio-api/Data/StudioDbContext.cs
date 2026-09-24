@@ -13,6 +13,8 @@ public sealed class StudioDbContext(DbContextOptions<StudioDbContext> options)
     public DbSet<Occurrence> Occurrences => Set<Occurrence>();
     public DbSet<OcDay> OcDays => Set<OcDay>();
     public DbSet<Category> Categories => Set<Category>();
+    public DbSet<CategoryListState> CategoryListStates => Set<CategoryListState>();
+    public DbSet<ReferenceRevision> ReferenceRevisions => Set<ReferenceRevision>();
     public DbSet<Spot> Spots => Set<Spot>();
     public DbSet<SpotNameAlias> SpotNameAliases => Set<SpotNameAlias>();
     public DbSet<EventHead> EventHeads => Set<EventHead>();
@@ -106,16 +108,15 @@ public sealed class StudioDbContext(DbContextOptions<StudioDbContext> options)
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Id).HasColumnName("id");
             entity.Property(e => e.Name).HasColumnName("name").HasMaxLength(200).IsRequired();
+            entity.Property(e => e.SourceNote).HasColumnName("source_note").HasMaxLength(1000);
             entity.HasMany(e => e.Days).WithOne().HasForeignKey(d => d.OccurrenceId).OnDelete(DeleteBehavior.Restrict);
+            ConfigureEditable(entity);
         });
 
         modelBuilder.Entity<OcDay>(entity =>
         {
-            entity.ToTable("oc_days", table =>
-            {
-                table.HasCheckConstraint("ck_oc_days_status", "status IN ('normal', 'cancelled')");
-                table.HasCheckConstraint("ck_oc_days_public_hours", "(public_start IS NULL) = (public_end IS NULL) AND (public_start IS NULL OR public_start < public_end)");
-            });
+            // 一般公開時間の片方だけの入力・前後の逆転は下書きとして保存できる（公開前の確認で止める。08 OV-01）。
+            entity.ToTable("oc_days", table => table.HasCheckConstraint("ck_oc_days_status", "status IN ('normal', 'cancelled')"));
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Id).HasColumnName("id");
             entity.Property(e => e.OccurrenceId).HasColumnName("occurrence_id");
@@ -138,6 +139,16 @@ public sealed class StudioDbContext(DbContextOptions<StudioDbContext> options)
             entity.Property(e => e.Selectable).HasColumnName("selectable");
         });
 
+        modelBuilder.Entity<CategoryListState>(entity =>
+        {
+            entity.ToTable("category_list_state", table => table.HasCheckConstraint("ck_category_list_state_singleton", "id = 1"));
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id").ValueGeneratedNever();
+            ConfigureEditable(entity);
+            // 一覧全体の版を1行で持つ。マイグレーションで作成し、起動時には書き込まない。
+            entity.HasData(new CategoryListState { Id = CategoryListState.SingletonId, RowVersion = 1 });
+        });
+
         modelBuilder.Entity<Spot>(entity =>
         {
             entity.ToTable("spots", table =>
@@ -151,6 +162,7 @@ public sealed class StudioDbContext(DbContextOptions<StudioDbContext> options)
             entity.Property(e => e.IsPublished).HasColumnName("is_published");
             entity.Property(e => e.Utilization).HasColumnName("utilization").IsRequired();
             entity.HasMany(e => e.NameAliases).WithOne().HasForeignKey(a => a.CanonicalId).OnDelete(DeleteBehavior.Cascade);
+            ConfigureEditable(entity);
         });
 
         modelBuilder.Entity<SpotNameAlias>(entity =>
@@ -160,6 +172,36 @@ public sealed class StudioDbContext(DbContextOptions<StudioDbContext> options)
             entity.Property(e => e.CanonicalId).HasColumnName("canonical_id").HasMaxLength(128);
             entity.Property(e => e.Alias).HasColumnName("alias").HasMaxLength(200);
         });
+
+        modelBuilder.Entity<ReferenceRevision>(entity =>
+        {
+            entity.ToTable("reference_revisions", table =>
+            {
+                table.HasCheckConstraint("ck_reference_revisions_kind", "kind IN ('occurrence', 'categories', 'spot')");
+                table.HasCheckConstraint("ck_reference_revisions_source", "source IN ('editor', 'import')");
+            });
+            entity.HasKey(e => e.RevisionId);
+            entity.Property(e => e.RevisionId).HasColumnName("revision_id");
+            entity.Property(e => e.Kind).HasColumnName("kind").IsRequired();
+            entity.Property(e => e.TargetId).HasColumnName("target_id").HasMaxLength(128).IsRequired();
+            entity.Property(e => e.Payload).HasColumnName("payload").HasColumnType("jsonb").IsRequired();
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+            entity.Property(e => e.CreatedBy).HasColumnName("created_by");
+            entity.Property(e => e.Source).HasColumnName("source").IsRequired();
+            entity.Property(e => e.OperationId).HasColumnName("operation_id");
+            entity.HasIndex(e => e.OperationId).IsUnique().HasFilter("operation_id IS NOT NULL").HasDatabaseName("ix_reference_revisions_operation_id");
+            entity.HasIndex(e => new { e.Kind, e.TargetId, e.CreatedAt }).HasDatabaseName("ix_reference_revisions_target");
+            entity.HasOne<StudioAdmin>().WithMany().HasForeignKey(e => e.CreatedBy).OnDelete(DeleteBehavior.Restrict);
+        });
+    }
+
+    private static void ConfigureEditable<T>(Microsoft.EntityFrameworkCore.Metadata.Builders.EntityTypeBuilder<T> entity)
+        where T : class, IEditableReference
+    {
+        entity.Property(e => e.RowVersion).HasColumnName("row_version").HasDefaultValue(1L).IsConcurrencyToken();
+        entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+        entity.Property(e => e.UpdatedBy).HasColumnName("updated_by");
+        entity.HasOne<StudioAdmin>().WithMany().HasForeignKey(e => e.UpdatedBy).OnDelete(DeleteBehavior.Restrict);
     }
 
     private static void ConfigureEvents(ModelBuilder modelBuilder)
