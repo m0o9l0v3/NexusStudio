@@ -13,3 +13,9 @@
 DBの権限は暗号化バックアップ、Macコピーからの別volume復元、17→18の論理移行と一体で検証する。実VPSでのmigration・role作成はこのMRでは行わない。
 
 Studioの移行SQLはCIの`studio-migration-script`でDB接続なしに生成し、SHA-256とともに成果物へ保存する。`STUDIO_MIGRATION_CONNECTION`は設計時factoryの必須値で、CIでは実DBへ接続しないダミー値を使う。本番適用時は別途、人間がレビューしたSQLを専用migratorで実行する。SQL成果物の期限は30日なので、採用時にはcommit/digest/ハッシュと一緒に保護されたリリース記録へ保存する。
+
+## 適用前の対象固定
+
+`setup-studio-roles.sh`はDDLの前に**読み取り専用の問い合わせ**で、`nexus_admin` DB・`postgres`管理者・PostgreSQL 18系・承認済みクラスタ識別子を確認する。必要な設定は`NEXUS_STUDIO_TARGET_ENV`（`verification`または`production`）、`NEXUS_STUDIO_TARGET_HOST`、`NEXUS_STUDIO_TARGET_PORT`、`NEXUS_STUDIO_EXPECTED_SYSTEM_ID`。識別子は対象環境を人間が選んだ後、別途読み取り専用で取得・記録する。スクリプトが自分で識別子を採用することはない。接続パスワードは私有の`PGPASSFILE`等で渡し、表示・保存しない。認証プロンプトを出さず、確認失敗時はrole/schema作成前に停止する。同じ識別子とメジャー版をSQL実行時の同一接続内でも再確認する。`production`では別途`ALLOW_PRODUCTION_STUDIO_ROLE_SETUP=1`を明示しなければ停止する。これは承認を代替しない。
+
+CIは使い捨て17への実行を拒否し、role/schemaが作られていないことを検証する。使い捨て18でも誤った識別子を拒否した後、正しい識別子で既存の全migration・権限検査を通す。実VPSにはこのMRで接続しない。
