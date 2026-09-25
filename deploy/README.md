@@ -2,6 +2,8 @@
 
 CIの`studio-api-image`と`studio-web-image`は同一repoのMRまたは既定ブランチからGitLab Registryへcommit SHAタグでpushし、`image-digests/*.txt`に不変digestを記録する。infra側はdigestを照合して採用する。APIイメージは`/health`をlocalhostで確認する。WebイメージはViteでビルドした静的ファイルをCaddyで8080番に配信し、SPAの直接URLを`index.html`へ戻す。`/api/*`は外側のCaddyがStudio APIへ中継し、Vite開発サーバーを使わない。
 
+ProductionのStudio APIには`ReverseProxy__TrustedNetwork`で、CaddyとStudio APIが共有するedge networkのプライベートIPv4 /24～/28を必ず渡す。APIはその限定ネットワークからの`X-Forwarded-Proto`だけを受け入れ、HTTPS終端後のCookie/CSRF処理へ元のschemeを伝える。infra Composeの`NEXUS_EDGE_SUBNET`と同じ値にし、未設定・不正ならAPI起動を拒否する。Caddy経由の`/api/auth/csrf`で200応答とSecure Cookieを確認する。
+
 本番の接続文字列は`ConnectionStrings__StudioDatabaseFile=/run/secrets/studio_connection`から読む。接続先は`nexus-mobile`のPostgreSQLインスタンス内の`nexus_admin` DB、Studio専用の`studio` schemaを想定する。Studio専用ロールと権限、DBメジャー版、既存volumeは人間が照合する。APIは起動時にmigration・seed・管理者作成を行わない。EF移行SQLと適用前バックアップ、Macコピーから別volumeへの復元をレビューした後、人間が別のメンテナンス手順で適用する。
 
 

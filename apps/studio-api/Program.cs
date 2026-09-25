@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using StudioApi.Admin;
 using StudioApi.Auth;
@@ -9,6 +10,19 @@ using StudioApi.Reference;
 using StudioApi.Services.MapValidation;
 
 var builder = WebApplication.CreateBuilder(args);
+
+if (!builder.Environment.IsDevelopment())
+{
+    var trustedNetwork = TrustedProxyConfiguration.Parse(builder.Configuration["ReverseProxy:TrustedNetwork"]);
+
+    builder.Services.Configure<ForwardedHeadersOptions>(options =>
+    {
+        options.ForwardedHeaders = ForwardedHeaders.XForwardedProto;
+        options.KnownProxies.Clear();
+        options.KnownIPNetworks.Clear();
+        options.KnownIPNetworks.Add(trustedNetwork);
+    });
+}
 
 var connectionString = StudioDatabaseConfiguration.Resolve(builder.Configuration);
 if (!builder.Environment.IsDevelopment())
@@ -49,6 +63,8 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi().AllowAnonymous();
 }
 
+if (!app.Environment.IsDevelopment())
+    app.UseForwardedHeaders();
 app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
