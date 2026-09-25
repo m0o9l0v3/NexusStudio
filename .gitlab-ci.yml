@@ -1,3 +1,9 @@
+default:
+  tags:
+    - self-hosted
+    - linux
+    - docker
+
 workflow:
   auto_cancel:
     on_new_commit: interruptible
