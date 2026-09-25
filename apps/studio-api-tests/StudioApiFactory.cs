@@ -36,7 +36,7 @@ public sealed class StudioApiFactory : WebApplicationFactory<Program>
     {
         builder.UseEnvironment(_environment);
         // Programは接続文字列が無いと起動を拒否する（Step 0-d）。実際のDBには接続しない値を渡し、下で差し替える。
-        builder.UseSetting("ConnectionStrings:StudioDatabase", "Host=unused.invalid;Database=unused;Username=unused;Password=unused");
+        builder.UseSetting("ConnectionStrings:StudioDatabase", "Host=unused.invalid;Database=unused;Username=nexus_studio_app;Password=unused");
         builder.ConfigureTestServices(services =>
         {
             services.RemoveAll<DbContextOptions<StudioDbContext>>();

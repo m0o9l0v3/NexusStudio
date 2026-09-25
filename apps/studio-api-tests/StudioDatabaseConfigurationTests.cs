@@ -23,6 +23,22 @@ public sealed class StudioDatabaseConfigurationTests
         finally { File.Delete(file); }
     }
 
+    [Theory]
+    [InlineData("Host=postgres;Database=nexus_admin;Username=postgres;Password=example")]
+    [InlineData("Host=postgres;Database=nexus_admin;Username=nexus_studio_migrator;Password=example")]
+    [InlineData("Host=postgres;Database=nexus_admin;Username=nexus_studio_app")]
+    public void ProductionRejectsPrivilegedOrPasswordlessConnection(string value)
+    {
+        Assert.Throws<InvalidOperationException>(() => StudioDatabaseConfiguration.RequireProductionRuntimeRole(value));
+    }
+
+    [Fact]
+    public void ProductionAcceptsDedicatedRuntimeRole()
+    {
+        StudioDatabaseConfiguration.RequireProductionRuntimeRole(
+            "Host=postgres;Database=nexus_admin;Username=nexus_studio_app;Password=example");
+    }
+
     [Fact]
     public void MissingConnectionFailsClosed()
     {

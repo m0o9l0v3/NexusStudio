@@ -1,7 +1,18 @@
+using Npgsql;
+
 namespace StudioApi.Data;
 
 public static class StudioDatabaseConfiguration
 {
+    public static void RequireProductionRuntimeRole(string connectionString)
+    {
+        NpgsqlConnectionStringBuilder parsed;
+        try { parsed = new NpgsqlConnectionStringBuilder(connectionString); }
+        catch (ArgumentException) { throw new InvalidOperationException("Studio database connection string is invalid."); }
+        if (parsed.Username != "nexus_studio_app" || string.IsNullOrWhiteSpace(parsed.Password))
+            throw new InvalidOperationException("Production Studio API requires the dedicated nexus_studio_app login and a password.");
+    }
+
     public static string Resolve(IConfiguration configuration)
     {
         var file = configuration["ConnectionStrings:StudioDatabaseFile"];

@@ -11,6 +11,8 @@ using StudioApi.Services.MapValidation;
 var builder = WebApplication.CreateBuilder(args);
 
 var connectionString = StudioDatabaseConfiguration.Resolve(builder.Configuration);
+if (!builder.Environment.IsDevelopment())
+    StudioDatabaseConfiguration.RequireProductionRuntimeRole(connectionString);
 
 builder.Services.AddDbContext<StudioDbContext>(options => options.UseStudioNpgsql(connectionString));
 builder.Services.AddSingleton<MapDatasetValidator>();
