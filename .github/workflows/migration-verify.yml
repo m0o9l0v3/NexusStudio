@@ -1,0 +1,88 @@
+name: migration-verify
+
+on:
+  push:
+    branches: [codex/github-actions-migration]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: migration-verify-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  studio-api-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - run: dotnet restore NexusStudio.slnx
+      - run: dotnet build NexusStudio.slnx --no-restore
+      - run: dotnet test apps/studio-api-tests/StudioApi.Tests.csproj --no-build
+
+  studio-migration-script:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - run: dotnet restore NexusStudio.slnx && dotnet tool restore
+      - name: Generate SQL without connecting to production
+        env:
+          STUDIO_MIGRATION_CONNECTION: Host=localhost;Database=unused;Username=placeholder;Password=not-a-real-secret
+        run: |
+          mkdir -p artifacts/studio
+          dotnet tool run dotnet-ef migrations script --idempotent --project apps/studio-api/StudioApi.csproj --startup-project apps/studio-api/StudioApi.csproj --output artifacts/studio/migrate.sql
+          test -s artifacts/studio/migrate.sql
+          grep -F 'studio."__EFMigrationsHistory"' artifacts/studio/migrate.sql
+          sha256sum artifacts/studio/migrate.sql > artifacts/studio/migrate.sql.sha256
+      - uses: actions/upload-artifact@v4
+        with:
+          name: studio-migration-sql
+          path: artifacts/studio/
+          retention-days: 30
+
+  studio-web-check:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/studio-web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm ci
+      - run: npm run gen:api
+      - run: git diff --exit-code -- src/api/schema.d.ts
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run build
+
+  studio-static-caddy-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker run --rm -v "$PWD:/src" -w /src caddy:2-alpine caddy validate --config apps/studio-web/Caddyfile --adapter caddyfile
+
+  studio-role-target-preflight:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: sh -n deploy/database/setup-studio-roles.sh
+      - run: python tests/test_setup_studio_roles.py
+
+  image-build-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -f apps/studio-api/Dockerfile .
+      - run: docker build -f apps/studio-web/Dockerfile .
