@@ -80,6 +80,51 @@ jobs:
       - run: sh -n deploy/database/setup-studio-roles.sh
       - run: python tests/test_setup_studio_roles.py
 
+  studio-db-role-check:
+    needs: studio-migration-script
+    runs-on: ubuntu-latest
+    container: postgres:18.6-trixie
+    services:
+      postgres:
+        image: postgres:18.6-trixie
+        env:
+          POSTGRES_DB: nexus_admin
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci-disposable-postgres-password
+    env:
+      POSTGRES_DB: nexus_admin
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ci-disposable-postgres-password
+      PGHOST: postgres
+      PGPASSWORD: ci-disposable-postgres-password
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: studio-migration-sql
+          path: artifacts/studio
+      - run: sh .github/scripts/verify-studio-db-roles.sh
+
+  studio-db-role-pg17-reject:
+    runs-on: ubuntu-latest
+    container: postgres:17
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: nexus_admin
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci-disposable-postgres-password
+    env:
+      POSTGRES_DB: nexus_admin
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ci-disposable-postgres-password
+      PGHOST: postgres
+      PGPASSWORD: ci-disposable-postgres-password
+    steps:
+      - uses: actions/checkout@v4
+      - run: sh .github/scripts/verify-studio-pg17-reject.sh
+
   image-build-check:
     runs-on: ubuntu-latest
     steps:
