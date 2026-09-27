@@ -1,5 +1,8 @@
 # Nexus Studio
 
+> **開発の正本:** [GitHub repository](https://github.com/m0o9l0v3/NexusStudio)
+> このGitLab repositoryはSecondary/DRバックアップです。通常の開発・Issue/PR管理はGitHubで行ってください。Git refsはVPSから約15分ごと、Issue・PR等のメタデータは毎時バックアップされます。GitLabへの直接pushやIssueの手編集は避けてください。
+
 Nexus（[`nexus-mobile`](https://gitlab.com/11h27m/nexus-mobile)）の管理ポータル（旧 `apps/admin-web`）を置き換える別プロダクトです。開催回・カテゴリ・Spot・地図（MapDataset）の編集と公開を担当します。参加者向けの配信エンドポイントは持ちません。
 
 分離の経緯は [`nexus-mobile` の E0-7 決定記録](https://gitlab.com/11h27m/nexus-mobile/-/blob/develop/docs/decisions/E0-7-studio-scope-split.md)、実装順序・データ契約は [`docs/決定事項/15`](docs/決定事項/15_NexusStudio_実装開始判断・初期実装計画_2026-09-22_v02.md) を参照してください。
