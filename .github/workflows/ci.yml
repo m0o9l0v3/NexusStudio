@@ -1,0 +1,133 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: migration-verify-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  studio-api-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
+        with:
+          dotnet-version: 10.0.x
+      - run: dotnet restore NexusStudio.slnx
+      - run: dotnet build NexusStudio.slnx --no-restore
+      - run: dotnet test apps/studio-api-tests/StudioApi.Tests.csproj --no-build
+
+  studio-migration-script:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
+        with:
+          dotnet-version: 10.0.x
+      - run: dotnet restore NexusStudio.slnx && dotnet tool restore
+      - name: Generate SQL without connecting to production
+        env:
+          STUDIO_MIGRATION_CONNECTION: Host=localhost;Database=unused;Username=placeholder;Password=not-a-real-secret
+        run: |
+          mkdir -p artifacts/studio
+          dotnet tool run dotnet-ef migrations script --idempotent --project apps/studio-api/StudioApi.csproj --startup-project apps/studio-api/StudioApi.csproj --output artifacts/studio/migrate.sql
+          test -s artifacts/studio/migrate.sql
+          grep -F 'studio."__EFMigrationsHistory"' artifacts/studio/migrate.sql
+          sha256sum artifacts/studio/migrate.sql > artifacts/studio/migrate.sql.sha256
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: studio-migration-sql
+          path: artifacts/studio/
+          retention-days: 7
+
+  studio-web-check:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/studio-web
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '20'
+      - run: npm ci
+      - run: npm run gen:api
+      - run: git diff --exit-code -- src/api/schema.d.ts
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run build
+
+  studio-static-caddy-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - run: docker run --rm -v "$PWD:/src" -w /src caddy:2-alpine caddy validate --config apps/studio-web/Caddyfile --adapter caddyfile
+
+  studio-role-target-preflight:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+      - run: sh -n deploy/database/setup-studio-roles.sh
+      - run: python tests/test_setup_studio_roles.py
+
+  studio-db-role-check:
+    needs: studio-migration-script
+    runs-on: ubuntu-latest
+    container: postgres:18.6-trixie
+    services:
+      postgres:
+        image: postgres:18.6-trixie
+        env:
+          POSTGRES_DB: nexus_admin
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci-disposable-postgres-password
+    env:
+      POSTGRES_DB: nexus_admin
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ci-disposable-postgres-password
+      PGHOST: postgres
+      PGPASSWORD: ci-disposable-postgres-password
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: studio-migration-sql
+          path: artifacts/studio
+      - run: sh .github/scripts/verify-studio-db-roles.sh
+
+  studio-db-role-pg17-reject:
+    runs-on: ubuntu-latest
+    container: postgres:17
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: nexus_admin
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci-disposable-postgres-password
+    env:
+      POSTGRES_DB: nexus_admin
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ci-disposable-postgres-password
+      PGHOST: postgres
+      PGPASSWORD: ci-disposable-postgres-password
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - run: sh .github/scripts/verify-studio-pg17-reject.sh
+
+  image-build-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - run: docker build -f apps/studio-api/Dockerfile .
+      - run: docker build -f apps/studio-web/Dockerfile .
