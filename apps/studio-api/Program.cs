@@ -11,18 +11,11 @@ using StudioApi.Services.MapValidation;
 
 var builder = WebApplication.CreateBuilder(args);
 
-if (!builder.Environment.IsDevelopment())
-{
-    var trustedNetwork = TrustedProxyConfiguration.Parse(builder.Configuration["ReverseProxy:TrustedNetwork"]);
-
-    builder.Services.Configure<ForwardedHeadersOptions>(options =>
-    {
-        options.ForwardedHeaders = ForwardedHeaders.XForwardedProto;
-        options.KnownProxies.Clear();
-        options.KnownIPNetworks.Clear();
-        options.KnownIPNetworks.Add(trustedNetwork);
-    });
-}
+TrustedProxyConfiguration.ConfigureForInvocation(
+    builder.Services,
+    builder.Environment.IsDevelopment(),
+    args,
+    builder.Configuration["ReverseProxy:TrustedNetwork"]);
 
 var connectionString = StudioDatabaseConfiguration.Resolve(builder.Configuration);
 if (!builder.Environment.IsDevelopment())

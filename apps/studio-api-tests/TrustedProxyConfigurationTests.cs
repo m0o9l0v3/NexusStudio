@@ -1,4 +1,8 @@
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using StudioApi.Data;
+using ForwardedHeaders = Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders;
+using ForwardedHeadersOptions = Microsoft.AspNetCore.Builder.ForwardedHeadersOptions;
 
 namespace StudioApi.Tests;
 
@@ -21,4 +25,47 @@ public sealed class TrustedProxyConfigurationTests
     [InlineData("127.0.0.0/8")]
     public void RejectsMissingBroadOrNonPrivateNetwork(string? value)
         => Assert.Throws<InvalidOperationException>(() => TrustedProxyConfiguration.Parse(value));
+
+    [Theory]
+    [InlineData("admin")]
+    [InlineData("reference")]
+    public void ProductionCliCommandsDoNotRequireOrConfigureForwardedHeaders(string command)
+    {
+        var services = new ServiceCollection();
+        services.AddOptions();
+
+        TrustedProxyConfiguration.ConfigureForInvocation(
+            services,
+            isDevelopment: false,
+            args: [command],
+            trustedNetworkValue: null);
+
+        using var provider = services.BuildServiceProvider();
+        var options = provider.GetRequiredService<IOptions<ForwardedHeadersOptions>>().Value;
+        Assert.Equal(ForwardedHeaders.None, options.ForwardedHeaders);
+    }
+
+    [Fact]
+    public void ProductionWebServerStillRequiresTrustedNetwork()
+    {
+        var services = new ServiceCollection();
+
+        Assert.Throws<InvalidOperationException>(() => TrustedProxyConfiguration.ConfigureForInvocation(
+            services,
+            isDevelopment: false,
+            args: [],
+            trustedNetworkValue: null));
+    }
+
+    [Fact]
+    public void DevelopmentWebServerDoesNotRequireTrustedNetwork()
+    {
+        var services = new ServiceCollection();
+
+        TrustedProxyConfiguration.ConfigureForInvocation(
+            services,
+            isDevelopment: true,
+            args: [],
+            trustedNetworkValue: null);
+    }
 }
