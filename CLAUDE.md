@@ -59,8 +59,9 @@ dotnet build ../../NexusStudio.slnx
 dotnet test ../studio-api-tests/StudioApi.Tests.csproj
 
 # マイグレーション適用（起動時の自動適用はしない。Step 0-c）
+# 設計時factoryは STUDIO_MIGRATION_CONNECTION を読む（ConnectionStrings__StudioDatabase では失敗する）
 dotnet tool restore
-ConnectionStrings__StudioDatabase="Host=localhost;Port=5433;Database=nexus_studio;Username=studio;Password=<.envと同じ値>" \
+STUDIO_MIGRATION_CONNECTION="Host=localhost;Port=5433;Database=nexus_studio;Username=studio;Password=<.envと同じ値>" \
   dotnet tool run dotnet-ef database update
 
 # Studio Web
