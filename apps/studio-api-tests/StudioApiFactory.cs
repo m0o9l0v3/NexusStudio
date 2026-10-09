@@ -1,6 +1,5 @@
 using System.Net.Http.Json;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Data.Sqlite;
@@ -45,8 +44,6 @@ public sealed class StudioApiFactory : WebApplicationFactory<Program>
             services.AddDbContext<StudioDbContext>(options => options
                 .UseSqlite(_connection)
                 .ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning)));
-            // 無効化・パスワード再設定がすぐ既存セッションへ反映されることを確かめるため、毎回再検証する。
-            services.Configure<SecurityStampValidatorOptions>(options => options.ValidationInterval = TimeSpan.Zero);
         });
     }
 
