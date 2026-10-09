@@ -36,9 +36,11 @@ export function SessionExpiredDialog({ session }: { session: Session }) {
       const next = await fetchSession()
       if (next.id !== session.id) {
         // 別の管理者でログインした場合、前の管理者の画面状態を引き継がない。
-        queryClient.clear()
+        // 未保存の入力は確認せずに破棄する（S03 で「保存して移動」を選ぶと、前の管理者の入力を別の管理者として保存できてしまう）。
+        // clear() は表示中の Sidebar 等が購読しているセッションのキャッシュまで切り離すため、セッション以外だけを捨てる。
         queryClient.setQueryData(sessionQueryKey, next)
-        void navigate('/overview', { replace: true })
+        queryClient.removeQueries({ predicate: (query) => query.queryKey[0] !== sessionQueryKey[0] })
+        void navigate('/overview', { replace: true, state: { skipUnsavedGuard: true } })
       } else {
         queryClient.setQueryData(sessionQueryKey, next)
       }
