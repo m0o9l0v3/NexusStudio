@@ -22,6 +22,8 @@ type SlotCardProps = {
   onChange: (slot: EventSlot) => void
   onDuplicate: () => void
   onDelete: () => void
+  /** 開いたときに見出しへフォーカスを移す（追加・複製の直後。07 §4.4）。 */
+  focusOnOpen?: boolean
 }
 
 /**
@@ -29,7 +31,7 @@ type SlotCardProps = {
  * 1つのイベント編集画面の中で、選んだ枠だけを開いて編集する。
  */
 export const SlotCard = forwardRef<HTMLButtonElement, SlotCardProps>(function SlotCard(
-  { slot, index, occurrence, spots, issues, expanded, onExpand, onChange, onDuplicate, onDelete },
+  { slot, index, occurrence, spots, issues, expanded, onExpand, onChange, onDuplicate, onDelete, focusOnOpen },
   summaryRef,
 ) {
   const heading = formatSlotHeading(slot, index)
@@ -63,12 +65,17 @@ export const SlotCard = forwardRef<HTMLButtonElement, SlotCardProps>(function Sl
     )
   }
 
-  return <ExpandedSlot {...{ slot, index, occurrence, spots, issues, heading, venueCount, onChange, onDuplicate, onDelete }} />
+  return <ExpandedSlot {...{ slot, index, occurrence, spots, issues, heading, venueCount, onChange, onDuplicate, onDelete, focusOnOpen }} />
 })
 
 type ExpandedSlotProps = Omit<SlotCardProps, 'expanded' | 'onExpand'> & { heading: string; venueCount: string }
 
-function ExpandedSlot({ slot, index, occurrence, spots, issues, heading, venueCount, onChange, onDuplicate, onDelete }: ExpandedSlotProps) {
+function ExpandedSlot({ slot, index, occurrence, spots, issues, heading, venueCount, onChange, onDuplicate, onDelete, focusOnOpen }: ExpandedSlotProps) {
+  const headingRef = useRef<HTMLHeadingElement>(null)
+  useEffect(() => {
+    // 追加・複製で開いたときだけ。入力では focusOnOpen が変わらないため、見出しへ戻さない。
+    if (focusOnOpen) headingRef.current?.focus()
+  }, [focusOnOpen])
   const [pickerOpen, setPickerOpen] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const addButton = useRef<HTMLButtonElement>(null)
@@ -85,7 +92,9 @@ function ExpandedSlot({ slot, index, occurrence, spots, issues, heading, venueCo
   return (
     <section aria-label={`開催枠 ${heading}`} className="flex w-full flex-col gap-3 rounded-[10px] border border-brand bg-surface px-4 py-3.5">
       <div className="flex items-center gap-2.5">
-        <h3 className="text-[16px] leading-6 font-bold text-text-primary">{heading}</h3>
+        <h3 ref={headingRef} tabIndex={-1} className="text-[16px] leading-6 font-bold text-text-primary focus-visible:outline-2 focus-visible:outline-brand">
+          {heading}
+        </h3>
         <StatusBadge>{venueCount}</StatusBadge>
       </div>
 

@@ -9,11 +9,11 @@ export type NavArea = {
 }
 
 export const navAreas: NavArea[] = [
-  { path: '/overview', label: 'Overview', subtitle: '現在の公開状態と次の作業', plannedStep: 'Step 3以降' },
+  { path: '/overview', label: 'Overview', subtitle: '現在の公開状態と次の作業', plannedStep: '集計APIの設計の後（実装移行計画 D）' },
   { path: '/events', label: 'Events', plannedStep: 'Step 2' },
   { path: '/spots', label: 'Spots', subtitle: '地点・会場の公開版と下書きを管理', plannedStep: 'Step 3以降' },
   { path: '/open-campus', label: 'Open Campus', plannedStep: 'Step 3以降' },
-  { path: '/map-data', label: 'Map Data', plannedStep: 'Step 3以降' },
+  { path: '/map-data', label: 'Map Data', plannedStep: '技術検証と構成案の確認の後（実装移行計画 E・F）' },
   { path: '/validation', label: 'Validation', subtitle: '下書き全体の診断', plannedStep: 'Step 4' },
   { path: '/releases', label: 'Releases', subtitle: '公開・取り下げ・復旧の履歴', plannedStep: 'Step 4' },
   { path: '/logs', label: 'Logs', subtitle: '保存・公開・ログインの記録', plannedStep: 'Step 4' },

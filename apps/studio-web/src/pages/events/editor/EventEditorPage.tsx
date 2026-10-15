@@ -76,6 +76,8 @@ function EventEditor({ initial }: { initial: EventDetail | null }) {
   const [failure, setFailure] = useState<string | null>(null)
   const [conflict, setConflict] = useState<ConflictState | null>(null)
   const [expandedSlotId, setExpandedSlotId] = useState<string | null>(() => draft.slots[0]?.slotId ?? null)
+  // 追加・複製した枠は開いた直後に見出しへフォーカスを移す（07 §4.4、検証記録 A-3 D4）。
+  const [focusSlotId, setFocusSlotId] = useState<string | null>(null)
   // 同じ内容の保存を再試行するときは同じ operationId を使い、応答が失われた保存を二重に作らない。
   const pendingOperation = useRef<{ id: string; key: string } | null>(null)
   const addSlotButton = useRef<HTMLButtonElement>(null)
@@ -189,6 +191,7 @@ function EventEditor({ initial }: { initial: EventDetail | null }) {
     const slot = emptySlot()
     updateDraft({ slots: [...draft.slots, slot] })
     setExpandedSlotId(slot.slotId)
+    setFocusSlotId(slot.slotId)
   }
 
   function duplicate(slotId: string) {
@@ -197,6 +200,7 @@ function EventEditor({ initial }: { initial: EventDetail | null }) {
     updateDraft({ slots: [...draft.slots.slice(0, position + 1), copy, ...draft.slots.slice(position + 1)] })
     // 複製後は新しい枠を開き、複製直後の重複が分かるようにする（07 §4.4）。
     setExpandedSlotId(copy.slotId)
+    setFocusSlotId(copy.slotId)
   }
 
   function remove(slotId: string) {
@@ -304,10 +308,14 @@ function EventEditor({ initial }: { initial: EventDetail | null }) {
                   spots={spots}
                   issues={issues.filter((issue) => issue.slotId === slot.slotId)}
                   expanded={expandedSlotId === slot.slotId}
-                  onExpand={() => setExpandedSlotId(slot.slotId)}
+                  onExpand={() => {
+                    setExpandedSlotId(slot.slotId)
+                    setFocusSlotId(null)
+                  }}
                   onChange={(next) => updateSlot(slot.slotId, next)}
                   onDuplicate={() => duplicate(slot.slotId)}
                   onDelete={() => remove(slot.slotId)}
+                  focusOnOpen={focusSlotId === slot.slotId}
                 />
               ))}
             </section>

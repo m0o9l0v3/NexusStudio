@@ -162,11 +162,11 @@ export function EventListPage() {
 function EventRow({ item }: { item: EventListItem }) {
   const status = publicationBadge(item.publication)
   return (
-    <li className="flex h-[72px] items-center gap-3 border border-border bg-surface px-3.5 py-3">
+    <li className="flex min-h-[72px] items-center gap-3 border border-border bg-surface px-3.5 py-3">
       <div className="flex w-[580px] min-w-0 flex-col gap-[3px]">
         <Link
           to={`/events/${item.id}`}
-          className="truncate text-[14px] leading-[22px] font-medium text-text-primary hover:underline focus-visible:outline-2 focus-visible:outline-brand"
+          className="break-words text-[14px] leading-[22px] font-medium text-text-primary hover:underline focus-visible:outline-2 focus-visible:outline-brand"
         >
           {item.title?.trim() || '無題のイベント'}
         </Link>
