@@ -7,7 +7,14 @@ import { Dialog, DialogActions } from '../ui/Dialog'
 import { NoticeBanner } from '../ui/NoticeBanner'
 import { TextField } from '../ui/TextField'
 import { describeLoginError, loginErrorMessage, type LoginError } from './loginError'
-import { sessionQueryKey, useSessionExpiry } from './session'
+import { sessionQueryKey, useSessionExpiry, type SessionExpiryPurpose } from './session'
+
+/** 場面ごとの文言。publishResult は Figma L07（105:3074）。publishReview は補完（UI補完記録 2026-10-15）。 */
+const texts: Record<SessionExpiryPurpose, { title: string; description: string }> = {
+  editing: { title: 'ログインの有効期限が切れました', description: '入力はこの画面に保持されています。再ログイン後、あらためて保存してください。' },
+  publishReview: { title: 'ログインの有効期限が切れました', description: '公開内容は変わっていません。再ログイン後、公開内容を確認し直してください。' },
+  publishResult: { title: '公開結果を確認するため再ログイン', description: '公開処理中にログイン期限が切れました。成功とは表示せず、再ログイン後に操作IDから結果を確認します。' },
+}
 
 /**
  * Figma L05「編集中に期限切れ」（93:1562）。画面を離れずに再ログインする。
@@ -60,8 +67,8 @@ export function SessionExpiredDialog({ session }: { session: Session }) {
       open={expiry.expired}
       onOpenChange={(open) => !open && expiry.dismiss()}
       dismissible={!submitting}
-      title="ログインの有効期限が切れました"
-      description="入力はこの画面に保持されています。再ログイン後、あらためて保存してください。"
+      title={texts[expiry.purpose].title}
+      description={texts[expiry.purpose].description}
     >
       <form className="flex flex-col gap-[18px]" onSubmit={(event) => void handleSubmit(event)} noValidate>
         {message && (
