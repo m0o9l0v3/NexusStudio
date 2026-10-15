@@ -28,11 +28,12 @@ export const router = createBrowserRouter([
         children: [
           // ログイン後はOverviewへ直接入る（12 §1、16 §2）。
           { index: true, element: <Navigate to="/overview" replace /> },
-          { path: '/events', element: <EventListPage /> },
-          { path: '/events/new', element: <EventEditorPage /> },
+          // 1280px未満にも対応した画面（handle.responsive）。他の画面は対応するまで最小幅1280pxのまま（検証記録 A-5 D9）。
+          { path: '/events', element: <EventListPage />, handle: { responsive: true } },
+          { path: '/events/new', element: <EventEditorPage />, handle: { responsive: true } },
           { path: '/events/categories', element: <CategoriesPage /> },
           { path: '/events/categories/publish', element: <PublishReviewPage kind="categories" /> },
-          { path: '/events/:id', element: <EventEditorPage /> },
+          { path: '/events/:id', element: <EventEditorPage />, handle: { responsive: true } },
           { path: '/events/:id/publish', element: <PublishReviewPage kind="event" /> },
           { path: '/open-campus', element: <OpenCampusListPage /> },
           { path: '/open-campus/new', element: <OccurrenceEditorPage /> },

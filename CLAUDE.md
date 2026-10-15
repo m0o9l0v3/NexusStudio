@@ -25,6 +25,7 @@ Nexus Studio は、Nexus（`gitlab.com/11h27m/nexus-mobile`）の管理ポータ
 - 参照データは取り込みコマンドでも登録できる（版を進めて Revision を残す）。開発用の設計用サンプルは `docs/samples/reference-sample.json`。
 - 画面の保存処理は `apps/studio-web/src/editing/useDraftEditor.ts`（Open Campus・カテゴリ・Spot）と Events 編集画面で共通の考え方（operationId の再利用、409で上書きしない、［最新の内容を読み込む］）。
 - Figma画面棚卸しの成果物（`docs/決定事項/22`〜`24`、Issue #1）は 2026-10-08 に作成済み（v01）。24 の推奨により、次の作業は「A：既存 Step 1・2 の比較検証」（実PGでの下書き保存往復・失敗復帰・Figma比較）から始める。
+- 1280px未満（200%拡大など）への対応は Events の一覧・編集だけ（ルートの `handle: { responsive: true }`、右パネルは `shell/SidePanel.tsx` で重ねて表示）。他の画面は最小幅1280pxのまま。対応する画面を増やすときは同じ仕組みを使う（2026-10-15 利用者判断、検証記録 A-5 D9）。
 - 検証の証拠は `docs/検証記録/` に置く（2026-10-08 利用者判断）。ブラウザ操作の検証は A では手動で行い記録する。E2E自動化（Playwright等）は C（公開の完成検証）の後に理由・代替案つきで別途提案する。
 
 ## リポジトリ構成

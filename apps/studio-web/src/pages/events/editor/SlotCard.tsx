@@ -40,15 +40,16 @@ export const SlotCard = forwardRef<HTMLButtonElement, SlotCardProps>(function Sl
   const venueCount = `${slot.venues.length}会場`
 
   if (!expanded) {
+    // 1280px未満では日時を1段目、バッジを2段目に折り返す（検証記録 A-5 D9）。
     return (
       <button
         ref={summaryRef}
         type="button"
         onClick={onExpand}
         aria-expanded={false}
-        className="relative flex h-16 w-full items-center gap-2.5 rounded-lg border border-border bg-surface px-3 text-left hover:bg-surface-subtle focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+        className="relative flex min-h-16 w-full flex-wrap items-center gap-2.5 rounded-lg border border-border bg-surface px-3 py-2 text-left hover:bg-surface-subtle focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand xl:flex-nowrap xl:py-0"
       >
-        <span className="w-[270px] shrink-0 truncate text-[13px] leading-[21px] font-medium text-text-primary">{heading}</span>
+        <span className="w-full truncate text-[13px] leading-[21px] font-medium text-text-primary xl:w-[270px] xl:shrink-0">{heading}</span>
         <StatusBadge>{venueCount}</StatusBadge>
         <StatusBadge>{slot.participation ? participationLabels[slot.participation as Participation].replace('時間内は', '') : '参加案内未選択'}</StatusBadge>
         {slot.status === 'cancelled' && <StatusBadge tone="danger">中止</StatusBadge>}

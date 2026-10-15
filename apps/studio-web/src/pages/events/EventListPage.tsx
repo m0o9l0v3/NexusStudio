@@ -68,7 +68,7 @@ export function EventListPage() {
       <Toolbar title="Events" />
       <main className="min-h-0 flex-1 overflow-auto px-6 pt-[22px] pb-10">
         <div className="flex w-[1176px] max-w-full flex-col">
-          <div className="flex w-[1020px] max-w-full items-start justify-between">
+          <div className="flex w-[1020px] max-w-full flex-wrap items-start justify-between gap-3">
             <div>
               <h2 className="text-[22px] leading-[30px] font-bold text-text-primary">イベント</h2>
               <p className="text-[12px] leading-5 text-text-secondary">開催枠・会場・公開状態を確認します</p>
@@ -81,7 +81,7 @@ export function EventListPage() {
             </div>
           </div>
 
-          <div className="mt-4 flex items-center gap-2" role="search">
+          <div className="mt-4 flex flex-wrap items-center gap-2" role="search">
             <label className="sr-only" htmlFor="event-search">
               タイトルで検索
             </label>
@@ -91,7 +91,7 @@ export function EventListPage() {
               value={q}
               onChange={(event) => update('q', event.target.value)}
               placeholder="タイトルを検索"
-              className="h-10 w-[520px] rounded-lg border border-border-input bg-surface px-3 text-[13px] leading-[21px] text-text-primary placeholder:text-text-secondary focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand"
+              className="h-10 w-[520px] max-w-full rounded-lg border border-border-input bg-surface px-3 text-[13px] leading-[21px] text-text-primary placeholder:text-text-secondary focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand"
             />
             <FilterChip label="開催回" value={occurrenceId} onChange={(value) => update('occurrenceId', value)}>
               <option value="">開催回：すべて</option>
@@ -114,7 +114,7 @@ export function EventListPage() {
             </FilterChip>
           </div>
 
-          <div aria-hidden className="mt-4 flex h-8 items-center gap-3 px-3.5 text-[11px] leading-[19px] text-text-secondary">
+          <div aria-hidden className="mt-4 hidden h-8 items-center gap-3 px-3.5 xl:flex text-[11px] leading-[19px] text-text-secondary">
             <span className="w-[580px]">イベント</span>
             <span className="w-10">枠</span>
             <span className="w-[50px]">会場</span>
@@ -160,10 +160,11 @@ export function EventListPage() {
 
 /** Figma `Event List Row`（72:298）。 */
 function EventRow({ item }: { item: EventListItem }) {
+  // 1280px未満ではイベント名を1段目、枠・会場・状態・更新・編集を2段目に置く（検証記録 A-5 D9）。
   const status = publicationBadge(item.publication)
   return (
-    <li className="flex min-h-[72px] items-center gap-3 border border-border bg-surface px-3.5 py-3">
-      <div className="flex w-[580px] min-w-0 flex-col gap-[3px]">
+    <li className="flex min-h-[72px] flex-wrap items-center gap-3 border border-border bg-surface px-3.5 py-3 xl:flex-nowrap">
+      <div className="flex w-full min-w-0 flex-col gap-[3px] xl:w-[580px]">
         <Link
           to={`/events/${item.id}`}
           className="break-words text-[14px] leading-[22px] font-medium text-text-primary hover:underline focus-visible:outline-2 focus-visible:outline-brand"
@@ -174,10 +175,10 @@ function EventRow({ item }: { item: EventListItem }) {
       </div>
       <p className="w-10 text-[12px] leading-5 text-text-secondary">{item.slotCount}枠</p>
       <p className="w-[50px] text-[12px] leading-5 text-text-secondary">{item.venueCount}会場</p>
-      <div className="flex w-[150px] items-center">
+      <div className="flex items-center xl:w-[150px]">
         <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
       </div>
-      <p className="relative w-40 text-[11px] leading-[19px] text-text-secondary">
+      <p className="relative text-[11px] leading-[19px] text-text-secondary xl:w-40">
         更新 {updatedFormat.format(new Date(item.updatedAt))}
         <span className="sr-only">（{item.updatedBy.displayName}）</span>
       </p>
