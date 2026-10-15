@@ -37,10 +37,6 @@ export function VenuePickerDialog({ open, onOpenChange, addedIds, onSelect, retu
   const deferredQ = useDeferredValue(q)
   // 検索条件が変わったら先頭の候補から選び直す。
   const filterKey = `${deferredQ}\u0000${building}\u0000${floor}`
-  const [activeState, setActiveState] = useState({ key: filterKey, index: 0 })
-  const active = activeState.key === filterKey ? activeState.index : 0
-  const setActive = (next: number | ((current: number) => number)) =>
-    setActiveState({ key: filterKey, index: typeof next === 'function' ? next(active) : next })
   const listId = useId()
   const listRef = useRef<HTMLUListElement>(null)
   const added = new Set(addedIds)
@@ -51,7 +47,18 @@ export function VenuePickerDialog({ open, onOpenChange, addedIds, onSelect, retu
     enabled: open,
     placeholderData: keepPreviousData,
   })
-  const items = result.data?.items ?? []
+  // 前の条件の結果を表示したまま今の条件の取得に失敗したら、前の結果を今の結果として見せない（A-5 B3）。
+  const failed = result.isError && (!result.data || result.isPlaceholderData)
+  const items = failed ? [] : (result.data?.items ?? [])
+  // 最初は選べる候補を強調する。選べる候補が無ければ先頭（A-3 D5）。
+  const firstAvailable = Math.max(
+    items.findIndex((spot) => availabilityOf(spot, added) === 'available'),
+    0,
+  )
+  const [activeState, setActiveState] = useState<{ key: string; index: number } | null>(null)
+  const active = activeState?.key === filterKey ? activeState.index : firstAvailable
+  const setActive = (next: number | ((current: number) => number)) =>
+    setActiveState({ key: filterKey, index: typeof next === 'function' ? next(active) : next })
   const filtered = Boolean(q.trim() || building || floor)
 
   useEffect(() => {
@@ -146,7 +153,7 @@ export function VenuePickerDialog({ open, onOpenChange, addedIds, onSelect, retu
               <p className="text-[12px] leading-5 font-medium text-text-primary">読み込み中</p>
               <NoticeBanner>会場候補を読み込んでいます。</NoticeBanner>
             </>
-          ) : result.isError && !result.data ? (
+          ) : failed ? (
             <>
               <p className="text-[12px] leading-5 font-medium text-text-primary">取得失敗</p>
               <NoticeBanner tone="blocking">
@@ -176,8 +183,15 @@ export function VenuePickerDialog({ open, onOpenChange, addedIds, onSelect, retu
           ) : (
             <>
               <p className="text-[12px] leading-5 font-medium text-text-primary" aria-live="polite">
-                検索結果 {result.data.totalCount}件
-                {result.data.totalCount > items.length && `（先頭の${items.length}件を表示。条件を絞り込んでください）`}
+                {result.isPlaceholderData ? (
+                  // 今の条件の結果を待つ間（失敗時の再試行を含む）は、前の条件の結果を今の結果として数えない（A-5 B3）。
+                  '検索中（前の条件の結果を表示しています）'
+                ) : (
+                  <>
+                    検索結果 {result.data.totalCount}件
+                    {result.data.totalCount > items.length && `（先頭の${items.length}件を表示。条件を絞り込んでください）`}
+                  </>
+                )}
               </p>
               <ul id={listId} ref={listRef} role="listbox" aria-label="会場候補" className="flex min-h-0 flex-col gap-2 overflow-auto p-1">
                 {items.map((spot, index) => {

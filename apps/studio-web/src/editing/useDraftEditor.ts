@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import { ApiError } from '../api/client'
 import type { StatusTone } from '../ui/StatusBadge'
+import { saveFailureMessage } from './saveMessages'
 
 export type SaveState = 'idle' | 'saving' | 'saved' | 'failed' | 'conflict'
 
@@ -15,8 +16,6 @@ type Options<TDetail, TDraft> = {
   /** 409応答の本文から最新の内容を取り出す。 */
   latestFromConflict: (body: unknown) => TDetail
 }
-
-const SAVE_FAILED = '保存できませんでした。入力は保持されています。接続を確認して再試行してください。'
 
 function problemsOf(body: unknown): string {
   const problems = (body as { problems?: { message: string }[] } | undefined)?.problems ?? []
@@ -82,7 +81,7 @@ export function useDraftEditor<TDetail, TDraft>({ initial, newDraft, draftOf, pe
         setFailure('対象が見つからないため保存できませんでした。入力は保持されています。')
       } else {
         setSaveState('failed')
-        setFailure(SAVE_FAILED)
+        setFailure(saveFailureMessage(error))
       }
       return null
     }

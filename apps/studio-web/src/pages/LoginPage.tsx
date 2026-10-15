@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { useId, useState, type FormEvent, type InputHTMLAttributes } from 'react'
+import { useEffect, useId, useRef, useState, type FormEvent, type InputHTMLAttributes, type Ref } from 'react'
 import { Navigate, useNavigate, useSearchParams } from 'react-router'
 import { fetchSession, login } from '../api/auth'
 import lockIcon from '../assets/icons/lock.svg'
@@ -32,6 +32,15 @@ export function LoginPage() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<LoginError | null>(null)
   const [recoveryOpen, setRecoveryOpen] = useState(false)
+  const emailRef = useRef<HTMLInputElement>(null)
+  const passwordRef = useRef<HTMLInputElement>(null)
+
+  // 認証・接続に失敗したらパスワード欄へフォーカスを戻す。送信中は欄が無効になり、フォーカスが外れるため（A-2 D2）。
+  // 送信のたびに error を null に戻すので、同じ失敗が続いても毎回走る。入力不足は handleSubmit で直接扱う。
+  useEffect(() => {
+    if (!error || error === 'missing' || submitting) return
+    passwordRef.current?.focus()
+  }, [error, submitting])
 
   if (session.data && !isUnauthorized(session.error)) {
     return <Navigate to={returnTo} replace />
@@ -41,6 +50,9 @@ export function LoginPage() {
     event.preventDefault()
     if (!email.trim() || !password) {
       setError('missing')
+      // 未入力が続くと error が変わらず effect が走らないため、送信のたびに空の欄へ直接フォーカスする。
+      const empty = email.trim() ? passwordRef : emailRef
+      empty.current?.focus()
       return
     }
 
@@ -107,6 +119,7 @@ export function LoginPage() {
               value={email}
               onChange={(event) => setEmail(event.target.value)}
               invalid={error === 'missing' && !email.trim()}
+              inputRef={emailRef}
               autoFocus
             />
             <LoginField
@@ -117,6 +130,7 @@ export function LoginPage() {
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               invalid={error === 'invalid' || (error === 'missing' && !password)}
+              inputRef={passwordRef}
             />
           </fieldset>
 
@@ -167,9 +181,9 @@ export function LoginPage() {
   )
 }
 
-type LoginFieldProps = InputHTMLAttributes<HTMLInputElement> & { label: string; icon: string; invalid?: boolean }
+type LoginFieldProps = InputHTMLAttributes<HTMLInputElement> & { label: string; icon: string; invalid?: boolean; inputRef?: Ref<HTMLInputElement> }
 
-function LoginField({ label, icon, invalid, ...props }: LoginFieldProps) {
+function LoginField({ label, icon, invalid, inputRef, ...props }: LoginFieldProps) {
   const id = useId()
   return (
     <div className="flex flex-col gap-[7px]">
@@ -180,11 +194,12 @@ function LoginField({ label, icon, invalid, ...props }: LoginFieldProps) {
         className={cn(
           'flex h-12 items-center gap-2.5 rounded-lg border bg-surface px-3.5',
           'focus-within:outline-2 focus-within:outline-offset-1 focus-within:outline-brand',
-          invalid ? 'border-danger' : 'border-border',
+          invalid ? 'border-danger' : 'border-border-input',
         )}
       >
         <img src={icon} alt="" width={18} height={18} className="shrink-0" />
         <input
+          ref={inputRef}
           id={id}
           aria-invalid={invalid || undefined}
           className="min-w-0 flex-1 bg-transparent text-[13px] leading-[21px] text-text-primary outline-none placeholder:text-text-secondary"

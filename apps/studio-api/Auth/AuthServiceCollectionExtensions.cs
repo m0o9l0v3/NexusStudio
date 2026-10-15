@@ -64,8 +64,9 @@ public static class AuthServiceCollectionExtensions
             };
         });
 
-        // 無効化・パスワード再設定を、既存セッションへ1分以内に反映する。
-        services.Configure<SecurityStampValidatorOptions>(options => options.ValidationInterval = TimeSpan.FromMinutes(1));
+        // 無効化・パスワード再設定を、既存セッションの次の要求ですぐ反映する（毎回再検証する。2026-10-09 利用者判断、A-2 B2）。
+        // 管理者は少数のため、要求ごとのDB照会の負荷は問題にならない。
+        services.Configure<SecurityStampValidatorOptions>(options => options.ValidationInterval = TimeSpan.Zero);
 
         services.AddAntiforgery(options =>
         {

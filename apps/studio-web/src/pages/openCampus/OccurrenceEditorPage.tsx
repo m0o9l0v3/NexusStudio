@@ -13,6 +13,7 @@ import {
   type SlotReference,
 } from '../../api/occurrences'
 import { CompareRows, type CompareRow } from '../../editing/CompareRows'
+import { ConflictNotice } from '../../editing/ConflictNotice'
 import { LeaveGuard } from '../../editing/LeaveGuard'
 import { useDraftEditor } from '../../editing/useDraftEditor'
 import { formatDateLong } from '../../events/model'
@@ -207,10 +208,11 @@ function OccurrenceEditor({ initial }: { initial: OccurrenceDetail | null }) {
           <div className="flex w-[784px] max-w-full flex-col gap-3">
             <h2 className="text-[22px] leading-[30px] font-bold text-text-primary">{base ? '開催回を編集' : '新規開催回'}</h2>
             {editor.failure && <NoticeBanner tone="blocking">{editor.failure}</NoticeBanner>}
-            {editor.conflictOpen && (
-              <NoticeBanner tone="warning">
-                他の管理者が先に保存しました。あなたの入力は保持されています。右の比較で最新の内容を確認してから読み込み、必要な変更を反映してください。
-              </NoticeBanner>
+            {editor.conflictOpen && editor.conflict && (
+              <ConflictNotice
+                latestById={editor.conflict.latest.updatedBy?.id}
+                next="右の比較で最新の内容を確認してから読み込み、必要な変更を反映してください。"
+              />
             )}
 
             <section aria-labelledby="occurrence-basic" className="flex flex-col gap-3">

@@ -24,7 +24,9 @@ Nexus Studio は、Nexus（`gitlab.com/11h27m/nexus-mobile`）の管理ポータ
 - Step 4-3 実装内容: 全下書き診断（`/api/validation/draft`・`/latest`。公開中と違う下書きを1件ずつ今の公開データと組み合わせて検証し、診断後の変更を「古い結果」として示す。診断結果は公開の確認に使えない）と Validation 画面。Map Data の診断は技術検証の後。
 - 参照データは取り込みコマンドでも登録できる（版を進めて Revision を残す）。開発用の設計用サンプルは `docs/samples/reference-sample.json`。
 - 画面の保存処理は `apps/studio-web/src/editing/useDraftEditor.ts`（Open Campus・カテゴリ・Spot）と Events 編集画面で共通の考え方（operationId の再利用、409で上書きしない、［最新の内容を読み込む］）。
-- Figma画面棚卸しの成果物（`docs/決定事項/22`〜`24`、Issue #1）は未作成。
+- Figma画面棚卸しの成果物（`docs/決定事項/22`〜`24`、Issue #1）は 2026-10-08 に作成済み（v01）。24 の推奨により、次の作業は「A：既存 Step 1・2 の比較検証」（実PGでの下書き保存往復・失敗復帰・Figma比較）から始める。
+- 1280px未満（200%拡大など）への対応は Events の一覧・編集だけ（ルートの `handle: { responsive: true }`、右パネルは `shell/SidePanel.tsx` で重ねて表示）。他の画面は最小幅1280pxのまま。対応する画面を増やすときは同じ仕組みを使う（2026-10-15 利用者判断、検証記録 A-5 D9）。
+- 検証の証拠は `docs/検証記録/` に置く（2026-10-08 利用者判断）。ブラウザ操作の検証は A では手動で行い記録する。E2E自動化（Playwright等）は C（公開の完成検証）の後に理由・代替案つきで別途提案する。
 
 ## リポジトリ構成
 
@@ -58,8 +60,9 @@ dotnet build ../../NexusStudio.slnx
 dotnet test ../studio-api-tests/StudioApi.Tests.csproj
 
 # マイグレーション適用（起動時の自動適用はしない。Step 0-c）
+# 設計時factoryは STUDIO_MIGRATION_CONNECTION を読む（ConnectionStrings__StudioDatabase では失敗する）
 dotnet tool restore
-ConnectionStrings__StudioDatabase="Host=localhost;Port=5433;Database=nexus_studio;Username=studio;Password=<.envと同じ値>" \
+STUDIO_MIGRATION_CONNECTION="Host=localhost;Port=5433;Database=nexus_studio;Username=studio;Password=<.envと同じ値>" \
   dotnet tool run dotnet-ef database update
 
 # Studio Web
@@ -99,6 +102,7 @@ docker compose up -d postgres   # ホスト側は5433番ポート（nexus-mobile
 ## セキュリティ上、絶対に守ること
 
 - ASP.NET Core Identityで個別の管理者アカウントを作る。`nexus-mobile/apps/admin-api` の単一固定資格情報・平文比較を踏襲しない。
+- 管理者の無効化・パスワード再設定は、既存セッションの次の要求で即時に反映する（セキュリティスタンプの確認間隔0。2026-10-09 利用者判断）。テストだけで間隔を変えない。
 - 公開サインアップ画面を作らない。初期管理者の登録・無効化は運用者のみ実行できる管理コマンドで提供する。
 - 秘密値のプレースホルダー（`CHANGE_ME_TO_A_LONG_RANDOM_SECRET`等）は、本番デプロイ手順の提案時に必ず差し替えを促すこと。
 
@@ -107,7 +111,9 @@ docker compose up -d postgres   # ホスト側は5433番ポート（nexus-mobile
 | ファイル | 内容 |
 |---|---|
 | `docs/決定事項/15_..._v02.md`（および同日v01） | 実装開始判断・技術構成・データ契約・実装順序（Step 0〜6）の正本 |
-| `docs/決定事項/21_...実装準備プロンプト.md` | Figma画面棚卸しの依頼文（`22`〜`24`は未作成） |
+| `docs/決定事項/21_...実装準備プロンプト.md` | Figma画面棚卸しの依頼文 |
+| `docs/決定事項/22`〜`24`（2026-10-08 v01） | Figma画面状態棚卸し・不足分析（G01〜G18）・実装移行計画（A〜I の順序と完了条件） |
+| `docs/検証記録/` | 実行した検証の環境・手順・期待結果・実結果・画像 |
 | `docs/決定事項/07`〜`12`（最新版） | 画面の動き・状態・検証・受け入れ条件（機能ID） |
 | `docs/UI補完記録.md` | Figmaに描かれていない部分をエージェントが補完した記録 |
 | `docs/決定事項/26_...canonical_ID対応表.md` | 部屋canonical IDの対応表 |

@@ -1,0 +1,100 @@
+{
+    "createdAt": "2026-10-09T01:37:44.596245+00:00",
+    "draft": {
+        "categoryId": "0199a000-0000-7000-8000-000000000301",
+        "description": "\u8907\u6570\u65e5\u30fb\u8907\u6570\u67a0\u30fb\u8907\u6570\u4f1a\u5834\u306e\u5f80\u5fa9\u691c\u8a3c\u3002\u6539\u884c\u306a\u3057\u3002",
+        "occurrenceId": "0199a000-0000-7000-8000-000000000001",
+        "schemaVersion": "studio.event/1",
+        "slots": [
+            {
+                "cancelNote": null,
+                "fixed": {
+                    "end": "11:00",
+                    "start": "10:00"
+                },
+                "ocDayId": "0199a000-0000-7000-8000-000000000101",
+                "participation": "atStart",
+                "slotId": "44c6927b-0d96-469c-8af0-d72387771f85",
+                "status": "normal",
+                "timeMode": "fixed",
+                "venues": [
+                    {
+                        "canonicalSpotId": "mb_f2_cr_2a",
+                        "note": "\u53d7\u4ed8"
+                    },
+                    {
+                        "canonicalSpotId": "MB_F1_Lab_01",
+                        "note": "\u767d\u8863\u8cb8\u51fa\u3042\u308a"
+                    },
+                    {
+                        "canonicalSpotId": "sample_lobby_1f",
+                        "note": null
+                    }
+                ]
+            },
+            {
+                "cancelNote": "\u8b1b\u5e2b\u90fd\u5408\u306b\u3088\u308a\u5348\u5f8c\u306e\u56de\u306f\u4e2d\u6b62\u3057\u307e\u3059\u3002",
+                "fixed": {
+                    "end": "15:00",
+                    "start": "14:00"
+                },
+                "ocDayId": "0199a000-0000-7000-8000-000000000101",
+                "participation": "anytime",
+                "slotId": "8ad54fe7-9e15-4299-b1b5-5209896875c8",
+                "status": "cancelled",
+                "timeMode": "fixed",
+                "venues": [
+                    {
+                        "canonicalSpotId": "mb_f2_cr_2a",
+                        "note": "\u53d7\u4ed8"
+                    },
+                    {
+                        "canonicalSpotId": "MB_F1_Lab_01",
+                        "note": "\u767d\u8863\u8cb8\u51fa\u3042\u308a"
+                    },
+                    {
+                        "canonicalSpotId": "sample_lobby_1f",
+                        "note": null
+                    }
+                ]
+            },
+            {
+                "cancelNote": null,
+                "fixed": null,
+                "ocDayId": "0199a000-0000-7000-8000-000000000102",
+                "participation": "anytime",
+                "slotId": "60720b61-d1dd-4711-87eb-5b44ff4f4d7b",
+                "status": "normal",
+                "timeMode": "allDay",
+                "venues": [
+                    {
+                        "canonicalSpotId": "mb_f2_cr_2a",
+                        "note": "\u53d7\u4ed8"
+                    },
+                    {
+                        "canonicalSpotId": "MB_F1_Lab_01",
+                        "note": "\u767d\u8863\u8cb8\u51fa\u3042\u308a"
+                    },
+                    {
+                        "canonicalSpotId": "sample_lobby_1f",
+                        "note": null
+                    }
+                ]
+            }
+        ],
+        "title": "A-3\u5f80\u5fa9\u691c\u8a3c \u30ed\u30dc\u30c3\u30c8\u64cd\u4f5c\u4f53\u9a13"
+    },
+    "id": "01a11e4f-2094-70c1-a884-4e45d0f8fc63",
+    "publication": {
+        "publishedAt": null,
+        "publishedRevisionId": null,
+        "state": "unpublished"
+    },
+    "revisionId": "01a11e4f-2094-77e4-8386-3351ee621023",
+    "rowVersion": 1,
+    "updatedAt": "2026-10-09T01:37:44.596245+00:00",
+    "updatedBy": {
+        "displayName": "\u691c\u8a3c\u7ba1\u7406\u8005B",
+        "id": "01a119f9-3450-7140-ad3f-13289c4ce5ec"
+    }
+}

@@ -6,11 +6,16 @@ import { createEvent, getEvent, updateEvent, type DraftValidationProblem, type E
 import { getReference, lookupSpots } from '../../../api/reference'
 import { isLive, publicationBadge, reviewPath } from '../../../publishing/publication'
 import { draftKey, duplicateSlot, emptySlot, findDraftIssues, indexReference, newDraft, newId } from '../../../events/model'
+import { SidePanel } from '../../../shell/SidePanel'
 import { Toolbar } from '../../../shell/Toolbar'
+import { ToolbarMoreMenu } from '../../../shell/ToolbarMoreMenu'
+import { useWideLayout } from '../../../shell/useWideLayout'
 import { useRegisterUnsavedChanges } from '../../../shell/unsavedChanges'
 import { Button } from '../../../ui/Button'
 import { Dialog, DialogActions } from '../../../ui/Dialog'
 import { NoticeBanner } from '../../../ui/NoticeBanner'
+import { ConflictNotice } from '../../../editing/ConflictNotice'
+import { saveFailureMessage } from '../../../editing/saveMessages'
 import { StatusBadge, type StatusTone } from '../../../ui/StatusBadge'
 import { CommonInfoCard } from './CommonInfoCard'
 import { ConflictPanel } from './ConflictPanel'
@@ -64,8 +69,6 @@ type SaveState = 'idle' | 'saving' | 'saved' | 'failed' | 'conflict'
 
 type ConflictState = { latest: EventDetail; mine: EventDraft; resolved: boolean }
 
-const SAVE_FAILED = '保存できませんでした。入力は保持されています。接続を確認して再試行してください。'
-
 function EventEditor({ initial }: { initial: EventDetail | null }) {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
@@ -75,7 +78,13 @@ function EventEditor({ initial }: { initial: EventDetail | null }) {
   const [saveState, setSaveState] = useState<SaveState>('idle')
   const [failure, setFailure] = useState<string | null>(null)
   const [conflict, setConflict] = useState<ConflictState | null>(null)
+  // 1280px未満では右パネル（Preview・比較）を重ねて表示し、Toolbar のボタンで開閉する（検証記録 A-5 D9）。
+  const wide = useWideLayout()
+  const [panelOpen, setPanelOpen] = useState(false)
+  const panelButton = useRef<HTMLButtonElement>(null)
   const [expandedSlotId, setExpandedSlotId] = useState<string | null>(() => draft.slots[0]?.slotId ?? null)
+  // 追加・複製した枠は開いた直後に見出しへフォーカスを移す（07 §4.4、検証記録 A-3 D4）。
+  const [focusSlotId, setFocusSlotId] = useState<string | null>(null)
   // 同じ内容の保存を再試行するときは同じ operationId を使い、応答が失われた保存を二重に作らない。
   const pendingOperation = useRef<{ id: string; key: string } | null>(null)
   const addSlotButton = useRef<HTMLButtonElement>(null)
@@ -155,6 +164,8 @@ function EventEditor({ initial }: { initial: EventDetail | null }) {
         const latest = (error.body as EventConflict).latest
         setConflict({ latest, mine: snapshot, resolved: false })
         setSaveState('conflict')
+        // 比較を見ないと解消できないため、重ねて表示する幅でも自動で開く。
+        setPanelOpen(true)
       } else if (error instanceof ApiError && error.status === 401) {
         // 再ログインダイアログ（L05）は共通の仕組みで表示される。成功とは表示しない。
         setSaveState('failed')
@@ -169,7 +180,7 @@ function EventEditor({ initial }: { initial: EventDetail | null }) {
         setFailure('このイベントは見つからないため保存できませんでした。入力は保持されています。')
       } else {
         setSaveState('failed')
-        setFailure(SAVE_FAILED)
+        setFailure(saveFailureMessage(error))
       }
       return null
     }
@@ -189,6 +200,7 @@ function EventEditor({ initial }: { initial: EventDetail | null }) {
     const slot = emptySlot()
     updateDraft({ slots: [...draft.slots, slot] })
     setExpandedSlotId(slot.slotId)
+    setFocusSlotId(slot.slotId)
   }
 
   function duplicate(slotId: string) {
@@ -197,6 +209,7 @@ function EventEditor({ initial }: { initial: EventDetail | null }) {
     updateDraft({ slots: [...draft.slots.slice(0, position + 1), copy, ...draft.slots.slice(position + 1)] })
     // 複製後は新しい枠を開き、複製直後の重複が分かるようにする（07 §4.4）。
     setExpandedSlotId(copy.slotId)
+    setFocusSlotId(copy.slotId)
   }
 
   function remove(slotId: string) {
@@ -234,7 +247,7 @@ function EventEditor({ initial }: { initial: EventDetail | null }) {
   return (
     <>
       <Toolbar title={`Events / ${titleText}`}>
-        <StatusBadge tone={publication.tone}>{publication.label}</StatusBadge>
+        {wide && <StatusBadge tone={publication.tone}>{publication.label}</StatusBadge>}
         <StatusBadge tone={saveBadge.tone}>
           <span role="status">{saveBadge.label}</span>
         </StatusBadge>
@@ -242,16 +255,44 @@ function EventEditor({ initial }: { initial: EventDetail | null }) {
         <Button className="min-w-[93px]" onClick={() => void save()} disabled={saveState === 'saving' || conflictOpen}>
           {saveState === 'saving' ? '保存中…' : conflictOpen ? '保存不可' : '下書き保存'}
         </Button>
-        <Button variant="secondary" className="min-w-[93px]" onClick={() => void navigate('/events')}>
-          一覧へ戻る
-        </Button>
-        <Button variant="secondary" onClick={() => void review()} disabled={saveState === 'saving' || conflictOpen}>
-          {dirty || !base ? '保存して確認' : '公開内容を確認'}
-        </Button>
-        {base && isLive(base.publication.state) && (
-          <Button variant="danger" className="min-w-[93px]" onClick={() => void navigate(reviewPath('event', base.id, 'withdraw'))}>
-            取り下げ
-          </Button>
+        {wide ? (
+          <>
+            <Button variant="secondary" className="min-w-[93px]" onClick={() => void navigate('/events')}>
+              一覧へ戻る
+            </Button>
+            <Button variant="secondary" onClick={() => void review()} disabled={saveState === 'saving' || conflictOpen}>
+              {dirty || !base ? '保存して確認' : '公開内容を確認'}
+            </Button>
+            {base && isLive(base.publication.state) && (
+              <Button variant="danger" className="min-w-[93px]" onClick={() => void navigate(reviewPath('event', base.id, 'withdraw'))}>
+                取り下げ
+              </Button>
+            )}
+          </>
+        ) : (
+          <>
+            <Button
+              ref={panelButton}
+              variant="secondary"
+              className="min-w-0 px-3"
+              aria-expanded={panelOpen}
+              aria-controls="event-side-panel"
+              onClick={() => setPanelOpen((open) => !open)}
+            >
+              {conflict ? '比較' : 'Preview'}
+            </Button>
+            <ToolbarMoreMenu
+              label="その他の操作"
+              note={`公開状態：${publication.label}`}
+              items={[
+                { label: '一覧へ戻る', onSelect: () => void navigate('/events') },
+                { label: dirty || !base ? '保存して確認' : '公開内容を確認', onSelect: () => void review(), disabled: saveState === 'saving' || conflictOpen },
+                ...(base && isLive(base.publication.state)
+                  ? [{ label: '取り下げ', danger: true, onSelect: () => void navigate(reviewPath('event', base.id, 'withdraw')) }]
+                  : []),
+              ]}
+            />
+          </>
         )}
       </Toolbar>
 
@@ -261,10 +302,11 @@ function EventEditor({ initial }: { initial: EventDetail | null }) {
             <h2 className="text-[22px] leading-[30px] font-bold text-text-primary">{base ? 'イベントを編集' : '新規イベント'}</h2>
 
             {failure && <NoticeBanner tone="blocking">{failure}</NoticeBanner>}
-            {conflictOpen && (
-              <NoticeBanner tone="warning">
-                他の管理者が先に保存しました。あなたの入力は保持されています。右の比較で最新の内容を確認してから読み込み、必要な変更を反映してください。
-              </NoticeBanner>
+            {conflictOpen && conflict && (
+              <ConflictNotice
+                latestById={conflict.latest.updatedBy.id}
+                next="右の比較で最新の内容を確認してから読み込み、必要な変更を反映してください。"
+              />
             )}
 
             <CommonInfoCard
@@ -303,30 +345,39 @@ function EventEditor({ initial }: { initial: EventDetail | null }) {
                   spots={spots}
                   issues={issues.filter((issue) => issue.slotId === slot.slotId)}
                   expanded={expandedSlotId === slot.slotId}
-                  onExpand={() => setExpandedSlotId(slot.slotId)}
+                  onExpand={() => {
+                    setExpandedSlotId(slot.slotId)
+                    setFocusSlotId(null)
+                  }}
                   onChange={(next) => updateSlot(slot.slotId, next)}
                   onDuplicate={() => duplicate(slot.slotId)}
                   onDelete={() => remove(slot.slotId)}
+                  focusOnOpen={focusSlotId === slot.slotId}
                 />
               ))}
             </section>
           </div>
         </main>
 
-        {conflict ? (
-          <ConflictPanel
-            mine={conflict.mine}
-            latest={conflict.latest.draft}
-            latestBy={conflict.latest.updatedBy.displayName}
-            index={index}
-            spots={spots}
-            resolved={conflict.resolved}
-            onLoadLatest={loadLatest}
-            onClose={() => setConflict(null)}
-          />
-        ) : (
-          <PreviewPanel draft={draft} index={index} spots={spots} saved={Boolean(base) && !dirty} />
-        )}
+        <SidePanel
+          id="event-side-panel"
+          label={conflict ? '最新の保存内容と比較' : 'iOS Preview'}
+          open={panelOpen} onClose={() => setPanelOpen(false)} returnFocusTo={panelButton}>
+          {conflict ? (
+            <ConflictPanel
+              mine={conflict.mine}
+              latest={conflict.latest.draft}
+              latestBy={conflict.latest.updatedBy.displayName}
+              index={index}
+              spots={spots}
+              resolved={conflict.resolved}
+              onLoadLatest={loadLatest}
+              onClose={() => setConflict(null)}
+            />
+          ) : (
+            <PreviewPanel draft={draft} index={index} spots={spots} saved={Boolean(base) && !dirty} />
+          )}
+        </SidePanel>
       </div>
 
       <Dialog

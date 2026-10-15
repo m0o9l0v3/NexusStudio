@@ -7,7 +7,7 @@ const boxClass = (invalid?: boolean) =>
   cn(
     'h-10 w-full rounded-[7px] border bg-surface px-3 text-[13px] leading-[21px] text-text-primary placeholder:text-text-secondary',
     'focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand disabled:cursor-not-allowed disabled:opacity-55',
-    invalid ? 'border-danger' : 'border-border',
+    invalid ? 'border-danger' : 'border-border-input',
   )
 
 type FieldFrameProps = {

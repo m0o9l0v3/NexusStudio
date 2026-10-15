@@ -1,5 +1,5 @@
 import * as RadixDialog from '@radix-ui/react-dialog'
-import type { ReactNode } from 'react'
+import { useLayoutEffect, useRef, type ReactNode } from 'react'
 
 type DialogProps = {
   open: boolean
@@ -13,6 +13,15 @@ type DialogProps = {
 
 /** Figma `Dialog`（71:254）。確認・危険操作・セッション期限切れの共通ダイアログ。 */
 export function Dialog({ open, onOpenChange, title, description, children, dismissible = true }: DialogProps) {
+  // Trigger を使わずに開くため、Radix は閉じた後のフォーカス先を知らない。開いた時点のフォーカス先を覚えて戻す（A-2 D2）。
+  // Radix が中へフォーカスを移すのは useEffect なので、それより先に走る useLayoutEffect で記録する。
+  const returnTo = useRef<HTMLElement | null>(null)
+  useLayoutEffect(() => {
+    if (open && document.activeElement instanceof HTMLElement && document.activeElement !== document.body) {
+      returnTo.current = document.activeElement
+    }
+  }, [open])
+
   return (
     <RadixDialog.Root open={open} onOpenChange={onOpenChange}>
       <RadixDialog.Portal>
@@ -22,6 +31,15 @@ export function Dialog({ open, onOpenChange, title, description, children, dismi
           onEscapeKeyDown={(event) => !dismissible && event.preventDefault()}
           onPointerDownOutside={(event) => !dismissible && event.preventDefault()}
           onInteractOutside={(event) => !dismissible && event.preventDefault()}
+          onCloseAutoFocus={(event) => {
+            const target = returnTo.current
+            returnTo.current = null
+            // 移動や削除で元の要素が無くなっていれば、Radix の既定に任せる。
+            if (target?.isConnected) {
+              event.preventDefault()
+              target.focus()
+            }
+          }}
         >
           <RadixDialog.Title className="text-[18px] leading-[26px] font-bold text-text-primary">{title}</RadixDialog.Title>
           <RadixDialog.Description className="text-[13px] leading-[21px] text-text-secondary">{description}</RadixDialog.Description>

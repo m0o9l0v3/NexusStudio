@@ -10,7 +10,7 @@ export function Sidebar() {
   const { data: session } = useSessionQuery()
 
   return (
-    <aside className="flex w-[216px] shrink-0 flex-col items-start gap-2 border-r border-border bg-surface px-4 pt-[18px] pb-4">
+    <aside className="flex w-[216px] shrink-0 flex-col items-start gap-2 overflow-y-auto border-r border-border bg-surface px-4 pt-[18px] pb-4">
       <div className="flex flex-col gap-[3px]">
         <p className="text-[16px] leading-6 font-bold text-text-primary">NEXUS STUDIO</p>
         <p className="text-[10px] leading-[18px] text-text-secondary">キャンパス制作環境</p>
