@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef } from 'react'
 import { useNavigate } from 'react-router'
 import { getCategories, saveCategories, type CategoryConflict, type CategoryDraft, type CategoryListDetail } from '../../api/categories'
 import { CompareRows } from '../../editing/CompareRows'
+import { ConflictNotice } from '../../editing/ConflictNotice'
 import { LeaveGuard } from '../../editing/LeaveGuard'
 import { useDraftEditor } from '../../editing/useDraftEditor'
 import { publicationBadge, reviewPath } from '../../publishing/publication'
@@ -133,8 +134,8 @@ function CategoriesEditor({ initial }: { initial: CategoryListDetail }) {
               </p>
             </div>
             {editor.failure && <NoticeBanner tone="blocking">{editor.failure}</NoticeBanner>}
-            {editor.conflictOpen && (
-              <NoticeBanner tone="warning">他の管理者が先に保存しました。あなたの入力は保持されています。右の比較で最新の内容を確認してから読み込んでください。</NoticeBanner>
+            {editor.conflictOpen && editor.conflict && (
+              <ConflictNotice latestById={editor.conflict.latest.updatedBy?.id} next="右の比較で最新の内容を確認してから読み込んでください。" />
             )}
 
             <div aria-hidden className="flex h-8 items-center gap-3 px-3.5 text-[11px] leading-[19px] text-text-secondary">

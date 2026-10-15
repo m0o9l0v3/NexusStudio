@@ -11,6 +11,8 @@ import { useRegisterUnsavedChanges } from '../../../shell/unsavedChanges'
 import { Button } from '../../../ui/Button'
 import { Dialog, DialogActions } from '../../../ui/Dialog'
 import { NoticeBanner } from '../../../ui/NoticeBanner'
+import { ConflictNotice } from '../../../editing/ConflictNotice'
+import { saveFailureMessage } from '../../../editing/saveMessages'
 import { StatusBadge, type StatusTone } from '../../../ui/StatusBadge'
 import { CommonInfoCard } from './CommonInfoCard'
 import { ConflictPanel } from './ConflictPanel'
@@ -63,8 +65,6 @@ export function EventEditorPage() {
 type SaveState = 'idle' | 'saving' | 'saved' | 'failed' | 'conflict'
 
 type ConflictState = { latest: EventDetail; mine: EventDraft; resolved: boolean }
-
-const SAVE_FAILED = '保存できませんでした。入力は保持されています。接続を確認して再試行してください。'
 
 function EventEditor({ initial }: { initial: EventDetail | null }) {
   const navigate = useNavigate()
@@ -169,7 +169,7 @@ function EventEditor({ initial }: { initial: EventDetail | null }) {
         setFailure('このイベントは見つからないため保存できませんでした。入力は保持されています。')
       } else {
         setSaveState('failed')
-        setFailure(SAVE_FAILED)
+        setFailure(saveFailureMessage(error))
       }
       return null
     }
@@ -261,10 +261,11 @@ function EventEditor({ initial }: { initial: EventDetail | null }) {
             <h2 className="text-[22px] leading-[30px] font-bold text-text-primary">{base ? 'イベントを編集' : '新規イベント'}</h2>
 
             {failure && <NoticeBanner tone="blocking">{failure}</NoticeBanner>}
-            {conflictOpen && (
-              <NoticeBanner tone="warning">
-                他の管理者が先に保存しました。あなたの入力は保持されています。右の比較で最新の内容を確認してから読み込み、必要な変更を反映してください。
-              </NoticeBanner>
+            {conflictOpen && conflict && (
+              <ConflictNotice
+                latestById={conflict.latest.updatedBy.id}
+                next="右の比較で最新の内容を確認してから読み込み、必要な変更を反映してください。"
+              />
             )}
 
             <CommonInfoCard
