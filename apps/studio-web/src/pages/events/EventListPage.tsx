@@ -91,7 +91,7 @@ export function EventListPage() {
               value={q}
               onChange={(event) => update('q', event.target.value)}
               placeholder="タイトルを検索"
-              className="h-10 w-[520px] rounded-lg border border-border bg-surface px-3 text-[13px] leading-[21px] text-text-primary placeholder:text-text-secondary focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand"
+              className="h-10 w-[520px] rounded-lg border border-border-input bg-surface px-3 text-[13px] leading-[21px] text-text-primary placeholder:text-text-secondary focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand"
             />
             <FilterChip label="開催回" value={occurrenceId} onChange={(value) => update('occurrenceId', value)}>
               <option value="">開催回：すべて</option>

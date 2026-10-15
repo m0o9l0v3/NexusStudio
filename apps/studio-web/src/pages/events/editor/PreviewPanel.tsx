@@ -11,7 +11,9 @@ export function PreviewPanel({ draft, index, spots, saved }: { draft: EventDraft
   const category = draft.categoryId ? index.categories.get(draft.categoryId)?.name : undefined
   const lines = previewLines(draft, index, spots)
   const empty = !draft.title?.trim() && !draft.description?.trim() && draft.slots.every((slot) => !slot.ocDayId && slot.venues.length === 0)
-  const allVenuesShown = draft.slots.every((slot) => slot.venues.length > 0)
+  // 終日・中止の枠は会場名でなく件数で表す（Figma E04）。会場名を並べた枠だけのときに限り「すべての会場を表示しています」とする
+  // （2026-10-15 利用者判断、検証記録 A-5 D8）。中止の枠があるときは中止の注意を優先して出す。
+  const allVenuesShown = draft.slots.every((slot) => slot.venues.length > 0 && slot.timeMode !== 'allDay')
   const hasCancelled = draft.slots.some((slot) => cancellationOf(slot, index) !== null)
 
   return (

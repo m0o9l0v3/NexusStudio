@@ -59,7 +59,7 @@ export function SpotsPage() {
             type="search"
             value={q}
             onChange={(event) => setQ(event.target.value)}
-            className="h-10 rounded-[7px] border border-border bg-surface px-[11px] text-[12px] leading-5 text-text-primary focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand"
+            className="h-10 rounded-[7px] border border-border-input bg-surface px-[11px] text-[12px] leading-5 text-text-primary focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand"
           />
           <div className="flex flex-wrap gap-1.5">
             <FilterChip label="建物" value={building} onChange={setBuilding}>

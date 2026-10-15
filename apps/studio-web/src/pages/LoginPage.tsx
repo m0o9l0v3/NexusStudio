@@ -180,7 +180,7 @@ function LoginField({ label, icon, invalid, ...props }: LoginFieldProps) {
         className={cn(
           'flex h-12 items-center gap-2.5 rounded-lg border bg-surface px-3.5',
           'focus-within:outline-2 focus-within:outline-offset-1 focus-within:outline-brand',
-          invalid ? 'border-danger' : 'border-border',
+          invalid ? 'border-danger' : 'border-border-input',
         )}
       >
         <img src={icon} alt="" width={18} height={18} className="shrink-0" />

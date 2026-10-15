@@ -163,7 +163,7 @@ function CategoriesEditor({ initial }: { initial: CategoryListDetail }) {
                         aria-invalid={!row.name?.trim() || undefined}
                         className={cn(
                           'h-10 rounded-[7px] border bg-surface px-3 text-[13px] leading-[21px] text-text-primary focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand',
-                          !row.name?.trim() ? 'border-danger' : 'border-border',
+                          !row.name?.trim() ? 'border-danger' : 'border-border-input',
                         )}
                       />
                       {!row.name?.trim() && <p className="text-[11px] leading-[19px] text-danger">カテゴリ名が未入力です。下書き保存はできます。</p>}
@@ -178,7 +178,7 @@ function CategoriesEditor({ initial }: { initial: CategoryListDetail }) {
                         id={`category-state-${row.id}`}
                         value={row.selectable ? 'selectable' : 'stopped'}
                         onChange={(event) => updateRow(row.id, { selectable: event.target.value === 'selectable' })}
-                        className="h-10 w-full rounded-[7px] border border-border bg-surface px-3 text-[13px] leading-[21px] text-text-primary focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand"
+                        className="h-10 w-full rounded-[7px] border border-border-input bg-surface px-3 text-[13px] leading-[21px] text-text-primary focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand"
                       >
                         <option value="selectable">選択できます</option>
                         <option value="stopped">新規選択停止</option>

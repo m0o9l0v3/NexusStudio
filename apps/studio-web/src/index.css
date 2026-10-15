@@ -9,6 +9,9 @@
   --color-surface: #ffffff;
   --color-surface-subtle: #f1f4f8;
   --color-border: #d1d8e3;
+  /* 入力欄の枠。#d1d8e3 は白に対して 1.43:1 で、部品の境界に必要な 3:1（WCAG 1.4.11）に届かないため入力欄だけに使う。
+     白 3.48:1／canvas 3.27:1／surface-subtle 3.16:1。Figmaでは未変数化（2026-10-15 利用者判断、検証記録 A-5 D10。Figma要反映）。 */
+  --color-border-input: #7f8a9e;
   --color-text-primary: #131a27;
   --color-text-secondary: #525d6f;
   --color-brand: #2355d6;
