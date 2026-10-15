@@ -34,14 +34,12 @@ export function LoginPage() {
   const [recoveryOpen, setRecoveryOpen] = useState(false)
   const emailRef = useRef<HTMLInputElement>(null)
   const passwordRef = useRef<HTMLInputElement>(null)
-  /** 失敗したときに入力し直す欄。失敗した時点で決める。 */
-  const retryField = useRef<'email' | 'password'>('password')
 
-  // 失敗したら入力し直す欄へフォーカスを戻す。送信中は欄が無効になり、フォーカスが外れるため（A-2 D2）。
+  // 認証・接続に失敗したらパスワード欄へフォーカスを戻す。送信中は欄が無効になり、フォーカスが外れるため（A-2 D2）。
+  // 送信のたびに error を null に戻すので、同じ失敗が続いても毎回走る。入力不足は handleSubmit で直接扱う。
   useEffect(() => {
-    if (!error || submitting) return
-    const field = retryField.current === 'email' ? emailRef : passwordRef
-    field.current?.focus()
+    if (!error || error === 'missing' || submitting) return
+    passwordRef.current?.focus()
   }, [error, submitting])
 
   if (session.data && !isUnauthorized(session.error)) {
@@ -51,14 +49,15 @@ export function LoginPage() {
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
     if (!email.trim() || !password) {
-      retryField.current = email.trim() ? 'password' : 'email'
       setError('missing')
+      // 未入力が続くと error が変わらず effect が走らないため、送信のたびに空の欄へ直接フォーカスする。
+      const empty = email.trim() ? passwordRef : emailRef
+      empty.current?.focus()
       return
     }
 
     setSubmitting(true)
     setError(null)
-    retryField.current = 'password'
     try {
       await login(email.trim(), password)
       queryClient.clear()
