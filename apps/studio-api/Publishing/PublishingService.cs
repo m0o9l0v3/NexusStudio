@@ -117,6 +117,8 @@ public sealed class PublishingService(StudioDbContext db, CandidateValidator val
         var first = entries[0];
         var log = new OperationLog
         {
+            // 途中で止まっても Logs に対象名が残るよう、「処理中」と一緒に書く（公開の本体はトランザクション内で名前を取り直す。検証記録 C-O1）。
+            TargetLabel = await TryTargetLabelAsync(entries),
             Id = Guid.CreateVersion7(),
             OperationId = operationId,
             StartedAt = now,
@@ -182,9 +184,8 @@ public sealed class PublishingService(StudioDbContext db, CandidateValidator val
             status = ValidationRunStatus.Failed;
         }
 
-        var labels = candidate.Items.Select(i => i.Label).ToList();
         var logRow = await db.OperationLogs.SingleAsync(l => l.Id == log.Id);
-        logRow.TargetLabel = Truncate(labels.Count == 1 ? labels[0] : $"{labels[0]} ほか{labels.Count - 1}件", 500);
+        logRow.TargetLabel = TargetLabel(candidate);
 
         // 確認した後に対象や関連する公開データが変わっていれば、古い確認結果で公開しない（11 RA-04、07 E06）。
         if (status != ValidationRunStatus.Ok || candidate.Fingerprint != confirmed.Fingerprint || findings.Any(f => f.Severity == FindingSeverity.Blocking))
@@ -431,4 +432,28 @@ public sealed class PublishingService(StudioDbContext db, CandidateValidator val
         findings);
 
     private static string Truncate(string value, int length) => value.Length <= length ? value : value[..length];
+
+    /// <summary>操作ログに出す対象名（1件なら名前、複数なら「先頭 ほかN件」）。</summary>
+    private static string TargetLabel(PublishCandidate candidate)
+    {
+        var labels = candidate.Items.Select(i => i.Label).ToList();
+        return Truncate(labels.Count == 1 ? labels[0] : $"{labels[0]} ほか{labels.Count - 1}件", 500);
+    }
+
+    /// <summary>「処理中」の記録に添える対象名。読み取りだけで求め、求められなくても公開は止めない。</summary>
+    private async Task<string?> TryTargetLabelAsync(IReadOnlyList<PublishEntry> entries)
+    {
+        try
+        {
+            var label = TargetLabel(await PublishCandidate.BuildAsync(db, entries));
+            db.ChangeTracker.Clear();
+            return label;
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(exception, "公開の対象名を求められませんでした");
+            db.ChangeTracker.Clear();
+            return null;
+        }
+    }
 }

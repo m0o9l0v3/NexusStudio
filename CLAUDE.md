@@ -10,7 +10,7 @@ Nexus Studio は、Nexus（`gitlab.com/11h27m/nexus-mobile`）の管理ポータ
 
 ## 現在の実装状態（重要）
 
-**Step 0〜4 を実装済み（Step 3 の Spots は一覧・Inspectorの属性編集まで）。Step 4 は3つのMR（公開の基盤と公開の流れ／Releases・Logs の画面と復旧／Validation の画面）で実装した。実際の PostgreSQL での確認と、「公開中にAPIプロセスを落とす」障害試験は未実施。Step 5（検証環境の公開とiOS確認までの接続）以降は未着手。**
+**Step 0〜4 を実装済み（Step 3 の Spots は一覧・Inspectorの属性編集まで）。Step 4 は3つのMR（公開の基盤と公開の流れ／Releases・Logs の画面と復旧／Validation の画面）で実装した。実際の PostgreSQL での確認と、「公開中にAPIプロセスを落とす」障害試験は 2026-10-15 に実施済み（`docs/検証記録/2026-10-15_C_公開の完成検証.md`。検証器の失敗だけは単体テストのみ）。Step 5（検証環境の公開とiOS確認までの接続）以降は未着手。**
 
 - Step 0 完了内容: `studio-api`/`studio-web` のソリューション骨格、`studio` schema の EF Core マイグレーション、MapDataset validator の移植（テスト全件成功）。
 - Step 1 完了内容: Identity＋Cookie認証（`/api/auth/*`、CSRF検証、未認証は既定で拒否）、運用者用の管理者コマンド（`dotnet run -- admin ...`）、ログイン画面（L01〜L04・L06）、App Shell（Sidebar・Toolbar・管理者メニュー・再ログインダイアログL05）。各領域の本文は準備中表示。

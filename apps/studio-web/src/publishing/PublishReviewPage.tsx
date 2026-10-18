@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
 import { getCategories } from '../api/categories'
 import { ApiError, NetworkError } from '../api/client'
@@ -8,6 +8,7 @@ import { getOccurrence } from '../api/occurrences'
 import { getReference } from '../api/reference'
 import { getOperation, previewPublish, publish, type OperationResult, type PublishAction, type PublishEntry, type PublishPreview, type TargetKind } from '../api/releases'
 import { getSpot } from '../api/spots'
+import { useSessionExpiry } from '../auth/session'
 import { newId } from '../events/model'
 import { Toolbar } from '../shell/Toolbar'
 import { Button } from '../ui/Button'
@@ -35,6 +36,14 @@ export function PublishReviewPage({ kind }: { kind: TargetKind }) {
   const action: PublishAction = requested === 'withdraw' || requested === 'restore' ? requested : 'publish'
   // 復旧では戻す過去の版。公開では画面を開いた時点の現在の版。
   const restoreRevision = action === 'restore' ? search.get('revision') : null
+
+  // 公開の画面にいる間は、対象の読み込み中・取得失敗でも公開向けの文言で期限切れを案内する（L05 の「保存してください」を出さない）。
+  // 結果を待つ間の L07 は PublishFlow が上書きする。子の effect が先に走り、片付けも子が先なので、画面を離れたときだけ既定に戻る。
+  const { setPurpose } = useSessionExpiry()
+  useEffect(() => {
+    setPurpose('publishReview')
+    return () => setPurpose(null)
+  }, [setPurpose])
 
   // 公開するのは保存済みの現在の版。確認画面を開いた時点の版に固定する（11 §5）。
   const target = useQuery({
@@ -173,6 +182,27 @@ function PublishFlow({ target }: { target: Target }) {
     }
   }
 
+  // 期限切れのダイアログの文言を場面に合わせる。結果を待っている・照会している間は L07（105:3074）。
+  const expiry = useSessionExpiry()
+  const { setPurpose } = expiry
+  const waitingForResult = phase.type === 'processing' || phase.type === 'checking'
+  useEffect(() => {
+    setPurpose(waitingForResult ? 'publishResult' : 'publishReview')
+    // 公開の画面にいる間の既定（PublishReviewPage が登録）へ戻す。
+    return () => setPurpose('publishReview')
+  }, [setPurpose, waitingForResult])
+
+  // 結果の照会中に再ログインしたら、同じ操作IDで照会し直す（L07「再ログイン後に操作IDから結果を確認します」）。
+  // 照会は読み取りだけで、公開は自動で送り直さない（12 UI-04）。「戻る」で閉じた場合は照会しない。
+  const latest = useRef({ phase, check: (_operationId: string) => Promise.resolve() })
+  const seenResolved = useRef(expiry.resolvedCount)
+  useEffect(() => {
+    if (expiry.resolvedCount === seenResolved.current) return
+    seenResolved.current = expiry.resolvedCount
+    const current = latest.current.phase
+    if (current.type === 'checking') void latest.current.check(current.operationId)
+  }, [expiry.resolvedCount])
+
   async function check(operationId: string) {
     try {
       settle(await getOperation(operationId))
@@ -186,6 +216,9 @@ function PublishFlow({ target }: { target: Target }) {
       }
     }
   }
+  useEffect(() => {
+    latest.current = { phase, check }
+  })
 
   const title = `${areaLabels[target.kind]} / ${target.label} / ${phase.type === 'review' ? `${verb}確認` : phase.type === 'processing' ? `${verb}処理` : `${verb}結果`}`
   const subtitle =
