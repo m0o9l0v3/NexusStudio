@@ -37,6 +37,14 @@ export function PublishReviewPage({ kind }: { kind: TargetKind }) {
   // 復旧では戻す過去の版。公開では画面を開いた時点の現在の版。
   const restoreRevision = action === 'restore' ? search.get('revision') : null
 
+  // 公開の画面にいる間は、対象の読み込み中・取得失敗でも公開向けの文言で期限切れを案内する（L05 の「保存してください」を出さない）。
+  // 結果を待つ間の L07 は PublishFlow が上書きする。子の effect が先に走り、片付けも子が先なので、画面を離れたときだけ既定に戻る。
+  const { setPurpose } = useSessionExpiry()
+  useEffect(() => {
+    setPurpose('publishReview')
+    return () => setPurpose(null)
+  }, [setPurpose])
+
   // 公開するのは保存済みの現在の版。確認画面を開いた時点の版に固定する（11 §5）。
   const target = useQuery({
     queryKey: ['publish-target', kind, id],
@@ -180,7 +188,8 @@ function PublishFlow({ target }: { target: Target }) {
   const waitingForResult = phase.type === 'processing' || phase.type === 'checking'
   useEffect(() => {
     setPurpose(waitingForResult ? 'publishResult' : 'publishReview')
-    return () => setPurpose(null)
+    // 公開の画面にいる間の既定（PublishReviewPage が登録）へ戻す。
+    return () => setPurpose('publishReview')
   }, [setPurpose, waitingForResult])
 
   // 結果の照会中に再ログインしたら、同じ操作IDで照会し直す（L07「再ログイン後に操作IDから結果を確認します」）。
