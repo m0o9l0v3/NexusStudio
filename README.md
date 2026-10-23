@@ -127,7 +127,7 @@ MapDataset validatorの移植テスト（`MapDatasetValidatorTests`・`MapDatase
 
 ## MapDataset Schema の同一性
 
-`docs/schemas/map-dataset-geojson-v1.schema.json` は `nexus-mobile/docs/schemas/map-dataset-geojson-v1.schema.json` からpinしたコピーです。Studio側で契約を緩めていないことを `apps/studio-api-tests/PinnedSchemaHashTests.cs` のSHA-256確認で担保しています。nexus-mobile側でSchemaが更新された場合は、このコピーとhash値の両方を意図的に更新してください。
+`docs/schemas/map-dataset-geojson-v2.schema.json` は `nexus-mobile/docs/schemas/map-dataset-geojson-v2.schema.json`（GeoJSON payload 契約 2.0.0、nexus-mobile E1-4 改訂1）からpinしたコピーです。v1 のコピーは記録として残しています。Studio側で契約を緩めていないことを `apps/studio-api-tests/PinnedSchemaHashTests.cs` のSHA-256確認で担保しています。nexus-mobile側でSchemaが更新された場合は、このコピーとhash値の両方を意図的に更新してください。
 
 ## ドキュメント
 

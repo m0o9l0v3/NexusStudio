@@ -17,10 +17,11 @@ public sealed class MapDatasetValidatorTests
         StartNodeIds = ["campus_n_020"],
         CampusBoundaryGeoJson = """{"type":"Polygon","coordinates":[[[141.68,42.77],[141.69,42.77],[141.69,42.78],[141.68,42.78],[141.68,42.77]]]}""",
         EnuOrigin = new(141.68, 42.77), EntranceMaxGapMetres = 5, PathDistanceToleranceMetres = 1,
-        ExpectedPathSeconds = new Dictionary<string, double> { ["campus_e_012"] = 15, ["mb_1f_e_001"] = 13 },
+        ExpectedPathSeconds = new Dictionary<string, double> { ["campus_e_012"] = 15, ["campus_e_013"] = 25, ["mb_1f_e_001"] = 13 },
         FloorTransforms = new Dictionary<string, FloorTransformEvidence> { ["mb_1f"] = new(.01, 1, 1, 1, .01) },
-        DatabaseSpots = [new(SpotId, "mb_1f_n_005", true)],
-        PublishedNavigationSpotIds = ["mb_1f_n_005"], Aliases = [], OtherReservedCanonicalIds = []
+        // 2.0.0 では spot は目的地Feature（room など）から解決する。ノード ID を spot にしない（E1-4 改訂1 §5）。
+        DatabaseSpots = [new(SpotId, "mb_1f_cl_001", true)],
+        PublishedNavigationSpotIds = ["mb_1f_cl_001"], Aliases = [], OtherReservedCanonicalIds = []
     };
     private DatasetValidationResult Validate(JsonObject data, DatasetValidationContext? context = null) => _validator.Validate(data.ToJsonString(), context ?? Complete());
     private static void Has(DatasetValidationResult result, string code)
@@ -42,7 +43,7 @@ public sealed class MapDatasetValidatorTests
     [Fact]
     public void EmptyDraft_IsValidButCannotPublish()
     {
-        const string data = """{"type":"FeatureCollection","nexus":{"schema_version":"1.0.0","floors":[]},"features":[]}""";
+        const string data = """{"type":"FeatureCollection","nexus":{"schema_version":"2.0.0","floors":[]},"features":[]}""";
         Assert.True(_validator.Validate(data).IsValid);
         Assert.False(_validator.Validate(data).CanPublish);
         Has(_validator.Validate(data, Complete()), "empty_navigation_graph");
@@ -76,6 +77,13 @@ public sealed class MapDatasetValidatorTests
     [InlineData("entrance_gap", "entrance_connection_gap")]
     [InlineData("distance", "path_distance_mismatch")]
     [InlineData("seconds", "path_seconds_mismatch")]
+    [InlineData("room_type_mismatch", "parent_id_mismatch")]
+    [InlineData("room_name", "schema_violation")]
+    [InlineData("landmark_name", "schema_violation")]
+    [InlineData("access_node_missing", "undefined_reference")]
+    [InlineData("access_node_junction", "access_node_not_destination")]
+    [InlineData("landmark_access_junction", "access_node_not_destination")]
+    [InlineData("building_access_junction", "access_node_not_destination")]
     public void BrokenFixtures_ProduceSpecificFinding(string kind, string code)
     {
         var data = Fixture();
@@ -95,7 +103,7 @@ public sealed class MapDatasetValidatorTests
             case "precision": node["geometry"]!["coordinates"]![0] = 141.6810301; break;
             case "endpoint": path["geometry"]!["coordinates"]![0]![0] = 141.68081; break;
             case "self_loop": path["properties"]!["to_node_id"] = "campus_n_020"; break;
-            case "duplicate_edge": var copy = path.DeepClone(); copy["id"] = "campus_e_013"; Features(data).Add(copy); break;
+            case "duplicate_edge": var copy = path.DeepClone(); copy["id"] = "campus_e_099"; Features(data).Add(copy); break;
             case "unclosed_ring": polygon[4]![0] = 141.68101; break;
             case "self_intersection": polygon[1] = JsonNode.Parse("[141.682,42.772]"); polygon[2] = JsonNode.Parse("[141.682,42.771]"); break;
             case "orientation": var reverse = polygon.Reverse().Select(x => x!.DeepClone()).ToArray(); polygon.Clear(); foreach (var point in reverse) polygon.Add(point); break;
@@ -104,8 +112,27 @@ public sealed class MapDatasetValidatorTests
             case "entrance_gap": Feature(data, "mb_ent_001")["geometry"]!["coordinates"]![0] = 141.688; break;
             case "distance": path["properties"]!["distance_m"] = 1000; break;
             case "seconds": path["properties"]!["estimated_seconds"] = 99; break;
+            // GeoJSON payload 契約 2.0.0（nexus-mobile E1-4 改訂1 §12）。
+            case "room_type_mismatch": Feature(data, "mb_1f_cl_001")["properties"]!["room_type"] = "rm"; break;
+            case "room_name": Feature(data, "mb_1f_cl_001")["properties"]!["name"] = "電気装備教室"; break;
+            case "landmark_name": Feature(data, "campus_lm_001")["properties"]!["name"] = "航空神社"; break;
+            case "access_node_missing": Feature(data, "mb_1f_cl_001")["properties"]!["access_node_id"] = "mb_1f_n_099"; break;
+            case "access_node_junction": Feature(data, "mb_1f_cl_001")["properties"]!["access_node_id"] = "mb_1f_n_004"; break;
+            case "landmark_access_junction": Feature(data, "campus_lm_001")["properties"]!["access_node_id"] = "campus_n_020"; break;
+            case "building_access_junction": Feature(data, "mb")["properties"]!["access_node_id"] = "mb_1f_n_004"; break;
         }
         Has(Validate(data), code);
+    }
+
+    /// <summary>到達ノードは任意。正しく指す到達ノードと、到達ノードの無い目的地はどちらも公開できる（E1-4 改訂1 §8）。</summary>
+    [Fact]
+    public void DestinationFeatures_WithOrWithoutAccessNode_CanPublish()
+    {
+        var data = Fixture();
+        Feature(data, "mb")["properties"]!["access_node_id"] = "mb_1f_n_005";
+        Feature(data, "campus_lm_001")["properties"]!.AsObject().Remove("access_node_id");
+        var result = Validate(data);
+        Assert.True(result.CanPublish, string.Join("\n", result.Errors));
     }
 
     [Fact]

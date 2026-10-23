@@ -15,13 +15,13 @@ namespace StudioApi.Tests;
 
 public sealed class MapDatasetTests
 {
-    private const string Payload = "{\"type\":\"FeatureCollection\",\"nexus\":{\"schema_version\":\"1.0.0\",\"floors\":[]},\"features\":[]}";
+    private const string Payload = "{\"type\":\"FeatureCollection\",\"nexus\":{\"schema_version\":\"2.0.0\",\"floors\":[]},\"features\":[]}";
     private const string MigrationId = "20260922142853_InitialCreate";
     private const string FormattedPayload = """
         {
           "type": "FeatureCollection",
           "nexus": {
-            "schema_version": "1.0.0",
+            "schema_version": "2.0.0",
             "floors": [{ "id": "test_1f", "building_id": "test", "name": "試験用フロア" }]
           },
           "features": []
