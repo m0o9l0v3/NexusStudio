@@ -144,6 +144,7 @@ public sealed class MapDatasetValidator
             }
             CheckGraph(features, context, Error);
             CheckIdentities(ids, features, context, Error);
+            CheckReservations(floors.ToDictionary(f => f.Key, f => f.Value.Path, StringComparer.Ordinal), features, context, Error);
             CheckPublication(features, floors.Keys.ToArray(), context, Error);
             if (context.ForPublication && !features.Values.Any(f => IsNode(f.Type)))
                 Error("empty_navigation_graph", "/features", "公開用の経路ノードがありません。");
@@ -276,6 +277,37 @@ public sealed class MapDatasetValidator
             }
             foreach (var id in published) if (!navigation.Contains(id)) error("missing_navigation_spot", "/context/databaseSpots", "公開DB Spotに対応する公開ナビIDがありません。", id);
         }
+    }
+
+    /// <summary>
+    /// ID 予約表との照合（E1-4 改訂1 §12 の5、E2-5 §5.5）。廃止した ID・alias を地図の ID に使わない。
+    /// 公開中（active）の ID は、同じ種別か、spot とその目的地Featureの組み合わせのときだけ同じ ID を使える。
+    /// draft の ID（Spot）との衝突は CheckIdentities の spot_not_destination_feature で検査する。
+    /// </summary>
+    private static void CheckReservations(Dictionary<string, string> floors, Dictionary<string, Feature> features, DatasetValidationContext context, AddError error)
+    {
+        if (context.ReservedIds is null)
+        {
+            if (context.ForPublication) error("missing_validation_context", "/context/reservedIds", "ID 予約表のスナップショットが必要です。");
+            return;
+        }
+        var reserved = context.ReservedIds.ToLookup(r => r.Id, StringComparer.Ordinal);
+        var items = floors.Select(f => (Id: f.Key, Kind: "floor", Path: f.Value))
+            .Concat(features.Values.Select(f => (f.Id, Kind: f.Type, f.Path)));
+        foreach (var (id, kind, path) in items)
+        {
+            foreach (var row in reserved[id])
+            {
+                if (row.State == "alias")
+                    error("reserved_id_alias", path + "/id", "この ID は旧 ID（alias）として予約されています。", id);
+                else if (row.State == "retired")
+                    error("reserved_id_retired", path + "/id", "廃止した ID は再利用できません。", id);
+                else if (!SharesId(row.EntityKind, kind))
+                    error("reserved_id_kind_conflict", path + "/id", $"この ID は別の種別（{row.EntityKind}）として公開されています。", id);
+            }
+        }
+
+        static bool SharesId(string a, string b) => a == b || (a == "spot" && DestinationTypes.Contains(b)) || (b == "spot" && DestinationTypes.Contains(a));
     }
 
     private static void CheckPublication(Dictionary<string, Feature> features, string[] floorIds, DatasetValidationContext context, AddError error)
