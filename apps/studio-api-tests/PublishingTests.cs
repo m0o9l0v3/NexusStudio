@@ -171,6 +171,62 @@ public sealed class PublishingTests : IAsyncLifetime
         Assert.DoesNotContain("spot_description_pending_supply", Codes(clean, "warning"));
     }
 
+    private async Task<List<IdReservation>> ReservationsAsync()
+    {
+        await using var scope = _root.Services.CreateAsyncScope();
+        return await scope.ServiceProvider.GetRequiredService<StudioDbContext>().IdReservations.AsNoTracking().OrderBy(r => r.Sequence).ToListAsync();
+    }
+
+    [Fact]
+    public async Task PublishingSpot_RegistersIdOnceAndWithdrawDoesNotRetire()
+    {
+        var spot = await GetJsonAsync("/api/spots/item?id=mb_2f_cl_002");
+        var published = await PreviewAndPublishAsync(Entry("spot", "mb_2f_cl_002", revisionId: spot["revisionId"]!.GetValue<string>()));
+
+        var row = Assert.Single(await ReservationsAsync());
+        Assert.Equal(("mb_2f_cl_002", "spot", "active", "release"), (row.Id, row.EntityKind, row.State, row.Source));
+        Assert.Equal(published["release"]!["releaseId"]!.GetValue<Guid>(), row.ReleaseId);
+
+        // 取り下げは廃止ではない（復旧できる）。retired を追記せず、再公開しても行を増やさない。
+        await PreviewAndPublishAsync(Entry("spot", "mb_2f_cl_002", "withdraw"));
+        await PreviewAndPublishAsync(Entry("spot", "mb_2f_cl_002", "restore", spot["revisionId"]!.GetValue<string>()));
+        Assert.Single(await ReservationsAsync());
+    }
+
+    [Theory]
+    [InlineData("retired", "spot_id_retired")]
+    [InlineData("alias", "spot_id_is_alias")]
+    [InlineData("kind", "spot_id_kind_conflict")]
+    public async Task PublishingSpot_RejectsReservedIds(string state, string code)
+    {
+        await using (var scope = _root.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<StudioDbContext>();
+            var ledger = new IdReservationLedger(db, await IdReservationSnapshot.LoadAsync(db), TimeProvider.System);
+            switch (state)
+            {
+                case "retired":
+                    db.IdReservations.Add(new IdReservation { Sequence = 1, Id = "mb_2f_cl_002", EntityKind = "spot", State = "active", Source = "import", CreatedAt = DateTimeOffset.UtcNow });
+                    await db.SaveChangesAsync();
+                    ledger = new IdReservationLedger(db, await IdReservationSnapshot.LoadAsync(db), TimeProvider.System);
+                    ledger.Retire("mb_2f_cl_002", "spot", IdReservationSource.Rename, null);
+                    break;
+                case "alias":
+                    ledger.AddAlias("mb_2f_cl_002", "mb_2f_cl_001", "spot", IdReservationSource.Import, null);
+                    break;
+                default:
+                    db.IdReservations.Add(new IdReservation { Sequence = 1, Id = "mb_2f_cl_002", EntityKind = "indoor_node", State = "active", Source = "import", CreatedAt = DateTimeOffset.UtcNow });
+                    break;
+            }
+
+            await db.SaveChangesAsync();
+        }
+
+        var spot = await GetJsonAsync("/api/spots/item?id=mb_2f_cl_002");
+        var preview = await PreviewAsync(Entry("spot", "mb_2f_cl_002", revisionId: spot["revisionId"]!.GetValue<string>()));
+        Assert.Contains(code, Codes(preview));
+    }
+
     private static IEnumerable<string> Codes(JsonNode preview, string severity = "blocking")
         => preview["validation"]!["findings"]!.AsArray().Where(f => f!["severity"]!.GetValue<string>() == severity).Select(f => f!["code"]!.GetValue<string>());
 
