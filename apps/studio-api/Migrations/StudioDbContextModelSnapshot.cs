@@ -257,6 +257,75 @@ namespace StudioApi.Migrations
                     b.ToTable("event_revisions", "studio");
                 });
 
+            modelBuilder.Entity("StudioApi.Models.IdReservation", b =>
+                {
+                    b.Property<long>("Sequence")
+                        .HasColumnType("bigint")
+                        .HasColumnName("sequence");
+
+                    b.Property<string>("CanonicalId")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("canonical_id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("EntityKind")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("entity_kind");
+
+                    b.Property<string>("Id")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("note");
+
+                    b.Property<Guid?>("ReleaseId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("release_id");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("source");
+
+                    b.Property<string>("State")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("state");
+
+                    b.HasKey("Sequence");
+
+                    b.HasIndex("Id")
+                        .HasDatabaseName("ix_id_reservations_id");
+
+                    b.HasIndex("ReleaseId");
+
+                    b.ToTable("id_reservations", "studio", t =>
+                        {
+                            t.HasCheckConstraint("ck_id_reservations_alias_target", "(state = 'alias') = (canonical_id IS NOT NULL)");
+
+                            t.HasCheckConstraint("ck_id_reservations_entity_kind", "entity_kind IN ('spot', 'building', 'floor', 'indoor_node', 'outdoor_node', 'walking_path', 'formal_entrance', 'room', 'landmark')");
+
+                            t.HasCheckConstraint("ck_id_reservations_id", "length(id) > 0");
+
+                            t.HasCheckConstraint("ck_id_reservations_source", "source IN ('release', 'rename', 'import')");
+
+                            t.HasCheckConstraint("ck_id_reservations_state", "state IN ('active', 'retired', 'alias')");
+                        });
+                });
+
             modelBuilder.Entity("StudioApi.Models.MapDataset", b =>
                 {
                     b.Property<Guid>("Id")
@@ -987,6 +1056,14 @@ namespace StudioApi.Migrations
                         .HasForeignKey("EventId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("StudioApi.Models.IdReservation", b =>
+                {
+                    b.HasOne("StudioApi.Models.Release", null)
+                        .WithMany()
+                        .HasForeignKey("ReleaseId")
+                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("StudioApi.Models.OcDay", b =>

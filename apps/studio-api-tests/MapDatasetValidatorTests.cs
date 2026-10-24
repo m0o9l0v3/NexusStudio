@@ -21,7 +21,7 @@ public sealed class MapDatasetValidatorTests
         FloorTransforms = new Dictionary<string, FloorTransformEvidence> { ["mb_1f"] = new(.01, 1, 1, 1, .01) },
         // 2.0.0 では spot は目的地Feature（room など）から解決する。ノード ID を spot にしない（E1-4 改訂1 §5）。
         DatabaseSpots = [new(SpotId, "mb_1f_cl_001", true)],
-        PublishedNavigationSpotIds = ["mb_1f_cl_001"], Aliases = [], OtherReservedCanonicalIds = []
+        PublishedNavigationSpotIds = ["mb_1f_cl_001"], Aliases = [], OtherReservedCanonicalIds = [], ReservedIds = []
     };
     private DatasetValidationResult Validate(JsonObject data, DatasetValidationContext? context = null) => _validator.Validate(data.ToJsonString(), context ?? Complete());
     private static void Has(DatasetValidationResult result, string code)
@@ -228,6 +228,31 @@ public sealed class MapDatasetValidatorTests
             _ => throw new ArgumentException(kind)
         };
         Has(Validate(Fixture(), context), code);
+    }
+
+    [Theory]
+    [InlineData("mb_1f_cl_001", "room", "retired", "reserved_id_retired")]
+    [InlineData("mb_1f_cl_001", "spot", "alias", "reserved_id_alias")]
+    [InlineData("mb_1f_n_005", "room", "active", "reserved_id_kind_conflict")]
+    [InlineData("mb_1f", "building", "active", "reserved_id_kind_conflict")]
+    public void ReservedIds_RejectReuseAndKindConflicts(string id, string kind, string state, string code)
+        => Has(Validate(Fixture(), Complete() with { ReservedIds = [new(id, kind, state)] }), code);
+
+    [Fact]
+    public void ReservedIds_AllowSameEntityAndSpotDestinationPairs()
+    {
+        var result = Validate(Fixture(), Complete() with
+        {
+            ReservedIds = [new("mb_1f_cl_001", "spot", "active"), new("mb_1f_cl_001", "room", "active"), new("mb_1f_n_005", "indoor_node", "active"), new("mb_1f", "floor", "active")],
+        });
+        Assert.True(result.CanPublish, string.Join("\n", result.Errors));
+    }
+
+    [Fact]
+    public void ReservedIds_AreComparedExactly()
+    {
+        var result = Validate(Fixture(), Complete() with { ReservedIds = [new("MB_1F_CL_001", "room", "retired")] });
+        Assert.True(result.CanPublish, string.Join("\n", result.Errors));
     }
 
     [Fact]

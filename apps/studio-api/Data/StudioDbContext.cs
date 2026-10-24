@@ -24,6 +24,28 @@ public sealed class StudioDbContext(DbContextOptions<StudioDbContext> options)
     public DbSet<Publication> Publications => Set<Publication>();
     public DbSet<ValidationRun> ValidationRuns => Set<ValidationRun>();
     public DbSet<OperationLog> OperationLogs => Set<OperationLog>();
+    public DbSet<IdReservation> IdReservations => Set<IdReservation>();
+
+    public override int SaveChanges(bool acceptAllChangesOnSuccess)
+    {
+        RejectIdReservationChanges();
+        return base.SaveChanges(acceptAllChangesOnSuccess);
+    }
+
+    public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
+    {
+        RejectIdReservationChanges();
+        return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+    }
+
+    /// <summary>ID 予約表は追記専用（E2-5 §5.5）。行の変更・削除を保存しない（本番では実行時 role の権限でも拒否する）。</summary>
+    private void RejectIdReservationChanges()
+    {
+        if (ChangeTracker.Entries<IdReservation>().Any(e => e.State is EntityState.Modified or EntityState.Deleted))
+        {
+            throw new InvalidOperationException("ID 予約表の行は変更・削除できません。状態の変化は行の追記で表します。");
+        }
+    }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -104,6 +126,7 @@ public sealed class StudioDbContext(DbContextOptions<StudioDbContext> options)
         ConfigureReferenceData(modelBuilder);
         ConfigureEvents(modelBuilder);
         ConfigurePublishing(modelBuilder);
+        ConfigureIdReservations(modelBuilder);
     }
 
     private static void ConfigureReferenceData(ModelBuilder modelBuilder)
@@ -357,6 +380,36 @@ public sealed class StudioDbContext(DbContextOptions<StudioDbContext> options)
             entity.Property(e => e.RevisionId).HasColumnName("revision_id");
             entity.Property(e => e.Detail).HasColumnName("detail").HasMaxLength(2000);
             entity.HasOne<StudioAdmin>().WithMany().HasForeignKey(e => e.ActorId).OnDelete(DeleteBehavior.Restrict);
+        });
+    }
+
+    private static void ConfigureIdReservations(ModelBuilder modelBuilder)
+    {
+        var kinds = string.Join(", ", IdEntityKind.All.Select(k => $"'{k}'"));
+        modelBuilder.Entity<IdReservation>(entity =>
+        {
+            entity.ToTable("id_reservations", table =>
+            {
+                table.HasCheckConstraint("ck_id_reservations_entity_kind", $"entity_kind IN ({kinds})");
+                table.HasCheckConstraint("ck_id_reservations_state", "state IN ('active', 'retired', 'alias')");
+                table.HasCheckConstraint("ck_id_reservations_source", "source IN ('release', 'rename', 'import')");
+                // 解決先を持つのは alias の行だけ。
+                table.HasCheckConstraint("ck_id_reservations_alias_target", "(state = 'alias') = (canonical_id IS NOT NULL)");
+                table.HasCheckConstraint("ck_id_reservations_id", "length(id) > 0");
+            });
+            entity.HasKey(e => e.Sequence);
+            // 追記の順序はアプリが採番する（Release の通し番号と同じく、公開の直列化の中で最大値＋1。重複すれば主キーで失敗する）。
+            entity.Property(e => e.Sequence).HasColumnName("sequence").ValueGeneratedNever();
+            entity.Property(e => e.Id).HasColumnName("id").HasMaxLength(128).IsRequired();
+            entity.Property(e => e.EntityKind).HasColumnName("entity_kind").HasMaxLength(32).IsRequired();
+            entity.Property(e => e.State).HasColumnName("state").HasMaxLength(16).IsRequired();
+            entity.Property(e => e.CanonicalId).HasColumnName("canonical_id").HasMaxLength(128);
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+            entity.Property(e => e.Source).HasColumnName("source").HasMaxLength(16).IsRequired();
+            entity.Property(e => e.ReleaseId).HasColumnName("release_id");
+            entity.Property(e => e.Note).HasColumnName("note").HasMaxLength(1000);
+            entity.HasIndex(e => e.Id).HasDatabaseName("ix_id_reservations_id");
+            entity.HasOne<Release>().WithMany().HasForeignKey(e => e.ReleaseId).OnDelete(DeleteBehavior.Restrict);
         });
     }
 }

@@ -272,6 +272,12 @@ public sealed class PublishingService(StudioDbContext db, CandidateValidator val
         }
 
         db.Releases.Add(release);
+
+        // 公開した ID を予約表に登録する（E2-5 §5.5。公開と同じトランザクション）。
+        new IdReservationLedger(db, candidate.Reservations, timeProvider).RegisterPublished(
+            candidate.Items.Where(i => i.Entry.TargetKind == PublishTargetKind.Spot && i.Entry.Action != ReleaseAction.Withdraw)
+                .Select(i => (i.Entry.TargetId, IdEntityKind.Spot)),
+            release.ReleaseId);
         logRow.Status = OperationStatus.Succeeded;
         logRow.FinishedAt = now;
         logRow.ReleaseId = release.ReleaseId;

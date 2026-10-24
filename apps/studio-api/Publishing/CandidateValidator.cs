@@ -500,6 +500,20 @@ public class CandidateValidator(TimeProvider timeProvider)
             add(FindingSeverity.Blocking, "spot_name_required", "名称を入力してください。", "name");
         }
 
+        // 名前空間の一意性と再利用禁止（E2-5 §5.5）。廃止した ID・旧 ID（alias）を spot として公開しない。
+        switch (candidate.Reservations.Conflict(canonicalId, IdEntityKind.Spot))
+        {
+            case "reserved_id_retired":
+                add(FindingSeverity.Blocking, "spot_id_retired", "この ID は廃止済みのため公開できません。廃止した ID は再利用できません。", null);
+                break;
+            case "reserved_id_alias":
+                add(FindingSeverity.Blocking, "spot_id_is_alias", "この ID は旧 ID（alias）として予約されているため公開できません。", null);
+                break;
+            case "reserved_id_kind_conflict":
+                add(FindingSeverity.Blocking, "spot_id_kind_conflict", "この ID は Spot の目的地にならない地図要素として公開されています。", null);
+                break;
+        }
+
         var users = candidate.After.Events.Values
             .Where(e => e.Draft.Slots.Any(s => s.Venues.Any(v => string.Equals(v.CanonicalSpotId, canonicalId, StringComparison.Ordinal))))
             .Select(e => PublishCandidate.EventLabel(e.Draft.Title)).ToList();
