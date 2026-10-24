@@ -11,7 +11,10 @@ namespace StudioApi.Reference;
 
 /// <summary>Spot単独で公開する属性（28 S4-2）。建物・階・位置・経路の接続は地図と一緒に公開するため含めない。</summary>
 /// <param name="Utilization">available（選択できる）／noNewSelection（新規選択停止）。withdrawn は移行元の取り下げ済みの値で、ここでは新たに設定できない（公開の取り下げは Releases で行う）。</param>
-public sealed record SpotDraft(string? Name, IReadOnlyList<string> Aliases, string Utilization);
+/// <param name="Kind">参加者向けの種別（nexus-mobile E2-5 §5.2）。classroom／facility／service、または null（未設定）。</param>
+/// <param name="Description">来場者向けの短い説明（E2-5 §5.2）。未作成は null。説明文の供給体制（NexusMobile #49）が決まるまで公開しない取り決め（O-2d）。</param>
+/// <remarks>Kind・Description は項目の追加より前の Revision には無いため、既定値 null で読む。</remarks>
+public sealed record SpotDraft(string? Name, IReadOnlyList<string> Aliases, string Utilization, string? Kind = null, string? Description = null);
 
 public sealed record SpotEventReference(Guid EventId, string? EventTitle, int SlotCount);
 
@@ -124,6 +127,8 @@ public static class SpotEndpoints
         var draft = Normalize(request.Draft!);
         spot.Name = draft.Name ?? string.Empty;
         spot.Utilization = draft.Utilization;
+        spot.Kind = draft.Kind;
+        spot.Description = draft.Description;
         spot.NameAliases.RemoveAll(a => !draft.Aliases.Contains(a.Alias, StringComparer.Ordinal));
         foreach (var alias in draft.Aliases.Where(a => spot.NameAliases.All(existingAlias => existingAlias.Alias != a)))
         {
@@ -169,6 +174,11 @@ public static class SpotEndpoints
             problems.Add(new("utilization", "invalid_value", "利用状態は「選択できる」か「新規選択停止」を指定してください。取り下げは公開と合わせて行います。"));
         }
 
+        if (draft.Kind is not null && !SpotKind.All.Contains(draft.Kind))
+        {
+            problems.Add(new("kind", "invalid_value", "種別は「教室」「施設」「サービス」のいずれかを指定するか、未設定にしてください。"));
+        }
+
         return problems;
     }
 
@@ -176,6 +186,8 @@ public static class SpotEndpoints
     {
         Name = draft.Name?.Trim() ?? string.Empty,
         Aliases = draft.Aliases.Select(a => a.Trim()).Distinct(StringComparer.Ordinal).ToList(),
+        // 未作成は null。空文字や空白だけの説明は保存しない（E2-5 §5.2）。
+        Description = string.IsNullOrWhiteSpace(draft.Description) ? null : draft.Description.Trim(),
     };
 
     /// <summary>canonical ID の厳密一致で引く（DBの照合順序に関わらず序数比較で確かめる）。</summary>
@@ -203,7 +215,7 @@ public static class SpotEndpoints
             ReferenceSaving.Editor(spot.UpdatedBy, names),
             spot.CurrentRevisionId,
             publications.Summarize(PublishTargetKind.Spot, spot.CanonicalId, spot.CurrentRevisionId),
-            new SpotDraft(spot.Name, spot.NameAliases.Select(a => a.Alias).Order(StringComparer.CurrentCulture).ToList(), spot.Utilization),
+            new SpotDraft(spot.Name, spot.NameAliases.Select(a => a.Alias).Order(StringComparer.CurrentCulture).ToList(), spot.Utilization, spot.Kind, spot.Description),
             new SpotPlacement(spot.BuildingName, spot.FloorName),
             references.SlotsAtSpot(spot.CanonicalId)
                 .GroupBy(r => (r.EventId, r.EventTitle))

@@ -703,10 +703,19 @@ namespace StudioApi.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("current_revision_id");
 
+                    b.Property<string>("Description")
+                        .HasColumnType("text")
+                        .HasColumnName("description");
+
                     b.Property<string>("FloorName")
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)")
                         .HasColumnName("floor_name");
+
+                    b.Property<string>("Kind")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("kind");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -740,6 +749,8 @@ namespace StudioApi.Migrations
 
                     b.ToTable("spots", "studio", t =>
                         {
+                            t.HasCheckConstraint("ck_spots_kind", "kind IS NULL OR kind IN ('classroom', 'facility', 'service')");
+
                             t.HasCheckConstraint("ck_spots_utilization", "utilization IN ('available', 'noNewSelection', 'withdrawn')");
                         });
                 });

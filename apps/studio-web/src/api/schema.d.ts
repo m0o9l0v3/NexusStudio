@@ -1720,6 +1720,8 @@ export interface components {
             name: null | string;
             aliases: string[];
             utilization: string;
+            kind?: null | string;
+            description?: null | string;
         };
         SpotEventReference: {
             /** Format: uuid */

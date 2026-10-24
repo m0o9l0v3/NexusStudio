@@ -158,7 +158,10 @@ public sealed class StudioDbContext(DbContextOptions<StudioDbContext> options)
         modelBuilder.Entity<Spot>(entity =>
         {
             entity.ToTable("spots", table =>
-                table.HasCheckConstraint("ck_spots_utilization", "utilization IN ('available', 'noNewSelection', 'withdrawn')"));
+            {
+                table.HasCheckConstraint("ck_spots_utilization", "utilization IN ('available', 'noNewSelection', 'withdrawn')");
+                table.HasCheckConstraint("ck_spots_kind", "kind IS NULL OR kind IN ('classroom', 'facility', 'service')");
+            });
             entity.HasKey(e => e.CanonicalId);
             // PostgreSQLの既定照合順序で比較するため、大文字小文字が違うIDは別のSpotになる。
             entity.Property(e => e.CanonicalId).HasColumnName("canonical_id").HasMaxLength(128);
@@ -166,6 +169,8 @@ public sealed class StudioDbContext(DbContextOptions<StudioDbContext> options)
             entity.Property(e => e.BuildingName).HasColumnName("building_name").HasMaxLength(100);
             entity.Property(e => e.FloorName).HasColumnName("floor_name").HasMaxLength(100);
             entity.Property(e => e.Utilization).HasColumnName("utilization").IsRequired();
+            entity.Property(e => e.Kind).HasColumnName("kind").HasMaxLength(32);
+            entity.Property(e => e.Description).HasColumnName("description");
             entity.HasMany(e => e.NameAliases).WithOne().HasForeignKey(a => a.CanonicalId).OnDelete(DeleteBehavior.Cascade);
             ConfigureEditable(entity);
         });
