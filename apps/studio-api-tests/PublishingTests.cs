@@ -456,6 +456,37 @@ public sealed class PublishingTests : IAsyncLifetime
         Assert.Equal("第2版", history["entries"]![0]!["changes"]!["event"]!["published"]!["title"]!.GetValue<string>());
     }
 
+    /// <summary>復旧した Spot の下書きにも、その版の種別・説明が入る（その後の画面保存で復旧前の値に戻らない）。</summary>
+    [Fact]
+    public async Task Restore_Spot_RestoresKindAndDescriptionIntoTheDraft()
+    {
+        async Task<(string RevisionId, JsonNode Draft)> SaveSpotAsync(Action<JsonNode> change)
+        {
+            var detail = await GetJsonAsync("/api/spots/item?id=mb_2f_cl_002");
+            var draft = detail["draft"]!.DeepClone();
+            change(draft);
+            var (response, body) = await SendAsync(HttpMethod.Put, "/api/spots/item?id=mb_2f_cl_002", new JsonObject { ["operationId"] = Guid.NewGuid().ToString(), ["rowVersion"] = detail["rowVersion"]!.DeepClone(), ["draft"] = draft });
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            return (body!["revisionId"]!.GetValue<string>(), body["draft"]!);
+        }
+
+        var (first, _) = await SaveSpotAsync(draft => { draft["kind"] = "classroom"; draft["description"] = "初版の説明"; });
+        await PreviewAndPublishAsync(Entry("spot", "mb_2f_cl_002", revisionId: first));
+        var (second, _) = await SaveSpotAsync(draft => { draft["kind"] = "facility"; draft["description"] = null; });
+        await PreviewAndPublishAsync(Entry("spot", "mb_2f_cl_002", revisionId: second));
+
+        await PreviewAndPublishAsync(Entry("spot", "mb_2f_cl_002", "restore", first));
+
+        var restored = await GetJsonAsync("/api/spots/item?id=mb_2f_cl_002");
+        Assert.Equal("classroom", restored["draft"]!["kind"]!.GetValue<string>());
+        Assert.Equal("初版の説明", restored["draft"]!["description"]!.GetValue<string>());
+
+        // 画面から名称だけ変えて保存しても、復旧した種別・説明が残る。
+        var (_, saved) = await SaveSpotAsync(draft => draft["name"] = "2B教室（改称）");
+        Assert.Equal("classroom", saved["kind"]!.GetValue<string>());
+        Assert.Equal("初版の説明", saved["description"]!.GetValue<string>());
+    }
+
     [Fact]
     public async Task Restore_RequiresAVersionThatWasPublished()
     {
