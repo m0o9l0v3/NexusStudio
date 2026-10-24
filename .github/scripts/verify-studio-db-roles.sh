@@ -37,7 +37,8 @@ if PGPASSWORD="$NEXUS_STUDIO_APP_PASSWORD" psql -X -v ON_ERROR_STOP=1 -U nexus_s
   echo 'runtime role unexpectedly reads public schema data' >&2; exit 1
 fi
 # ID 予約表は追記専用（nexus-mobile E2-5 §5.5）。runtime は追記できるが、変更・削除はできない。
-PGPASSWORD="$NEXUS_STUDIO_APP_PASSWORD" psql -X -v ON_ERROR_STOP=1 -U nexus_studio_app -d nexus_admin -c "INSERT INTO studio.id_reservations (id, entity_kind, state, created_at, source) VALUES ('probe_spot', 'spot', 'active', now(), 'import')"
+# sequence はアプリが採番する（既定値なし）ため、検証用の行でも明示する。
+PGPASSWORD="$NEXUS_STUDIO_APP_PASSWORD" psql -X -v ON_ERROR_STOP=1 -U nexus_studio_app -d nexus_admin -c "INSERT INTO studio.id_reservations (sequence, id, entity_kind, state, created_at, source) VALUES (1, 'probe_spot', 'spot', 'active', now(), 'import')"
 for statement in "UPDATE studio.id_reservations SET state = 'retired'" "DELETE FROM studio.id_reservations" "TRUNCATE studio.id_reservations"; do
   if PGPASSWORD="$NEXUS_STUDIO_APP_PASSWORD" psql -X -v ON_ERROR_STOP=1 -U nexus_studio_app -d nexus_admin -c "$statement" >/dev/null 2>&1; then
     echo "runtime role unexpectedly modifies the ID reservation ledger: $statement" >&2; exit 1

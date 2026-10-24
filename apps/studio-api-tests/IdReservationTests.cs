@@ -113,6 +113,18 @@ public sealed class IdReservationTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task AddAlias_RejectsIdsStillActiveInAnotherKind()
+    {
+        await SeedActiveAsync(("mb", "spot"), ("mb", "building"), ("mb_new", "spot"));
+        var ledger = await LedgerAsync();
+        ledger.Retire("mb", "spot", IdReservationSource.Rename, null);
+
+        Assert.Throws<InvalidOperationException>(() => ledger.AddAlias("mb", "mb_new", "spot", IdReservationSource.Rename, null));
+        Assert.Null(ledger.Snapshot.Resolve("mb"));
+        Assert.Equal(IdReservationState.Active, ledger.Snapshot.StateOf("mb", "building"));
+    }
+
+    [Fact]
     public async Task RegisterPublished_SkipsActiveAndRefusesReservedIds()
     {
         await SeedActiveAsync(("mb", "building"));

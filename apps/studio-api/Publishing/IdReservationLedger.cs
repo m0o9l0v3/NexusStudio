@@ -41,6 +41,10 @@ public sealed class IdReservationSnapshot
     /// <summary>ID と種別の最新の状態（active／retired）。登録が無ければnull。</summary>
     public string? StateOf(string id, string kind) => _latest.GetValueOrDefault((id, kind))?.State;
 
+    /// <summary>ID がどれかの種別で公開中（active）か。alias は種別によらず ID の名前空間全体を占めるため、alias にする前に使う。</summary>
+    public bool IsActiveInAnyKind(string id)
+        => _latest.Any(e => string.Equals(e.Key.Id, id, StringComparison.Ordinal) && e.Value.State == IdReservationState.Active);
+
     /// <summary>alias の現在の解決先（alias ごとの最新の行）。alias でなければnull。</summary>
     public string? Resolve(string alias) => _aliases.GetValueOrDefault(alias)?.CanonicalId;
 
@@ -156,9 +160,10 @@ public sealed class IdReservationLedger(StudioDbContext db, IdReservationSnapsho
             throw new InvalidOperationException($"解決先 {canonicalId} は alias です。alias の解決は1段だけです。");
         }
 
-        if (snapshot.StateOf(alias, kind) == IdReservationState.Active)
+        // alias は種別によらず ID を占めるため、別の種別で公開中でも alias にしない（その種別まで公開できなくなる）。
+        if (snapshot.IsActiveInAnyKind(alias))
         {
-            throw new InvalidOperationException($"公開中の ID {alias} を alias にはできません。先に廃止してください。");
+            throw new InvalidOperationException($"公開中の ID {alias} を alias にはできません。先にすべての種別で廃止してください。");
         }
 
         var retargeted = snapshot.Aliases.Where(a => string.Equals(a.CanonicalId, alias, StringComparison.Ordinal)).Select(a => a.Alias).ToList();
