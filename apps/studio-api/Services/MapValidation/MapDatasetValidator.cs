@@ -143,7 +143,7 @@ public sealed class MapDatasetValidator
                 }
             }
             CheckGraph(features, context, Error);
-            CheckIdentities(ids, context, Error);
+            CheckIdentities(ids, features, context, Error);
             CheckPublication(features, floors.Keys.ToArray(), context, Error);
             if (context.ForPublication && !features.Values.Any(f => IsNode(f.Type)))
                 Error("empty_navigation_graph", "/features", "公開用の経路ノードがありません。");
@@ -230,7 +230,10 @@ public sealed class MapDatasetValidator
         foreach (var id in graph.Keys) if (!visited.Contains(id)) error("unreachable_node", features[id].Path, "指定された出発ノードから到達できません。", id);
     }
 
-    private static void CheckIdentities(HashSet<string> ids, DatasetValidationContext context, AddError error)
+    /// <summary>spot の解決元になれる Feature 種別（nexus-mobile E2-5 §5.4、E1-4 改訂1 §4.3）。</summary>
+    private static readonly HashSet<string> DestinationTypes = new(StringComparer.Ordinal) { "building", "formal_entrance", "room", "landmark" };
+
+    private static void CheckIdentities(HashSet<string> ids, Dictionary<string, Feature> features, DatasetValidationContext context, AddError error)
     {
         if (context.ForPublication && (context.DatabaseSpots is null || context.PublishedNavigationSpotIds is null || context.Aliases is null || context.OtherReservedCanonicalIds is null))
             error("missing_validation_context", "/context/identities", "DB Spot・公開ナビID・alias・他の予約済みIDのスナップショットが必要です。");
@@ -251,6 +254,9 @@ public sealed class MapDatasetValidator
             if (group.Count() > 1) error("duplicate_spot_code", "/context/databaseSpots", "異なるDB行が同じcanonical IDを使用しています。", group.Key);
             if (!ids.Contains(group.Key) && (group.Any(s => s.IsPublished) || !reserved.Contains(group.Key)))
                 error("undefined_spot_canonical_id", "/context/databaseSpots", "Spot.Codeに対応するcanonical IDがありません。", group.Key);
+            // 2.0.0 では spot は目的地Featureからだけ解決する。ノード・経路・フロアの ID を spot にしない（E1-4 改訂1 §5）。
+            else if (ids.Contains(group.Key) && (!features.TryGetValue(group.Key, out var target) || !DestinationTypes.Contains(target.Type)))
+                error("spot_not_destination_feature", "/context/databaseSpots", "Spot.Codeが目的地Feature（building・formal_entrance・room・landmark）以外の地図要素を指しています。", group.Key);
         }
         foreach (var alias in aliases)
         {

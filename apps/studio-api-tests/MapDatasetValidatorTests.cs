@@ -124,6 +124,32 @@ public sealed class MapDatasetValidatorTests
         Has(Validate(data), code);
     }
 
+    /// <summary>
+    /// 2.0.0 では spot をノード・経路・フロアの ID から解決しない（E1-4 改訂1 §5）。
+    /// 旧来のノード ID の Spot は、存在する canonical ID であっても公開できない。
+    /// </summary>
+    [Theory]
+    [InlineData("mb_1f_n_005")]
+    [InlineData("campus_e_012")]
+    [InlineData("mb_1f")]
+    public void SpotResolvingToNonDestination_IsRejected(string code)
+    {
+        var context = Complete() with { DatabaseSpots = [new(SpotId, code, true)], PublishedNavigationSpotIds = [code] };
+        Has(Validate(Fixture(), context), "spot_not_destination_feature");
+    }
+
+    [Theory]
+    [InlineData("mb")]
+    [InlineData("mb_ent_001")]
+    [InlineData("mb_1f_cl_001")]
+    [InlineData("campus_lm_001")]
+    public void SpotResolvingToDestination_IsAccepted(string code)
+    {
+        var context = Complete() with { DatabaseSpots = [new(SpotId, code, true)], PublishedNavigationSpotIds = [code] };
+        var result = Validate(Fixture(), context);
+        Assert.True(result.CanPublish, string.Join("\n", result.Errors));
+    }
+
     /// <summary>到達ノードは任意。正しく指す到達ノードと、到達ノードの無い目的地はどちらも公開できる（E1-4 改訂1 §8）。</summary>
     [Fact]
     public void DestinationFeatures_WithOrWithoutAccessNode_CanPublish()
