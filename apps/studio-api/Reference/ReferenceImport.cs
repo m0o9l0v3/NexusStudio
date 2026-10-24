@@ -24,7 +24,9 @@ public sealed record ReferenceFileSpot(
     string? Building,
     string? Floor,
     bool IsPublished,
-    string? Utilization);
+    string? Utilization,
+    string? Kind = null,
+    string? Description = null);
 
 public sealed record ReferenceImportResult(bool Succeeded, IReadOnlyList<string> Messages);
 
@@ -112,6 +114,8 @@ public sealed class ReferenceImporter(StudioDbContext db, TimeProvider timeProvi
             }
 
             spot.Utilization = source.Utilization ?? SpotUtilization.Available;
+            spot.Kind = source.Kind;
+            spot.Description = string.IsNullOrWhiteSpace(source.Description) ? null : source.Description.Trim();
             var aliases = (source.Aliases ?? []).Select(a => a.Trim()).Where(a => a.Length > 0).ToHashSet(StringComparer.Ordinal);
             spot.NameAliases.RemoveAll(a => !aliases.Contains(a.Alias));
             foreach (var alias in aliases.Where(a => spot.NameAliases.All(existing => existing.Alias != a)))
@@ -142,7 +146,7 @@ public sealed class ReferenceImporter(StudioDbContext db, TimeProvider timeProvi
             MarkImported(spot, now);
             ReferenceSaving.AddRevision(db, spot, ReferenceSaving.NewRevision(
                 ReferenceRevisionKind.Spot, spot.CanonicalId,
-                new SpotDraft(spot.Name, spot.NameAliases.Select(a => a.Alias).ToList(), spot.Utilization),
+                new SpotDraft(spot.Name, spot.NameAliases.Select(a => a.Alias).ToList(), spot.Utilization, spot.Kind, spot.Description),
                 null, now, ReferenceRevisionSource.Import, null));
         }
 
@@ -225,6 +229,11 @@ public sealed class ReferenceImporter(StudioDbContext db, TimeProvider timeProvi
             if (spot.Utilization is not (null or SpotUtilization.Available or SpotUtilization.NoNewSelection or SpotUtilization.Withdrawn))
             {
                 errors.Add($"Spotの利用状態が不正です: {spot.CanonicalId}");
+            }
+
+            if (spot.Kind is not null && !SpotKind.All.Contains(spot.Kind))
+            {
+                errors.Add($"Spotの種別が不正です（classroom／facility／service、または指定なし）: {spot.CanonicalId}");
             }
         }
 

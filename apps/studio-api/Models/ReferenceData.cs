@@ -75,7 +75,7 @@ public sealed class CategoryListState : IEditableReference
 
 /// <summary>
 /// 会場として選べるSpot。canonical ID は大文字小文字を含めて厳密一致で保持し、生成・正規化・推測しない（CLAUDE.md）。
-/// 名称・別名・利用状態は Spot 単独で公開する。建物・階・位置・経路は地図と一緒に公開する（28 S4-2）。
+/// 名称・別名・利用状態・種別・説明は Spot 単独で公開する。建物・階・位置・経路は地図と一緒に公開する（28 S4-2）。
 /// </summary>
 public sealed class Spot : IEditableReference
 {
@@ -84,6 +84,10 @@ public sealed class Spot : IEditableReference
     public string? BuildingName { get; set; }
     public string? FloorName { get; set; }
     public string Utilization { get; set; } = SpotUtilization.Available;
+    /// <summary>参加者向けの種別（nexus-mobile E2-5 §5.2 の kind）。null は種別未設定。</summary>
+    public string? Kind { get; set; }
+    /// <summary>来場者向けの短い説明（E2-5 §5.2 の description）。未作成は null（空文字で埋めない）。</summary>
+    public string? Description { get; set; }
     public List<SpotNameAlias> NameAliases { get; set; } = [];
     public long RowVersion { get; set; } = 1;
     public Guid? CurrentRevisionId { get; set; }
@@ -96,6 +100,20 @@ public sealed class SpotNameAlias
 {
     public string CanonicalId { get; set; } = string.Empty;
     public string Alias { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// Spot の種別の初期の候補（nexus-mobile E2-5 O-2a）。閉じた集合で、値の追加は bundle 契約のマイナー版。
+/// 製品仕様としての確定は NexusMobile #84（Figma 2622:818）と #83 P12 の承認による。
+/// 地図の目的地Featureの型（room_type の cl / cr / wc / rm、building 等）から導出しない（O-2 K1）。
+/// </summary>
+public static class SpotKind
+{
+    public const string Classroom = "classroom";
+    public const string Facility = "facility";
+    public const string Service = "service";
+
+    public static readonly IReadOnlySet<string> All = new HashSet<string>(StringComparer.Ordinal) { Classroom, Facility, Service };
 }
 
 public static class SpotUtilization

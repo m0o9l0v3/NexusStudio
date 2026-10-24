@@ -297,9 +297,49 @@ public sealed class ReferenceEditingTests : IAsyncLifetime
     [Fact]
     public async Task Spot_IsFoundOnlyByTheExactCanonicalId()
     {
-        Assert.Equal(HttpStatusCode.NotFound, (await _client.GetAsync("/api/spots/item?id=MB_F2_CR_2A")).StatusCode);
-        var (response, _) = await SendAsync(HttpMethod.Put, "/api/spots/item?id=MB_F2_CR_2A", Save(1, JsonNode.Parse("""{ "name": "x", "aliases": [], "utilization": "available" }""")!));
+        Assert.Equal(HttpStatusCode.NotFound, (await _client.GetAsync("/api/spots/item?id=MB_2F_CL_001")).StatusCode);
+        var (response, _) = await SendAsync(HttpMethod.Put, "/api/spots/item?id=MB_2F_CL_001", Save(1, JsonNode.Parse("""{ "name": "x", "aliases": [], "utilization": "available" }""")!));
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    /// <summary>種別・説明（nexus-mobile E2-5 §5.2、O-2）。説明の空文字・空白は未作成（null）として保存する。</summary>
+    [Fact]
+    public async Task Spot_SavesKindAndDescriptionAndNormalizesBlankDescription()
+    {
+        var detail = await GetJsonAsync("/api/spots/item?id=mb_2f_cl_002");
+        Assert.Null(detail["draft"]!["kind"]);
+        Assert.Null(detail["draft"]!["description"]);
+        var draft = detail["draft"]!.DeepClone();
+        draft["kind"] = "classroom";
+        draft["description"] = "  体験授業を行う教室です。 ";
+
+        var (response, body) = await SendAsync(HttpMethod.Put, "/api/spots/item?id=mb_2f_cl_002", Save(detail["rowVersion"]!.GetValue<long>(), draft));
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("classroom", body!["draft"]!["kind"]!.GetValue<string>());
+        Assert.Equal("体験授業を行う教室です。", body["draft"]!["description"]!.GetValue<string>());
+
+        var cleared = body["draft"]!.DeepClone();
+        cleared["kind"] = null;
+        cleared["description"] = "   ";
+        var (clearedResponse, clearedBody) = await SendAsync(HttpMethod.Put, "/api/spots/item?id=mb_2f_cl_002", Save(body["rowVersion"]!.GetValue<long>(), cleared));
+        Assert.Equal(HttpStatusCode.OK, clearedResponse.StatusCode);
+        Assert.Null(clearedBody!["draft"]!["kind"]);
+        Assert.Null(clearedBody["draft"]!["description"]);
+    }
+
+    /// <summary>展示（exhibit）は地点の種別に含めない（E2-5 O-2b）。候補にない値は保存しない。</summary>
+    [Theory]
+    [InlineData("exhibit")]
+    [InlineData("Classroom")]
+    [InlineData("")]
+    public async Task Spot_RejectsUnknownKind(string kind)
+    {
+        var detail = await GetJsonAsync("/api/spots/item?id=mb_2f_cl_002");
+        var draft = detail["draft"]!.DeepClone();
+        draft["kind"] = kind;
+        var (response, body) = await SendAsync(HttpMethod.Put, "/api/spots/item?id=mb_2f_cl_002", Save(detail["rowVersion"]!.GetValue<long>(), draft));
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains(body!["problems"]!.AsArray(), p => p!["path"]!.GetValue<string>() == "kind");
     }
 
     [Fact]

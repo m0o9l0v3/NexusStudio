@@ -351,6 +351,9 @@ public sealed class PublishingService(StudioDbContext db, CandidateValidator val
                     .Single(s => string.Equals(s.CanonicalId, id, StringComparison.Ordinal));
                 spot.Name = draft.Name?.Trim() ?? string.Empty;
                 spot.Utilization = draft.Utilization;
+                // 種別・説明も復旧する版の値にする。項目の追加より前の版では null（未設定）に戻る。
+                spot.Kind = draft.Kind;
+                spot.Description = draft.Description;
                 spot.NameAliases.RemoveAll(a => !draft.Aliases.Contains(a.Alias, StringComparer.Ordinal));
                 foreach (var alias in draft.Aliases.Where(a => spot.NameAliases.All(existing => existing.Alias != a)))
                 {

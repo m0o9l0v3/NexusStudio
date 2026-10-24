@@ -142,6 +142,35 @@ public sealed class PublishingTests : IAsyncLifetime
         return (body!["id"]!.GetValue<string>(), body["revisionId"]!.GetValue<string>());
     }
 
+    /// <summary>
+    /// 種別のない Spot は、NexusMobile #84 の承認前は警告にとどめる（E2-5 O-2c）。
+    /// 説明文は #49 が決まるまで公開しない取り決めのため、入っていれば警告する（O-2d）。
+    /// </summary>
+    [Fact]
+    public async Task SpotPreview_WarnsAboutMissingKindAndPendingDescription()
+    {
+        var spot = await GetJsonAsync("/api/spots/item?id=mb_2f_cl_002");
+        var draft = spot["draft"]!.DeepClone();
+        draft["description"] = "体験授業を行う教室です。";
+        var (saved, savedBody) = await SendAsync(HttpMethod.Put, "/api/spots/item?id=mb_2f_cl_002", new JsonObject { ["operationId"] = Guid.NewGuid().ToString(), ["rowVersion"] = spot["rowVersion"]!.DeepClone(), ["draft"] = draft });
+        Assert.Equal(HttpStatusCode.OK, saved.StatusCode);
+
+        var preview = await PreviewAsync(Entry("spot", "mb_2f_cl_002", revisionId: savedBody!["revisionId"]!.GetValue<string>()));
+
+        Assert.Contains("spot_kind_missing", Codes(preview, "warning"));
+        Assert.Contains("spot_description_pending_supply", Codes(preview, "warning"));
+        Assert.DoesNotContain("spot_kind_missing", Codes(preview));
+
+        var withKind = savedBody["draft"]!.DeepClone();
+        withKind["kind"] = "classroom";
+        withKind["description"] = null;
+        var (again, againBody) = await SendAsync(HttpMethod.Put, "/api/spots/item?id=mb_2f_cl_002", new JsonObject { ["operationId"] = Guid.NewGuid().ToString(), ["rowVersion"] = savedBody["rowVersion"]!.DeepClone(), ["draft"] = withKind });
+        Assert.Equal(HttpStatusCode.OK, again.StatusCode);
+        var clean = await PreviewAsync(Entry("spot", "mb_2f_cl_002", revisionId: againBody!["revisionId"]!.GetValue<string>()));
+        Assert.DoesNotContain("spot_kind_missing", Codes(clean, "warning"));
+        Assert.DoesNotContain("spot_description_pending_supply", Codes(clean, "warning"));
+    }
+
     private static IEnumerable<string> Codes(JsonNode preview, string severity = "blocking")
         => preview["validation"]!["findings"]!.AsArray().Where(f => f!["severity"]!.GetValue<string>() == severity).Select(f => f!["code"]!.GetValue<string>());
 
@@ -425,6 +454,37 @@ public sealed class PublishingTests : IAsyncLifetime
         var history = await GetJsonAsync($"/api/releases/{result["release"]!["releaseId"]!.GetValue<string>()}");
         Assert.Equal("公開していない下書き", history["entries"]![0]!["stash"]!["event"]!["published"]!["title"]!.GetValue<string>());
         Assert.Equal("第2版", history["entries"]![0]!["changes"]!["event"]!["published"]!["title"]!.GetValue<string>());
+    }
+
+    /// <summary>復旧した Spot の下書きにも、その版の種別・説明が入る（その後の画面保存で復旧前の値に戻らない）。</summary>
+    [Fact]
+    public async Task Restore_Spot_RestoresKindAndDescriptionIntoTheDraft()
+    {
+        async Task<(string RevisionId, JsonNode Draft)> SaveSpotAsync(Action<JsonNode> change)
+        {
+            var detail = await GetJsonAsync("/api/spots/item?id=mb_2f_cl_002");
+            var draft = detail["draft"]!.DeepClone();
+            change(draft);
+            var (response, body) = await SendAsync(HttpMethod.Put, "/api/spots/item?id=mb_2f_cl_002", new JsonObject { ["operationId"] = Guid.NewGuid().ToString(), ["rowVersion"] = detail["rowVersion"]!.DeepClone(), ["draft"] = draft });
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            return (body!["revisionId"]!.GetValue<string>(), body["draft"]!);
+        }
+
+        var (first, _) = await SaveSpotAsync(draft => { draft["kind"] = "classroom"; draft["description"] = "初版の説明"; });
+        await PreviewAndPublishAsync(Entry("spot", "mb_2f_cl_002", revisionId: first));
+        var (second, _) = await SaveSpotAsync(draft => { draft["kind"] = "facility"; draft["description"] = null; });
+        await PreviewAndPublishAsync(Entry("spot", "mb_2f_cl_002", revisionId: second));
+
+        await PreviewAndPublishAsync(Entry("spot", "mb_2f_cl_002", "restore", first));
+
+        var restored = await GetJsonAsync("/api/spots/item?id=mb_2f_cl_002");
+        Assert.Equal("classroom", restored["draft"]!["kind"]!.GetValue<string>());
+        Assert.Equal("初版の説明", restored["draft"]!["description"]!.GetValue<string>());
+
+        // 画面から名称だけ変えて保存しても、復旧した種別・説明が残る。
+        var (_, saved) = await SaveSpotAsync(draft => draft["name"] = "2B教室（改称）");
+        Assert.Equal("classroom", saved["kind"]!.GetValue<string>());
+        Assert.Equal("初版の説明", saved["description"]!.GetValue<string>());
     }
 
     [Fact]

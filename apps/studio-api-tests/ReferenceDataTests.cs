@@ -1,3 +1,4 @@
+using System.Text.Json.Nodes;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -73,6 +74,34 @@ public sealed class ReferenceDataTests : IAsyncLifetime
         var db = scope.ServiceProvider.GetRequiredService<StudioDbContext>();
         Assert.Equal(0, await db.Spots.CountAsync());
         Assert.Equal(0, await db.Categories.CountAsync());
+    }
+
+    /// <summary>取り込みでも種別・説明（nexus-mobile E2-5 §5.2）を受け付け、候補にない種別は何も書き込まずに拒否する。</summary>
+    [Fact]
+    public async Task Import_AcceptsKindAndDescriptionAndRejectsUnknownKind()
+    {
+        await using var scope = _factory.Services.CreateAsyncScope();
+        var importer = scope.ServiceProvider.GetRequiredService<ReferenceImporter>();
+
+        var rejected = await importer.ImportAsync(new ReferenceFile(null, null,
+            [new ReferenceFileSpot("mb_2f_cl_001", "2A教室", null, null, null, false, null, Kind: "exhibit")]));
+        Assert.False(rejected.Succeeded);
+        Assert.Contains(rejected.Messages, m => m.Contains("種別"));
+        Assert.Equal(0, await scope.ServiceProvider.GetRequiredService<StudioDbContext>().Spots.CountAsync());
+
+        var accepted = await importer.ImportAsync(new ReferenceFile(null, null,
+        [
+            new ReferenceFileSpot("mb_2f_cl_001", "2A教室", null, null, null, false, null, Kind: "classroom", Description: " 体験授業を行う教室です。 "),
+            new ReferenceFileSpot("mb", "教室棟", null, null, null, false, null, Description: "  "),
+        ]));
+        Assert.True(accepted.Succeeded, string.Join(" ", accepted.Messages));
+
+        var classroom = await _client.GetFromJsonAsync<JsonObject>("/api/spots/item?id=mb_2f_cl_001", Json);
+        Assert.Equal("classroom", classroom!["draft"]!["kind"]!.GetValue<string>());
+        Assert.Equal("体験授業を行う教室です。", classroom["draft"]!["description"]!.GetValue<string>());
+        var building = await _client.GetFromJsonAsync<JsonObject>("/api/spots/item?id=mb", Json);
+        Assert.Null(building!["draft"]!["kind"]);
+        Assert.Null(building["draft"]!["description"]);
     }
 
     [Fact]
