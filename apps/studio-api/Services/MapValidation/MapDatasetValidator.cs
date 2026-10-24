@@ -96,8 +96,30 @@ public sealed class MapDatasetValidator
                     var floorId = Text(p, "floor_id");
                     if (!floors.TryGetValue(floorId, out var floor)) Error("undefined_reference", f.Path + "/properties/floor_id", "フロアが存在しません。", f.Id);
                     else if (floor.Building != buildingId) Error("parent_id_mismatch", f.Path, "フロアと建物の所属が一致しません。", f.Id);
-                    var prefix = f.Type == "formal_entrance" ? buildingId + "_ent_" : floorId + (f.Type == "walking_path" ? "_e_" : "_n_");
+                    var prefix = f.Type switch
+                    {
+                        "formal_entrance" => buildingId + "_ent_",
+                        "walking_path" => floorId + "_e_",
+                        // 部屋IDの {floor_id}_{room_type} 部分（nexus-mobile E1-7、E1-4 改訂1 §12 の1）。
+                        "room" => floorId + "_" + Text(p, "room_type") + "_",
+                        _ => floorId + "_n_",
+                    };
                     if (!f.Id.StartsWith(prefix, StringComparison.Ordinal)) Error("parent_id_mismatch", f.Path + "/id", "IDと所属の接頭辞が一致しません。", f.Id);
+                }
+                // 到達ノード（E1-4 改訂1 §4・§12 の2）。room と building は同じフロア・同じ建物の屋内ノード、
+                // landmark は屋外ノードで、いずれも node_kind が destination。欠落は警告の対象で、ここでは扱わない。
+                if (p.TryGetProperty("access_node_id", out _))
+                {
+                    var node = Reference(f, "access_node_id", f.Type == "landmark" ? "outdoor_node" : "indoor_node");
+                    if (node is not null)
+                    {
+                        if (Text(node.Properties, "node_kind") != "destination")
+                            Error("access_node_not_destination", f.Path + "/properties/access_node_id", "到達ノードの node_kind は destination が必要です。", f.Id);
+                        if (f.Type == "room" && Text(node.Properties, "floor_id") != Text(p, "floor_id"))
+                            Error("parent_id_mismatch", f.Path + "/properties/access_node_id", "部屋と到達ノードのフロアが一致しません。", f.Id);
+                        if (f.Type == "building" && Text(node.Properties, "building_id") != f.Id)
+                            Error("parent_id_mismatch", f.Path + "/properties/access_node_id", "建物と到達ノードの建物が一致しません。", f.Id);
+                    }
                 }
                 if (f.Type == "formal_entrance")
                 {
