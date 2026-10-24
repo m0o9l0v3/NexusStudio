@@ -99,13 +99,13 @@ public sealed class ReferenceDataTests : IAsyncLifetime
         await ImportSampleAsync(_factory);
 
         var byName = await _client.GetFromJsonAsync<SpotSearchResult>("/api/spots?q=2A教室", Json);
-        Assert.Equal(["mb_f2_cr_2a", "sample_other_2a"], byName!.Items.Select(s => s.CanonicalId).Order(StringComparer.Ordinal));
+        Assert.Equal(["mb_2f_cl_001", "sample_other_2a"], byName!.Items.Select(s => s.CanonicalId).Order(StringComparer.Ordinal));
 
         var byAlias = await _client.GetFromJsonAsync<SpotSearchResult>("/api/spots?q=エントランス", Json);
         Assert.Equal("sample_lobby_1f", Assert.Single(byAlias!.Items).CanonicalId);
 
-        var byId = await _client.GetFromJsonAsync<SpotSearchResult>("/api/spots?q=cr_2b", Json);
-        Assert.Equal("mb_f2_cr_2b", Assert.Single(byId!.Items).CanonicalId);
+        var byId = await _client.GetFromJsonAsync<SpotSearchResult>("/api/spots?q=cl_002", Json);
+        Assert.Equal("mb_2f_cl_002", Assert.Single(byId!.Items).CanonicalId);
 
         var byBuilding = await _client.GetFromJsonAsync<SpotSearchResult>("/api/spots?q=2A&building=別棟", Json);
         var other = Assert.Single(byBuilding!.Items);
