@@ -116,7 +116,7 @@ public sealed class PublishingTests : IAsyncLifetime
             Entry("categories", "categories", revisionId: categories["revisionId"]!.GetValue<string>()));
     }
 
-    private async Task<(string Id, string RevisionId)> CreateEventAsync(string dayId = Day0920, string spot = "mb_f2_cr_2a", string? title = "ロボット操作体験", string? occurrence = Occurrence)
+    private async Task<(string Id, string RevisionId)> CreateEventAsync(string dayId = Day0920, string spot = "mb_2f_cl_001", string? title = "ロボット操作体験", string? occurrence = Occurrence)
     {
         var draft = new JsonObject
         {
@@ -156,8 +156,8 @@ public sealed class PublishingTests : IAsyncLifetime
     {
         var directory = await GetJsonAsync("/api/spots/directory");
         var states = directory["items"]!.AsArray().ToDictionary(i => i!["canonicalId"]!.GetValue<string>(), i => i!["publication"]!.GetValue<string>());
-        Assert.Equal("published", states["mb_f2_cr_2a"]);
-        Assert.Equal("unpublished", states["mb_f2_cr_2b"]);
+        Assert.Equal("published", states["mb_2f_cl_001"]);
+        Assert.Equal("unpublished", states["mb_2f_cl_002"]);
 
         var release = await WithDbAsync(db => db.Releases.Include(r => r.Entries).SingleAsync());
         Assert.Equal(ReleaseSource.Import, release.Source);
@@ -248,12 +248,12 @@ public sealed class PublishingTests : IAsyncLifetime
         var preview = await PreviewAsync(Entry("event", id, revisionId: revision));
 
         // 確認の後に、会場のSpotが別の操作で公開し直された（07 AC15）。
-        var spot = await GetJsonAsync("/api/spots/item?id=mb_f2_cr_2a");
+        var spot = await GetJsonAsync("/api/spots/item?id=mb_2f_cl_001");
         var spotDraft = spot["draft"]!.DeepClone();
         spotDraft["name"] = "2A教室（改称）";
-        var (saved, savedBody) = await SendAsync(HttpMethod.Put, "/api/spots/item?id=mb_f2_cr_2a", new JsonObject { ["operationId"] = Guid.NewGuid().ToString(), ["rowVersion"] = spot["rowVersion"]!.DeepClone(), ["draft"] = spotDraft });
+        var (saved, savedBody) = await SendAsync(HttpMethod.Put, "/api/spots/item?id=mb_2f_cl_001", new JsonObject { ["operationId"] = Guid.NewGuid().ToString(), ["rowVersion"] = spot["rowVersion"]!.DeepClone(), ["draft"] = spotDraft });
         Assert.Equal(HttpStatusCode.OK, saved.StatusCode);
-        await PreviewAndPublishAsync(Entry("spot", "mb_f2_cr_2a", revisionId: savedBody!["revisionId"]!.GetValue<string>()));
+        await PreviewAndPublishAsync(Entry("spot", "mb_2f_cl_001", revisionId: savedBody!["revisionId"]!.GetValue<string>()));
 
         var (response, body) = await PublishAsync(preview);
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
@@ -264,7 +264,7 @@ public sealed class PublishingTests : IAsyncLifetime
     public async Task UnrelatedIncompleteDrafts_DoNotBlockPublishing()
     {
         await PublishReferencesAsync();
-        await CreateEventAsync(title: null, occurrence: null, spot: "mb_f2_cr_2b"); // 無関係な不完全な下書き（RA-01、AC10）
+        await CreateEventAsync(title: null, occurrence: null, spot: "mb_2f_cl_002"); // 無関係な不完全な下書き（RA-01、AC10）
         var (id, revision) = await CreateEventAsync();
         await PreviewAndPublishAsync(Entry("event", id, revisionId: revision));
     }
@@ -273,11 +273,11 @@ public sealed class PublishingTests : IAsyncLifetime
     public async Task UnpublishedSpot_BlocksAndIsNotPublishedAutomatically()
     {
         await PublishReferencesAsync();
-        var (id, revision) = await CreateEventAsync(spot: "mb_f2_cr_2b");
+        var (id, revision) = await CreateEventAsync(spot: "mb_2f_cl_002");
         var preview = await PreviewAsync(Entry("event", id, revisionId: revision));
         var finding = preview["validation"]!["findings"]!.AsArray().Single(f => f!["code"]!.GetValue<string>() == "venue_spot_unpublished")!;
         Assert.Equal("slots[0].venues[0]", finding["path"]!.GetValue<string>());
-        Assert.Equal("unpublished", (await GetJsonAsync("/api/spots/item?id=mb_f2_cr_2b"))["publication"]!["state"]!.GetValue<string>());
+        Assert.Equal("unpublished", (await GetJsonAsync("/api/spots/item?id=mb_2f_cl_002"))["publication"]!["state"]!.GetValue<string>());
     }
 
     [Fact]
@@ -543,7 +543,7 @@ public sealed class PublishingTests : IAsyncLifetime
         // 公開済みで変更の無い開催回（9/20・9/21）とカテゴリ一覧は診断しない。未公開の秋の開催回は診断する。
         Assert.Equal(1, Area(diagnosis, "occurrence")["targetCount"]!.GetValue<int>());
         Assert.Equal(0, Area(diagnosis, "categories")["targetCount"]!.GetValue<int>());
-        // 取り込みで公開済みのSpotは対象外、未公開の mb_f2_cr_2b だけが対象。
+        // 取り込みで公開済みのSpotは対象外、未公開の mb_2f_cl_002 だけが対象。
         Assert.Equal(1, Area(diagnosis, "spot")["targetCount"]!.GetValue<int>());
         var finding = diagnosis["findings"]!.AsArray().Single(f => f!["code"]!.GetValue<string>() == "title_required")!;
         Assert.Equal(id, finding["targetId"]!.GetValue<string>());

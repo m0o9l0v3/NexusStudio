@@ -25,8 +25,8 @@
     { "id": "0199a000-0000-7000-8000-000000000304", "name": "旧カテゴリ", "sortOrder": 9, "selectable": false }
   ],
   "spots": [
-    { "canonicalId": "mb_f2_cr_2a", "name": "2A教室", "aliases": ["2A"], "building": "本館", "floor": "2階", "isPublished": true, "utilization": "available" },
-    { "canonicalId": "mb_f2_cr_2b", "name": "2B教室", "aliases": ["2B"], "building": "本館", "floor": "2階", "isPublished": false, "utilization": "available" },
+    { "canonicalId": "mb_2f_cl_001", "name": "2A教室", "aliases": ["2A"], "building": "本館", "floor": "2階", "isPublished": true, "utilization": "available" },
+    { "canonicalId": "mb_2f_cl_002", "name": "2B教室", "aliases": ["2B"], "building": "本館", "floor": "2階", "isPublished": false, "utilization": "available" },
     { "canonicalId": "sample_other_2a", "name": "2A教室", "aliases": [], "building": "別棟", "floor": "2階", "isPublished": true, "utilization": "noNewSelection" },
     { "canonicalId": "sample_lobby_1f", "name": "受付ロビー", "aliases": ["エントランス"], "building": "本館", "floor": "1階", "isPublished": true, "utilization": "available" }
   ]

@@ -27,6 +27,8 @@
   <ItemGroup>
     <None Include="../../docs/schemas/examples/map-dataset-geojson-v2.example.json" Link="Fixtures/map-dataset.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../../docs/samples/reference-sample.json" Link="Fixtures/reference-sample.json" CopyToOutputDirectory="PreserveNewest" />
+    <!-- 部屋 canonical ID の対応表（決定事項26。nexus-mobile E1-7 の CSV と同じバイト列）。旧 ID が取り込みデータに残っていないことの確認に使う。 -->
+    <None Include="../../docs/決定事項/26_部屋canonical_ID対応表_2026-09-22_v01.csv" Link="Fixtures/room-canonical-ids.csv" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../studio-api/Database/move-migrations-history-to-studio.sql" Link="Fixtures/move-migrations-history-to-studio.sql" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 

@@ -52,7 +52,7 @@ public sealed class ReferenceEditingTests : IAsyncLifetime
     };
 
     /// <summary>設計用サンプルの開催日9/20を参照するイベントを作る。</summary>
-    private async Task CreateEventOnDayAsync(string dayId, string canonicalId = "mb_f2_cr_2a", string? categoryId = null)
+    private async Task CreateEventOnDayAsync(string dayId, string canonicalId = "mb_2f_cl_001", string? categoryId = null)
     {
         var draft = new JsonObject
         {
@@ -276,17 +276,17 @@ public sealed class ReferenceEditingTests : IAsyncLifetime
     [Fact]
     public async Task Spot_SaveAttributes_KeepsTheCanonicalIdAndRecordsARevision()
     {
-        await CreateEventOnDayAsync(Day0920, "mb_f2_cr_2a");
-        var detail = await GetJsonAsync("/api/spots/item?id=mb_f2_cr_2a");
+        await CreateEventOnDayAsync(Day0920, "mb_2f_cl_001");
+        var detail = await GetJsonAsync("/api/spots/item?id=mb_2f_cl_001");
         Assert.Equal("参照するイベント", detail["draftEvents"]![0]!["eventTitle"]!.GetValue<string>());
         var draft = detail["draft"]!.DeepClone();
         draft["name"] = "2A教室（改称）";
         draft["aliases"] = new JsonArray("2A", "ロボット実験室");
         draft["utilization"] = "noNewSelection";
 
-        var (response, body) = await SendAsync(HttpMethod.Put, "/api/spots/item?id=mb_f2_cr_2a", Save(detail["rowVersion"]!.GetValue<long>(), draft));
+        var (response, body) = await SendAsync(HttpMethod.Put, "/api/spots/item?id=mb_2f_cl_001", Save(detail["rowVersion"]!.GetValue<long>(), draft));
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Equal("mb_f2_cr_2a", body!["canonicalId"]!.GetValue<string>());
+        Assert.Equal("mb_2f_cl_001", body!["canonicalId"]!.GetValue<string>());
         Assert.Equal("2A教室（改称）", body["draft"]!["name"]!.GetValue<string>());
 
         // 新規選択停止にすると会場の検索でも選べないSpotとして出る（イベントの既存参照は残る）。
@@ -305,10 +305,10 @@ public sealed class ReferenceEditingTests : IAsyncLifetime
     [Fact]
     public async Task Spot_RejectsWithdrawal()
     {
-        var detail = await GetJsonAsync("/api/spots/item?id=mb_f2_cr_2b");
+        var detail = await GetJsonAsync("/api/spots/item?id=mb_2f_cl_002");
         var draft = detail["draft"]!.DeepClone();
         draft["utilization"] = "withdrawn";
-        var (response, body) = await SendAsync(HttpMethod.Put, "/api/spots/item?id=mb_f2_cr_2b", Save(detail["rowVersion"]!.GetValue<long>(), draft));
+        var (response, body) = await SendAsync(HttpMethod.Put, "/api/spots/item?id=mb_2f_cl_002", Save(detail["rowVersion"]!.GetValue<long>(), draft));
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         Assert.Contains(body!["problems"]!.AsArray(), p => p!["code"]!.GetValue<string>() == "invalid_value");
     }
@@ -317,12 +317,12 @@ public sealed class ReferenceEditingTests : IAsyncLifetime
     public async Task Spot_PlacementCannotBeChangedFromTheSpotEditor()
     {
         // 建物・階は地図と一緒に公開する（28 S4-2）。下書きに混ぜて送っても変わらない。
-        var detail = await GetJsonAsync("/api/spots/item?id=mb_f2_cr_2b");
+        var detail = await GetJsonAsync("/api/spots/item?id=mb_2f_cl_002");
         var placement = detail["placement"]!.DeepClone();
         var draft = detail["draft"]!.DeepClone();
         draft["buildingName"] = "存在しない建物";
         draft["floorName"] = "99階";
-        var (response, body) = await SendAsync(HttpMethod.Put, "/api/spots/item?id=mb_f2_cr_2b", Save(detail["rowVersion"]!.GetValue<long>(), draft));
+        var (response, body) = await SendAsync(HttpMethod.Put, "/api/spots/item?id=mb_2f_cl_002", Save(detail["rowVersion"]!.GetValue<long>(), draft));
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.True(JsonNode.DeepEquals(placement, body!["placement"]));
         Assert.Null(body["draft"]!["buildingName"]);
