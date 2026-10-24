@@ -1739,6 +1739,7 @@ export interface components {
             isPublished: boolean;
             publication: string;
             utilization: string;
+            kind: null | string;
         };
         SpotPlacement: {
             buildingName: null | string;

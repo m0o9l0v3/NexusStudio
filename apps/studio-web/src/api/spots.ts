@@ -8,6 +8,14 @@ export type SpotDraft = Schemas['SpotDraft']
 export type SpotDetail = Schemas['SpotDetail']
 export type SpotConflict = Schemas['ReferenceConflictOfSpotDetail']
 
+/** Spot の種別（nexus-mobile E2-5 O-2a の初期の候補）。値はAPIの SpotKind と一致させる。 */
+export const spotKindLabels: Record<string, string> = { classroom: '教室', facility: '施設', service: 'サービス' }
+
+/** 種別の表示。未設定・未知の値は「未設定」とする（値を推測しない）。 */
+export function spotKindLabel(kind: string | null | undefined): string {
+  return (kind && spotKindLabels[kind]) || '未設定'
+}
+
 /** Spots画面の一覧（取り下げ済みも含む）。 */
 export function listSpotDirectory(q: string, building: string, floor: string): Promise<SpotSearchResult> {
   const params = new URLSearchParams()

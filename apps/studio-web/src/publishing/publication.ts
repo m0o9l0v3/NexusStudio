@@ -76,6 +76,6 @@ export function describePath(path: string): string {
   const day = /days\[(\d+)\]/.exec(path)
   if (slot) return `開催枠${Number(slot[1]) + 1}${venue ? `・会場${Number(venue[1]) + 1}` : ''}`
   if (day) return `開催日${Number(day[1]) + 1}`
-  const labels: Record<string, string> = { title: 'タイトル', description: '説明', categoryId: 'カテゴリ', occurrenceId: '開催回', name: '名称', utilization: '利用状態', items: 'カテゴリ', days: '開催日' }
+  const labels: Record<string, string> = { title: 'タイトル', description: '説明', categoryId: 'カテゴリ', occurrenceId: '開催回', name: '名称', utilization: '利用状態', kind: '種別', items: 'カテゴリ', days: '開催日' }
   return labels[path] ?? path
 }

@@ -14,6 +14,7 @@ public sealed record CategoryItem(Guid Id, string Name, int SortOrder, bool Sele
 
 /// <param name="IsPublished">参加者向けに公開中か（公開中・未公開変更ありを含む）。</param>
 /// <param name="Publication">unpublished／published／publishedWithChanges／withdrawn。</param>
+/// <param name="Kind">現在の下書きの種別（classroom／facility／service）。未設定はnull。</param>
 public sealed record SpotItem(
     string CanonicalId,
     string Name,
@@ -22,7 +23,8 @@ public sealed record SpotItem(
     string? FloorName,
     bool IsPublished,
     string Publication,
-    string Utilization);
+    string Utilization,
+    string? Kind);
 
 /// <summary>イベント編集で選ぶ開催回・開催日・カテゴリ。</summary>
 public sealed record ReferenceData(IReadOnlyList<OccurrenceItem> Occurrences, IReadOnlyList<CategoryItem> Categories);
@@ -127,6 +129,7 @@ public static class ReferenceEndpoints
             spot.FloorName,
             PublicationState.IsLive(state),
             state,
-            spot.Utilization);
+            spot.Utilization,
+            spot.Kind);
     }
 }

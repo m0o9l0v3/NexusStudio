@@ -2,7 +2,7 @@ import type { EventDraft, EventSlot } from '../api/events'
 import type { CategoryDraft } from '../api/categories'
 import type { OccurrenceDraft, OcDayDraft } from '../api/occurrences'
 import type { PreviewItem, PreviewReferences } from '../api/releases'
-import type { SpotDraft } from '../api/spots'
+import { spotKindLabel, type SpotDraft } from '../api/spots'
 import { formatDateLong, participationLabels } from '../events/model'
 
 /** 差分の種類（Figma R01 のバッジ）。 */
@@ -165,5 +165,7 @@ function spotRows(before: SpotDraft | null, after: SpotDraft | null): DiffRow[] 
   compare(rows, '名称', before ? (text(before.name) ?? '（未入力）') : null, text(after.name) ?? '（未入力）')
   compare(rows, '別名', before ? before.aliases.join('、') || none : null, after.aliases.join('、') || none)
   compare(rows, '会場としての利用', before ? (utilizationLabels[before.utilization] ?? before.utilization) : null, utilizationLabels[after.utilization] ?? after.utilization)
+  compare(rows, '説明', before ? (text(before.description) ?? none) : null, text(after.description) ?? none)
+  compare(rows, '種別', before ? spotKindLabel(before.kind) : null, spotKindLabel(after.kind))
   return rows
 }

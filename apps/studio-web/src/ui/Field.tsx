@@ -70,14 +70,15 @@ export const InputField = forwardRef<HTMLInputElement, CommonProps & InputHTMLAt
   )
 })
 
-export function TextAreaField({ label, invalid, message, className, id, ...props }: CommonProps & TextareaHTMLAttributes<HTMLTextAreaElement>) {
+export function TextAreaField({ label, invalid, message, messageTone, className, id, ...props }: CommonProps & TextareaHTMLAttributes<HTMLTextAreaElement>) {
   const generated = useId()
   const inputId = id ?? generated
   return (
-    <FieldFrame id={inputId} label={label} invalid={invalid} message={message} className={className}>
+    <FieldFrame id={inputId} label={label} invalid={invalid} message={message} messageTone={messageTone} className={className}>
       <textarea
         id={inputId}
         aria-invalid={invalid || undefined}
+        aria-describedby={message ? `${inputId}-message` : undefined}
         className={cn(boxClass(invalid), 'h-auto min-h-10 resize-y py-[9px]')}
         {...props}
       />

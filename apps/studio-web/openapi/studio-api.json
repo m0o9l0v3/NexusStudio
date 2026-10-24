@@ -3272,7 +3272,8 @@
           "floorName",
           "isPublished",
           "publication",
-          "utilization"
+          "utilization",
+          "kind"
         ],
         "type": "object",
         "properties": {
@@ -3308,6 +3309,12 @@
           },
           "utilization": {
             "type": "string"
+          },
+          "kind": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
