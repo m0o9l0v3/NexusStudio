@@ -2,7 +2,7 @@ import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-quer
 import { useDeferredValue, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router'
 import { ApiError } from '../../api/client'
-import { getSpot, listSpotDirectory, saveSpot, type SpotConflict, type SpotDetail, type SpotDraft } from '../../api/spots'
+import { getSpot, listSpotDirectory, saveSpot, spotKindLabel, spotKindLabels, type SpotConflict, type SpotDetail, type SpotDraft } from '../../api/spots'
 import { CompareRows } from '../../editing/CompareRows'
 import { LeaveGuard } from '../../editing/LeaveGuard'
 import { useDraftEditor } from '../../editing/useDraftEditor'
@@ -11,7 +11,7 @@ import { Button } from '../../ui/Button'
 import { ChoiceGroup } from '../../ui/ChoiceGroup'
 import { cn } from '../../ui/cn'
 import { FilterChip } from '../../ui/FilterChip'
-import { InputField, TextAreaField } from '../../ui/Field'
+import { InputField, SelectField, TextAreaField } from '../../ui/Field'
 import { NoticeBanner } from '../../ui/NoticeBanner'
 import { isLive, publicationBadge, reviewPath } from '../../publishing/publication'
 import { StatusBadge } from '../../ui/StatusBadge'
@@ -119,7 +119,7 @@ export function SpotsPage() {
                           {spot.utilization === 'noNewSelection' && <StatusBadge>新規選択停止</StatusBadge>}
                         </span>
                         <span className="text-[10px] leading-6 text-text-secondary">
-                          {[spot.buildingName ?? '建物未確認', spot.floorName ?? '階未確認', '種別未確認'].join('・')}
+                          {[spot.buildingName ?? '建物未確認', spot.floorName ?? '階未確認', spot.kind ? spotKindLabel(spot.kind) : '種別未設定'].join('・')}
                         </span>
                         <span className="truncate text-[10px] leading-[18px] font-medium text-text-secondary">{spot.canonicalId}</span>
                       </button>
@@ -211,7 +211,13 @@ function SpotInspector({ initial }: { initial: SpotDetail }) {
 
   if (editor.conflict) {
     const describe = (spot: SpotDraft) =>
-      [`名称：${spot.name || '（未入力）'}`, `別名：${spot.aliases.join('、') || 'なし'}`, `利用状態：${spot.utilization === 'noNewSelection' ? '新規選択停止' : '選択できる'}`].join('\n')
+      [
+        `名称：${spot.name || '（未入力）'}`,
+        `別名：${spot.aliases.join('、') || 'なし'}`,
+        `利用状態：${spot.utilization === 'noNewSelection' ? '新規選択停止' : '選択できる'}`,
+        `説明：${spot.description?.trim() || 'なし'}`,
+        `種別：${spotKindLabel(spot.kind)}`,
+      ].join('\n')
     return (
       <CompareRows
         rows={[{ label: 'Spotの属性', mine: describe(editor.conflict.mine), latest: describe(editor.conflict.latest.draft) }]}
@@ -274,7 +280,30 @@ function SpotInspector({ initial }: { initial: SpotDetail }) {
         <p className="-mt-1 text-[11px] leading-[19px] text-text-secondary">新しいイベントの会場には選べなくなります。既存のイベントの会場参照は維持します。</p>
       )}
 
-      <ReadOnlyField label="種別" value="未確認" tone="warning" />
+      {/* 説明文は供給体制（NexusMobile #49）が決まるまで公開しない取り決め（E2-5 O-2d）。入力は止めず、公開確認で警告する。 */}
+      <TextAreaField
+        label="説明"
+        rows={3}
+        value={draft.description ?? ''}
+        onChange={(event) => editor.update((current) => ({ ...current, description: event.target.value || null }))}
+        message="説明文の供給体制（NexusMobile #49）が決まるまで公開しない取り決めです。"
+        messageTone="secondary"
+      />
+      {/* 種別は地図の Feature の型から導出しない（E2-5 O-2 K1）。未設定でも公開できるが警告する（O-2c C4）。 */}
+      <SelectField
+        label="種別"
+        value={draft.kind ?? ''}
+        onChange={(event) => editor.update((current) => ({ ...current, kind: event.target.value || null }))}
+        message="未設定のまま公開すると警告が出ます。参加者向けアプリでは種別を表示しません。"
+        messageTone={draft.kind ? 'secondary' : 'warning'}
+      >
+        <option value="">未設定</option>
+        {Object.entries(spotKindLabels).map(([value, label]) => (
+          <option key={value} value={value}>
+            {label}
+          </option>
+        ))}
+      </SelectField>
       <div className="flex flex-col gap-[7px] self-start rounded-lg bg-surface-subtle px-3 py-2.5">
         <p className="text-[13px] leading-[21px] font-bold text-text-primary">位置</p>
         <p className="text-[11px] leading-[19px] text-text-secondary">座標系：floor-local（m）</p>
@@ -319,7 +348,7 @@ function SpotInspector({ initial }: { initial: SpotDetail }) {
       <Button variant="secondary" className="w-full" disabled title="Map Data と合わせて実装します">
         位置を変更
       </Button>
-      <p className="text-[10px] leading-6 text-text-secondary">名称・別名・利用状態はこのSpotだけで公開します。位置・建物・階・経路は Map Data と一緒に公開します。</p>
+      <p className="text-[10px] leading-6 text-text-secondary">名称・別名・利用状態・説明・種別はこのSpotだけで公開します。位置・建物・階・経路は Map Data と一緒に公開します。</p>
 
       <LeaveGuard id="spot-editor" dirty={editor.dirty} saving={editor.saveState === 'saving'} canSave={!editor.conflictOpen} onSave={save} />
     </div>

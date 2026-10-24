@@ -119,6 +119,7 @@ docker compose up -d postgres   # ホスト側は5433番ポート（nexus-mobile
 | `docs/決定事項/26_...canonical_ID対応表.md` | 部屋canonical IDの対応表 |
 | `docs/決定事項/27_...別セッション移行プロンプト.md` | このリポジトリとnexus-mobileの並行作業の引き継ぎ記録 |
 | `docs/決定事項/28_...Step4着手前の判断記録.md`（最新版） | 地図公開のStudio一本化、Spotの公開単位、Step 4 の範囲と構成案・MRの分け方（2026-09-24 利用者決定） |
+| `docs/決定事項/29_...M1地点表示の判断記録.md`（最新版） | M1（Issue #11）の判断：Spot の種別・説明の画面、取り下げは ID の廃止ではない、`delivery` の DDL、地図に無い公開 Spot、地図の公開単位（2026-10-24 利用者決定） |
 | `nexus-mobile/docs/decisions/E0-7-studio-scope-split.md` | nexus-mobile側からみたStudio分離の決定記録 |
 
 ## UI実装とFigmaの関係
