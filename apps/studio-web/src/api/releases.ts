@@ -18,7 +18,7 @@ export type ReleaseEntryDetail = Schemas['ReleaseEntryDetail']
 export type ReleaseEntrySummary = Schemas['ReleaseEntrySummary']
 export type PayloadSides = Schemas['PayloadSides']
 
-export type TargetKind = 'event' | 'occurrence' | 'categories' | 'spot'
+export type TargetKind = 'event' | 'occurrence' | 'categories' | 'spot' | 'map'
 export type PublishAction = 'publish' | 'withdraw' | 'restore'
 
 /** 公開候補を組み立てて検証する（左：差分、右：検証と関連影響）。 */

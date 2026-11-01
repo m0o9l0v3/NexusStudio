@@ -32,6 +32,7 @@ builder.Services.AddSingleton<MapDatasetValidator>();
 builder.Services.AddStudioAuth(builder.Environment);
 builder.Services.AddScoped<ReferenceImporter>();
 builder.Services.AddScoped<MapImporter>();
+builder.Services.AddSingleton<ApprovedMapSettingsSource>();
 builder.Services.AddScoped<CandidateValidator>();
 builder.Services.AddScoped<PublishingService>();
 builder.Services.AddProblemDetails();

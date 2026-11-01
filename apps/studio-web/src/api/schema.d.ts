@@ -1435,6 +1435,25 @@ export interface components {
             nextOffset: null | number;
             actors: components["schemas"]["EditorRef"][];
         };
+        MapSides: {
+            published: null | components["schemas"]["MapVersion"];
+            candidate: null | components["schemas"]["MapVersion"];
+        };
+        MapVersion: {
+            /** Format: uuid */
+            id: string;
+            /** Format: int64 */
+            version: number;
+            checksum: string;
+            /** Format: int64 */
+            byteLength: number;
+            /** Format: int32 */
+            floorCount: number;
+            /** Format: int32 */
+            featureCount: number;
+            /** Format: date-time */
+            publishedAt: null | string;
+        };
         OccurrenceDetail: {
             /** Format: uuid */
             id: string;
@@ -1509,6 +1528,7 @@ export interface components {
             occurrence: null | components["schemas"]["OccurrenceSides"];
             categories: null | components["schemas"]["CategorySides"];
             spot: null | components["schemas"]["SpotSides"];
+            map: null | components["schemas"]["MapSides"];
         };
         PreviewDay: {
             /** Format: uuid */
@@ -1535,6 +1555,7 @@ export interface components {
             occurrence: null | components["schemas"]["OccurrenceSides"];
             categories: null | components["schemas"]["CategorySides"];
             spot: null | components["schemas"]["SpotSides"];
+            map: null | components["schemas"]["MapSides"];
         };
         PreviewReferences: {
             days: components["schemas"]["PreviewDay"][];

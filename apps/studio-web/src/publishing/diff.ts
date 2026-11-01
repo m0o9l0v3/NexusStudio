@@ -16,7 +16,7 @@ type Names = { occurrences: Map<string, string> }
 const none = 'なし'
 
 /** 差分の元になる2つの内容（公開確認の対象、または履歴の1件）。 */
-export type DiffSource = Pick<PreviewItem, 'action' | 'targetKind' | 'event' | 'occurrence' | 'categories' | 'spot'>
+export type DiffSource = Pick<PreviewItem, 'action' | 'targetKind' | 'event' | 'occurrence' | 'categories' | 'spot' | 'map'>
 
 /** 公開確認・履歴に出す差分。取り下げでは「公開を終了する」ことだけを示す。 */
 export function diffRows(item: DiffSource, published: PreviewReferences, candidate: PreviewReferences, names: Names): DiffRow[] {
@@ -33,6 +33,8 @@ export function diffRows(item: DiffSource, published: PreviewReferences, candida
       return categoryRows(item.categories?.published ?? null, item.categories?.candidate ?? null)
     case 'spot':
       return spotRows(item.spot?.published ?? null, item.spot?.candidate ?? null)
+    case 'map':
+      return mapRows(item.map?.published ?? null, item.map?.candidate ?? null)
     default:
       return []
   }
@@ -167,5 +169,20 @@ function spotRows(before: SpotDraft | null, after: SpotDraft | null): DiffRow[] 
   compare(rows, '会場としての利用', before ? (utilizationLabels[before.utilization] ?? before.utilization) : null, utilizationLabels[after.utilization] ?? after.utilization)
   compare(rows, '説明', before ? (text(before.description) ?? none) : null, text(after.description) ?? none)
   compare(rows, '種別', before ? spotKindLabel(before.kind) : null, spotKindLabel(after.kind))
+  return rows
+}
+
+// ---- 地図 ----
+
+type MapVersion = NonNullable<NonNullable<PreviewItem['map']>['published']>
+
+/** 地図は版の要約だけを比べる。地図の中身の差分は Map Data 画面の構成が決まってから示す（UI補完記録）。 */
+function mapRows(before: MapVersion | null, after: MapVersion | null): DiffRow[] {
+  const rows: DiffRow[] = []
+  compare(rows, '版', before ? `v${before.version}` : null, after ? `v${after.version}` : null)
+  compare(rows, 'チェックサム（SHA-256）', before?.checksum ?? null, after?.checksum ?? null)
+  compare(rows, 'サイズ', before ? `${before.byteLength.toLocaleString('ja-JP')} バイト` : null, after ? `${after.byteLength.toLocaleString('ja-JP')} バイト` : null)
+  compare(rows, 'フロア数', before ? String(before.floorCount) : null, after ? String(after.floorCount) : null)
+  compare(rows, '地図要素の数', before ? String(before.featureCount) : null, after ? String(after.featureCount) : null)
   return rows
 }

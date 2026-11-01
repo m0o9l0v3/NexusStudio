@@ -90,7 +90,8 @@ public sealed class MapImporter(StudioDbContext db, MapDatasetValidator validato
         OperationLogs.Add(db, timeProvider.GetUtcNow(), OperationAction.Import, null, OperationStatus.Succeeded, message);
         await db.SaveChangesAsync();
         await transaction.CommitAsync();
-        return new MapImportResult(true, [message], dataset.Version);
+        // 公開は Studio の公開確認で行う（取り込みでは公開しない。決定事項31 D1）。
+        return new MapImportResult(true, [message, $"公開確認: /map-data/publish?revision={dataset.Id}"], dataset.Version);
     }
 }
 

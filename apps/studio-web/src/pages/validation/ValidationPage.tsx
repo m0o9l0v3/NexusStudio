@@ -12,12 +12,13 @@ import { StatusBadge } from '../../ui/StatusBadge'
 
 const dateTime = new Intl.DateTimeFormat('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Tokyo' })
 
-/** 領域（11 VA-03）。Map Data は技術検証の後に加える。 */
+/** 領域（11 VA-03）。Map Data は取り込んだ最新の地図の版の公開判定（29 M1-D5）。 */
 const areas: { kind: string; label: string }[] = [
   { kind: 'event', label: 'Events' },
   { kind: 'occurrence', label: 'Open Campus' },
   { kind: 'categories', label: 'カテゴリ' },
   { kind: 'spot', label: 'Spots' },
+  { kind: 'map', label: 'Map Data' },
 ]
 
 const severities: Record<string, { label: string; tone: 'danger' | 'warning' | 'neutral' }> = {
@@ -160,10 +161,6 @@ function Result({
                 </li>
               )
             })}
-            <li className="flex flex-col gap-1 rounded-lg border border-dashed border-border px-3 py-3">
-              <span className="text-[14px] leading-[22px] font-bold text-text-secondary">Map Data</span>
-              <span className="text-[11px] leading-[19px] text-text-secondary">地図の診断は Map Data の技術検証の後に加えます</span>
-            </li>
           </ul>
 
           <div className="flex flex-wrap gap-2">

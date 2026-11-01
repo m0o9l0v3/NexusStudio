@@ -132,6 +132,10 @@ public static class DraftDiagnosis
         current.Add((PublishTargetKind.Categories, PublishTargetKind.Categories, (await db.CategoryListStates.AsNoTracking().SingleAsync()).CurrentRevisionId));
         current.AddRange((await db.Spots.AsNoTracking().Select(s => new { s.CanonicalId, s.CurrentRevisionId }).ToListAsync())
             .Select(s => (PublishTargetKind.Spot, s.CanonicalId, s.CurrentRevisionId)));
+        if (await ReleaseHistory.LatestMapAsync(db) is { } map)
+        {
+            current.Add((PublishTargetKind.Map, PublishTargetKind.Map, map));
+        }
 
         var builder = new StringBuilder();
         var targets = new List<PublishEntry>();

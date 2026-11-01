@@ -1929,6 +1929,79 @@
           }
         }
       },
+      "MapSides": {
+        "required": [
+          "published",
+          "candidate"
+        ],
+        "type": "object",
+        "properties": {
+          "published": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/MapVersion"
+              }
+            ]
+          },
+          "candidate": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/MapVersion"
+              }
+            ]
+          }
+        }
+      },
+      "MapVersion": {
+        "required": [
+          "id",
+          "version",
+          "checksum",
+          "byteLength",
+          "floorCount",
+          "featureCount",
+          "publishedAt"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "version": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "checksum": {
+            "type": "string"
+          },
+          "byteLength": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "floorCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "featureCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "publishedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
       "OccurrenceDetail": {
         "required": [
           "id",
@@ -2243,7 +2316,8 @@
           "event",
           "occurrence",
           "categories",
-          "spot"
+          "spot",
+          "map"
         ],
         "type": "object",
         "properties": {
@@ -2284,6 +2358,16 @@
               },
               {
                 "$ref": "#/components/schemas/SpotSides"
+              }
+            ]
+          },
+          "map": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/MapSides"
               }
             ]
           }
@@ -2344,7 +2428,8 @@
           "event",
           "occurrence",
           "categories",
-          "spot"
+          "spot",
+          "map"
         ],
         "type": "object",
         "properties": {
@@ -2414,6 +2499,16 @@
               },
               {
                 "$ref": "#/components/schemas/SpotSides"
+              }
+            ]
+          },
+          "map": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/MapSides"
               }
             ]
           }

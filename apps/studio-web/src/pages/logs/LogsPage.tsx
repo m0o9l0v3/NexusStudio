@@ -102,6 +102,7 @@ export function LogsPage() {
               <option value="occurrence">対象：開催回</option>
               <option value="categories">対象：カテゴリ一覧</option>
               <option value="spot">対象：Spot</option>
+              <option value="map">対象：地図</option>
             </FilterChip>
             <label className="flex items-center gap-1 text-[11px] leading-[19px] text-text-secondary">
               日付
