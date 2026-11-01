@@ -29,6 +29,8 @@ public sealed class TrustedProxyConfigurationTests
     [Theory]
     [InlineData("admin")]
     [InlineData("reference")]
+    [InlineData("map")]
+    [InlineData("spot")]
     public void ProductionCliCommandsDoNotRequireOrConfigureForwardedHeaders(string command)
     {
         var services = new ServiceCollection();

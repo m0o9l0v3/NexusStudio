@@ -59,6 +59,8 @@ public sealed class DataProtectionConfigurationTests : IDisposable
     [Theory]
     [InlineData("admin")]
     [InlineData("reference")]
+    [InlineData("map")]
+    [InlineData("spot")]
     public void ProductionCliCommandsDoNotRequireKeysDirectory(string command)
         => DataProtectionConfiguration.ConfigureForInvocation(
             new ServiceCollection(), isDevelopment: false, args: [command], keysDirectoryValue: null);

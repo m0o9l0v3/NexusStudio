@@ -104,7 +104,7 @@ public sealed partial class PublishingService
 
         await db.SaveChangesAsync();
 
-        var candidate = await PublishCandidate.BuildAsync(db, entries);
+        var candidate = await PublishCandidate.BuildAsync(db, entries, renamedSpotIds: new Dictionary<string, string>(StringComparer.Ordinal) { [from] = to });
         IReadOnlyList<ValidationFinding> findings;
         var status = ValidationRunStatus.Ok;
         try
@@ -227,6 +227,14 @@ public sealed partial class PublishingService
         if (map is null || map.Status != MapDatasetStatus.Draft)
         {
             messages.Add($"地図 v{mapVersion} は取り込み済みの下書きではありません。新しい ID の目的地を持つ地図を map import で取り込み、その版を指定してください。");
+            return null;
+        }
+
+        // 地図の公開は最後に取り込んだ版だけ（それより前の版は検証で stale_revision になる。決定事項31 D1）。
+        var latestVersion = await db.MapDatasets.MaxAsync(m => m.Version);
+        if (latestVersion != mapVersion)
+        {
+            messages.Add($"地図 v{mapVersion} より新しい版 v{latestVersion} が取り込まれています。改名に使う地図は最後に取り込んだ版を指定してください（必要なら取り込み直す）。");
             return null;
         }
 

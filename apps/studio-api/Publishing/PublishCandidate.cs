@@ -93,6 +93,8 @@ public sealed class PublishCandidate
     public IReadOnlyDictionary<Guid, Dictionary<Guid, DateOnly>> CurrentOccurrenceDays { get; init; } = new Dictionary<Guid, Dictionary<Guid, DateOnly>>();
     /// <summary>現在のカテゴリ（カテゴリ一覧の復旧で、既存のカテゴリを失わせないため。11 §7）。</summary>
     public IReadOnlySet<Guid> CurrentCategoryIds { get; init; } = new HashSet<Guid>();
+    /// <summary>この候補で改名する Spot（旧 ID → 新しい ID。決定事項32）。改名で替えた会場は、新規選択停止でも新たな選択とみなさない。</summary>
+    public IReadOnlyDictionary<string, string> RenamedSpotIds { get; init; } = new Dictionary<string, string>(StringComparer.Ordinal);
 
     /// <summary>候補の土台（現在の公開データとSpotの行）。全下書き診断では一度だけ読み、対象ごとの候補で使い回す。</summary>
     public sealed record Base(List<Publication> Publications, PublishedSet Published, Dictionary<string, Spot> SpotRows, IdReservationSnapshot Reservations, int? CurrentBundleLength);
@@ -110,7 +112,7 @@ public sealed class PublishCandidate
                    select (int?)b.ByteLength).SingleOrDefaultAsync());
     }
 
-    public static async Task<PublishCandidate> BuildAsync(StudioDbContext db, IReadOnlyList<PublishEntry> entries, Base? shared = null)
+    public static async Task<PublishCandidate> BuildAsync(StudioDbContext db, IReadOnlyList<PublishEntry> entries, Base? shared = null, IReadOnlyDictionary<string, string>? renamedSpotIds = null)
     {
         var (publications, before, spotRows, reservations, currentBundleLength) = shared ?? await LoadBaseAsync(db);
         var after = before.Clone();
@@ -160,6 +162,7 @@ public sealed class PublishCandidate
             SpotRows = spotRows,
             Reservations = reservations,
             CurrentBundleLength = currentBundleLength,
+            RenamedSpotIds = renamedSpotIds ?? new Dictionary<string, string>(StringComparer.Ordinal),
             DraftDayReferences = restoring.Contains(PublishTargetKind.Occurrence)
                 ? (await EventReferenceIndex.LoadAsync(db)).ReferencedDayIds()
                 : new HashSet<Guid>(),

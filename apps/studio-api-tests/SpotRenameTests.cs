@@ -118,6 +118,17 @@ public sealed class SpotRenameTests : IAsyncLifetime
         return data;
     }
 
+    /// <summary>新しい ID の目的地を足したが、旧 ID の目的地も残した地図。</summary>
+    private static JsonObject StillHasOldId(JsonObject data)
+    {
+        RenameRoom(data);
+        var copy = data["features"]!.AsArray().Single(f => f!["id"]!.GetValue<string>() == NewId)!.DeepClone();
+        copy["id"] = OldId;
+        copy["properties"]!["access_node_id"] = "mb_1f_n_005";
+        data["features"]!.AsArray().Add(copy);
+        return data;
+    }
+
     private async Task<string> CreateEventAsync(string title, string venue)
     {
         var draft = new JsonObject
@@ -273,11 +284,47 @@ public sealed class SpotRenameTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Rename_KeepsAVenueOnANoNewSelectionSpot()
+    {
+        var (publishedEvent, _) = await SeedAsync();
+
+        // 新規選択停止の Spot でも、改名で会場を付け替えたイベントは新たな選択ではない。
+        var spot = await GetAsync($"/api/spots/item?id={OldId}");
+        var draft = spot["draft"]!.DeepClone();
+        draft["utilization"] = "noNewSelection";
+        var saved = (await SendAsync(HttpMethod.Put, $"/api/spots/item?id={OldId}", new JsonObject
+        {
+            ["operationId"] = Guid.NewGuid().ToString(),
+            ["rowVersion"] = spot["rowVersion"]!.DeepClone(),
+            ["draft"] = draft,
+        }))!;
+        await PublishAsync(Entry("spot", OldId, saved["revisionId"]!.GetValue<string>()));
+        var map = await ImportMapAsync(RenameRoom);
+
+        var (code, _, error) = await RenameAsync(map.Version, apply: true);
+        Assert.True(code == 0, error);
+        await WithDbAsync(async db =>
+        {
+            Assert.Equal(SpotUtilization.NoNewSelection, (await db.Spots.AsNoTracking().SingleAsync(s => s.CanonicalId == NewId)).Utilization);
+            var publication = await db.Publications.AsNoTracking().SingleAsync(p => p.TargetKind == "event" && p.TargetId == publishedEvent);
+            var revision = await db.EventRevisions.AsNoTracking().SingleAsync(r => r.RevisionId == publication.RevisionId);
+            Assert.Equal(NewId, Draft(revision.Payload).Slots[0].Venues[0].CanonicalSpotId);
+            return 0;
+        });
+
+        // 改名以外で新規選択停止の Spot を新たに会場にすることは、これまでどおり止める。
+        var other = await CreateEventAsync("新しいイベント", NewId);
+        var revisionId = (await GetAsync($"/api/events/{other}"))["revisionId"]!.GetValue<string>();
+        var preview = (await SendAsync(HttpMethod.Post, "/api/releases/preview", new JsonObject { ["entries"] = new JsonArray(Entry("event", other, revisionId)) }))!;
+        Assert.Contains("venue_spot_not_selectable", preview["validation"]!["findings"]!.AsArray().Select(f => f!["code"]!.GetValue<string>()));
+    }
+
+    [Fact]
     public async Task Rename_RefusesUnsafeStartingPoints_WithoutChangingAnything()
     {
         var (publishedEvent, _) = await SeedAsync();
-        var renamedMap = await ImportMapAsync(RenameRoom);
-        var stillOld = await ImportMapAsync(data => { RenameRoom(data); var copy = data["features"]!.AsArray().Single(f => f!["id"]!.GetValue<string>() == NewId)!.DeepClone(); copy["id"] = OldId; copy["properties"]!["access_node_id"] = "mb_1f_n_005"; data["features"]!.AsArray().Add(copy); return data; });
+        var olderRenamed = await ImportMapAsync(RenameRoom);
+        var stillOld = await ImportMapAsync(StillHasOldId);
         var before = await CountsAsync();
 
         async Task Refused(string expected, Task<(int ExitCode, string Output, string Error)> run)
@@ -290,6 +337,10 @@ public sealed class SpotRenameTests : IAsyncLifetime
 
         await Refused("取り込み済みの下書きではありません", RenameAsync(99, apply: true));
         await Refused("まだ mb_1f_cl_001 があります", RenameAsync(stillOld.Version, apply: true));
+        // 地図の公開は最後に取り込んだ版だけ。それより前の版は、検証で古い版として止まる前に断る。
+        await Refused($"より新しい版 v{stillOld.Version} が取り込まれています", RenameAsync(olderRenamed.Version, apply: true));
+
+        var renamedMap = await ImportMapAsync(RenameRoom);
         await Refused("公開中ではありません", RenameAsync(renamedMap.Version, apply: true, from: "mb_ent_001"));
         await Refused("予約表にあります", RenameAsync(renamedMap.Version, apply: true, to: "old_cl_001"));
         await Refused("同じ種別", RenameAsync(renamedMap.Version, apply: true, to: "mb_1f_cl_003"));

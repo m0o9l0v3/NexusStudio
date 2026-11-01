@@ -47,5 +47,5 @@ public static class TrustedProxyConfiguration
     }
 
     internal static bool StartsWebServer(IReadOnlyList<string> args)
-        => args.Count == 0 || args[0] is not ("admin" or "reference" or "map");
+        => args.Count == 0 || args[0] is not ("admin" or "reference" or "map" or "spot");
 }
