@@ -46,6 +46,6 @@ public static class TrustedProxyConfiguration
             || octets[0] == 192 && octets[1] == 168;
     }
 
-    private static bool StartsWebServer(IReadOnlyList<string> args)
+    internal static bool StartsWebServer(IReadOnlyList<string> args)
         => args.Count == 0 || args[0] is not ("admin" or "reference");
 }

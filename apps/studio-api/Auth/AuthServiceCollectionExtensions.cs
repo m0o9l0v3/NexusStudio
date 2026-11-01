@@ -48,7 +48,7 @@ public static class AuthServiceCollectionExtensions
             options.Cookie.HttpOnly = true;
             options.Cookie.SameSite = SameSiteMode.Strict;
             options.Cookie.SecurePolicy = securePolicy;
-            // セッション期限は暫定値。認証基盤の運用方針（12 §2）が決まったら見直す。
+            // 8時間・スライド延長（決定事項30 S1、2026-11-01 利用者承認）。
             options.ExpireTimeSpan = TimeSpan.FromHours(8);
             options.SlidingExpiration = true;
             // APIなのでログイン画面へのリダイレクトはせず、状態コードだけを返す。

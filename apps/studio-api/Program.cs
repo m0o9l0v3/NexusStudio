@@ -16,6 +16,11 @@ TrustedProxyConfiguration.ConfigureForInvocation(
     builder.Environment.IsDevelopment(),
     args,
     builder.Configuration["ReverseProxy:TrustedNetwork"]);
+DataProtectionConfiguration.ConfigureForInvocation(
+    builder.Services,
+    builder.Environment.IsDevelopment(),
+    args,
+    builder.Configuration["DataProtection:KeysDirectory"]);
 
 var connectionString = StudioDatabaseConfiguration.Resolve(builder.Configuration);
 if (!builder.Environment.IsDevelopment())
