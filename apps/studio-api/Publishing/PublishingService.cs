@@ -4,6 +4,7 @@ using StudioApi.Data;
 using StudioApi.Events;
 using StudioApi.Models;
 using StudioApi.Reference;
+using StudioApi.Services.MapValidation;
 
 namespace StudioApi.Publishing;
 
@@ -52,7 +53,7 @@ public sealed record PublishOutcome(PublishOutcomeKind Kind, OperationResult? Re
 /// <summary>
 /// 公開・取り下げ（15 v01 §5.3）。公開処理の実体は1つで、取り下げも新しい Release として記録する。
 /// </summary>
-public sealed class PublishingService(StudioDbContext db, CandidateValidator validator, TimeProvider timeProvider, ILogger<PublishingService> logger)
+public sealed class PublishingService(StudioDbContext db, CandidateValidator validator, ApprovedMapSettingsSource mapSettings, TimeProvider timeProvider, ILogger<PublishingService> logger)
 {
     /// <summary>処理中のまま、この時間を過ぎた操作は完了しなかった（未反映）とみなす。公開はトランザクション内で行うため、途中で止まれば何も反映されない。</summary>
     public static readonly TimeSpan AbandonedAfter = TimeSpan.FromMinutes(2);
@@ -69,7 +70,7 @@ public sealed class PublishingService(StudioDbContext db, CandidateValidator val
             CreatedAt = timeProvider.GetUtcNow(),
             CreatedBy = adminId,
             Entries = JsonSerializer.Serialize(entries, EventDraftRules.JsonOptions),
-            Fingerprint = candidate.Fingerprint,
+            Fingerprint = FingerprintOf(candidate),
         };
 
         IReadOnlyList<ValidationFinding> findings;
@@ -188,7 +189,8 @@ public sealed class PublishingService(StudioDbContext db, CandidateValidator val
         logRow.TargetLabel = TargetLabel(candidate);
 
         // 確認した後に対象や関連する公開データが変わっていれば、古い確認結果で公開しない（11 RA-04、07 E06）。
-        if (status != ValidationRunStatus.Ok || candidate.Fingerprint != confirmed.Fingerprint || findings.Any(f => f.Severity == FindingSeverity.Blocking))
+        var fingerprint = FingerprintOf(candidate);
+        if (status != ValidationRunStatus.Ok || fingerprint != confirmed.Fingerprint || findings.Any(f => f.Severity == FindingSeverity.Blocking))
         {
             var run = new ValidationRun
             {
@@ -196,13 +198,13 @@ public sealed class PublishingService(StudioDbContext db, CandidateValidator val
                 CreatedAt = timeProvider.GetUtcNow(),
                 CreatedBy = adminId,
                 Entries = JsonSerializer.Serialize(entries, EventDraftRules.JsonOptions),
-                Fingerprint = candidate.Fingerprint,
+                Fingerprint = fingerprint,
                 Status = status,
                 Findings = JsonSerializer.Serialize(findings, EventDraftRules.JsonOptions),
             };
             db.ValidationRuns.Add(run);
             // 確認後に変わっていれば、新しい所見に公開阻止があっても「再確認」として返す（確認した内容と違うことを先に伝える）。
-            var recheck = status == ValidationRunStatus.Ok && candidate.Fingerprint != confirmed.Fingerprint;
+            var recheck = status == ValidationRunStatus.Ok && fingerprint != confirmed.Fingerprint;
             logRow.Status = OperationStatus.Failed;
             logRow.FinishedAt = timeProvider.GetUtcNow();
             logRow.Detail = status != ValidationRunStatus.Ok
@@ -240,7 +242,7 @@ public sealed class PublishingService(StudioDbContext db, CandidateValidator val
             else if (restore)
             {
                 // 未公開の下書きがあれば退避してから、過去の版の内容を新しい下書きの版として写し、それを公開する（11 RL-12、28 S4-5）。
-                stashed = item.CurrentRevisionId != publication?.RevisionId ? item.CurrentRevisionId : null;
+                stashed = item.Entry.TargetKind != PublishTargetKind.Map && item.CurrentRevisionId != publication?.RevisionId ? item.CurrentRevisionId : null;
                 revisionId = await ApplyRestoreAsync(item, adminId, now);
             }
             else
@@ -260,6 +262,11 @@ public sealed class PublishingService(StudioDbContext db, CandidateValidator val
                 StashedRevisionId = stashed,
             });
 
+            if (item.Entry.TargetKind == PublishTargetKind.Map)
+            {
+                await MarkMapDatasetsAsync(publication?.State == PublicationRowState.Published ? publication.RevisionId : null, withdraw ? null : revisionId, now);
+            }
+
             if (publication is null)
             {
                 db.Publications.Add(publication = new Publication { TargetKind = item.Entry.TargetKind, TargetId = item.Entry.TargetId });
@@ -274,9 +281,14 @@ public sealed class PublishingService(StudioDbContext db, CandidateValidator val
         db.Releases.Add(release);
 
         // 公開した ID を予約表に登録する（E2-5 §5.5。公開と同じトランザクション）。
+        // 地図はフロアと Feature の ID を、それぞれの種別で登録する（feature_type が予約表の種別。E2-5 §5.5）。
+        var publishedMaps = candidate.Items
+            .Where(i => i.Entry.TargetKind == PublishTargetKind.Map && i.Entry.Action != ReleaseAction.Withdraw && i.CandidatePayload is MapDataset)
+            .Select(i => MapFeatureIndex.Parse(((MapDataset)i.CandidatePayload!).Payload))
+            .SelectMany(index => index.Floors.Keys.Select(id => (id, IdEntityKind.Floor)).Concat(index.Features.Select(f => (f.Key, f.Value))));
         new IdReservationLedger(db, candidate.Reservations, timeProvider).RegisterPublished(
-            candidate.Items.Where(i => i.Entry.TargetKind == PublishTargetKind.Spot && i.Entry.Action != ReleaseAction.Withdraw)
-                .Select(i => (i.Entry.TargetId, IdEntityKind.Spot)),
+            publishedMaps.Concat(candidate.Items.Where(i => i.Entry.TargetKind == PublishTargetKind.Spot && i.Entry.Action != ReleaseAction.Withdraw)
+                .Select(i => (i.Entry.TargetId, IdEntityKind.Spot))),
             release.ReleaseId);
         logRow.Status = OperationStatus.Succeeded;
         logRow.FinishedAt = now;
@@ -291,6 +303,20 @@ public sealed class PublishingService(StudioDbContext db, CandidateValidator val
         await db.SaveChangesAsync();
         await transaction.CommitAsync();
         return new(PublishOutcomeKind.Done, await ToResultAsync(logRow));
+    }
+
+    /// <summary>
+    /// 確認と公開の照合に使う値。地図を公開・復旧する候補では、承認済み設定のファイルの SHA-256 も含め、
+    /// 確認後に設定が変わったら再確認を求める（決定事項31 D3）。読めない設定は検証が失敗として扱う。
+    /// </summary>
+    private string FingerprintOf(PublishCandidate candidate)
+    {
+        if (!candidate.Items.Any(i => i.Entry.TargetKind == PublishTargetKind.Map && i.Entry.Action != ReleaseAction.Withdraw))
+        {
+            return candidate.Fingerprint;
+        }
+
+        return $"{candidate.Fingerprint}|map-settings:{mapSettings.Fingerprint()}";
     }
 
     /// <summary>復旧：過去の版の内容を現在の下書きへ反映し、新しい版を作る。返すのは新しい版のID。</summary>
@@ -371,8 +397,29 @@ public sealed class PublishingService(StudioDbContext db, CandidateValidator val
                     ReferenceRevisionKind.Spot, id, draft, adminId, now, ReferenceRevisionSource.Restore, null)).RevisionId;
             }
 
+            case MapDataset dataset:
+                // 地図の版は取り込んだまま変えないため、過去の版をそのまま公開し直す（新しい版を作らない）。
+                return dataset.Id;
+
             default:
                 throw new InvalidOperationException($"復旧できない対象です: {item.Entry.TargetKind}");
+        }
+    }
+
+    /// <summary>地図の版の状態（published／archived）を、公開の切り替えに合わせる。公開中の版は1つだけ。</summary>
+    private async Task MarkMapDatasetsAsync(Guid? previous, Guid? next, DateTimeOffset now)
+    {
+        if (previous is { } old && old != next)
+        {
+            var dataset = await db.MapDatasets.SingleAsync(m => m.Id == old);
+            dataset.Status = MapDatasetStatus.Archived;
+        }
+
+        if (next is { } id)
+        {
+            var dataset = await db.MapDatasets.SingleAsync(m => m.Id == id);
+            dataset.Status = MapDatasetStatus.Published;
+            dataset.PublishedAt = now;
         }
     }
 

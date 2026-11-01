@@ -78,6 +78,7 @@ public sealed class MapImportTests : IAsyncLifetime
         var evidence = MapDatasetEvidence.Parse(dataset.ValidationEvidence!);
         Assert.Equal(13, evidence.ExpectedPathSeconds["mb_1f_e_001"]);
         Assert.Equal(1, evidence.FloorTransforms["mb_1f"].FitRmsMetres);
+        Assert.Contains($"/map-data/publish?revision={dataset.Id}", output);
     }
 
     [Fact]

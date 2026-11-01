@@ -26,7 +26,9 @@ NexusStudio #11。Studio は地図（MapDataset）を公開する前に、nexus-
 
 形式の誤り（未知の項目、数を文字列で書く、`approved` なのに承認者・日付が無い）は読み込み時に失敗する。値の妥当性（Polygon の形、範囲、0以上）は検証器が調べ、`invalid_validation_context` で公開を止める。`approved` にしても一部の値が null なら、その項目は `missing_validation_context` のまま。
 
-ファイルの SHA-256 を公開の確認と結び付け、確認後に設定が変わったら再確認を求める（地図の公開対象の PR で実装）。
+API はこのファイルを設定キー `MapValidation:ApprovedSettingsFile`（環境変数 `MapValidation__ApprovedSettingsFile`）のパスから、地図の公開確認・公開のたびに読む。既定のパスは無く、未設定なら値が無いものとして `missing_validation_context` で止まる。読めない・形式が違うファイルは検証の失敗として扱い、合格にしない。
+
+地図を公開・復旧する確認では、ファイルの SHA-256 を確認結果と結び付ける。確認した後にファイルが変われば（値が同じでも）、公開時に再確認を求める。
 
 ## B. 地図の版ごとの根拠（取り込み時に渡す）
 
@@ -53,4 +55,15 @@ dotnet run -- map import --file <GeoJSON> --evidence <根拠の JSON>   # --evid
 }
 ```
 
-2つの項目と、各フロアの5つの値はすべて必須。未知の項目・数を文字列で書いたもの・地図に無い経路やフロアの ID は取り込みで拒否する。値が地図と一致するか・上限内かは公開判定で調べる。取り込みは下書きの版を作るだけで、公開は Releases の操作で行う。
+2つの項目と、各フロアの5つの値はすべて必須。未知の項目・数を文字列で書いたもの・地図に無い経路やフロアの ID は取り込みで拒否する。値が地図と一致するか・上限内かは公開判定で調べる。
+
+## C. 公開
+
+取り込みは下書きの版を作るだけで、公開しない。取り込みが表示する `公開確認: /map-data/publish?revision=<版のID>` を Studio で開き、公開確認（R01 の形）で検証の結果と版の要約（版・SHA-256・サイズ・フロア数・地図要素の数）を確かめて公開する。公開の記録・取り下げ・過去の版への復旧は Releases で行う（対象の種類 `map`、対象 ID は `map`）。
+
+公開判定は `MapDatasetValidator` の公開モードで、A の承認済み設定・B の根拠に加えて、公開後の Spot（地図の目的地 Feature と同じ ID でなければならない）、Spot の旧 ID（alias）、ID 予約表を渡す。検証器の結果は `map_` を付けたコードの公開阻止になる（例：`map_missing_validation_context`）。
+
+- 公開すると、地図のフロアと Feature の ID を ID 予約表にそれぞれの種別で登録し、版の状態を `published` にする（それまで公開していた版は `archived`）。
+- 公開中の Spot が使っている地図は取り下げられない（`map_in_use`）。公開中の Spot の目的地が無い版も公開できない（`map_undefined_navigation_id`）。
+- 地図が公開されていないと Spot を公開できない（`spot_map_unpublished`）。Spot の ID は公開中の地図の目的地（`building`・`formal_entrance`・`room`・`landmark`）でなければならない（`undefined_spot_canonical_id`・`spot_not_destination_feature`）。
+- 復旧は過去に公開した版をそのまま公開し直す。地図の版は変えないため、新しい版も退避も作らない。

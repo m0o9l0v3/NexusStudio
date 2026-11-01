@@ -10,6 +10,8 @@ using StudioApi.Auth;
 using StudioApi.Data;
 using StudioApi.Models;
 using StudioApi.Publishing;
+using MapDatasetValidator = StudioApi.Services.MapValidation.MapDatasetValidator;
+using ApprovedMapSettingsSource = StudioApi.Services.MapValidation.ApprovedMapSettingsSource;
 
 namespace StudioApi.Tests;
 
@@ -35,7 +37,7 @@ public sealed class PublishingTests : IAsyncLifetime
         public override DateTimeOffset GetUtcNow() => Now;
     }
 
-    private sealed class FailingValidator(TimeProvider time) : CandidateValidator(time)
+    private sealed class FailingValidator(TimeProvider time, MapDatasetValidator mapValidator, ApprovedMapSettingsSource mapSettings) : CandidateValidator(time, mapValidator, mapSettings)
     {
         public override IReadOnlyList<ValidationFinding> Validate(PublishCandidate candidate) => throw new InvalidOperationException("検証サービスの障害（試験）");
     }
@@ -171,6 +173,35 @@ public sealed class PublishingTests : IAsyncLifetime
         Assert.DoesNotContain("spot_description_pending_supply", Codes(clean, "warning"));
     }
 
+    /// <summary>
+    /// Spot の公開に必要な公開中の地図を、検証を通さずに用意する（参照データの取り込みと同じ扱い。決定事項31 D2）。
+    /// フィクスチャの部屋を複製して、サンプルの Spot と同じ ID の目的地を足す。
+    /// </summary>
+    internal static async Task SeedPublishedMapAsync(StudioApiFactory factory, params string[] rooms)
+    {
+        var data = JsonNode.Parse(MapImportTests.FixturePayload)!.AsObject();
+        var features = data["features"]!.AsArray();
+        var template = features.Single(f => f!["id"]!.GetValue<string>() == "mb_1f_cl_001")!;
+        foreach (var room in rooms)
+        {
+            var copy = template.DeepClone();
+            copy["id"] = room;
+            features.Add(copy);
+        }
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<StudioDbContext>();
+        var now = DateTimeOffset.UtcNow;
+        var payload = data.ToJsonString();
+        var dataset = new MapDataset { Version = 1, Status = MapDatasetStatus.Published, Payload = payload, Checksum = Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(payload))), PublishedAt = now };
+        var release = new Release { ReleaseId = Guid.CreateVersion7(), Sequence = (await db.Releases.MaxAsync(r => (long?)r.Sequence) ?? 0) + 1, CreatedAt = now, Source = ReleaseSource.Import, Message = "試験用の地図" };
+        release.Entries.Add(new ReleaseEntry { TargetKind = PublishTargetKind.Map, TargetId = PublishTargetKind.Map, Action = ReleaseAction.Publish, RevisionId = dataset.Id, Label = "地図 v1" });
+        db.MapDatasets.Add(dataset);
+        db.Releases.Add(release);
+        db.Publications.Add(new Publication { TargetKind = PublishTargetKind.Map, TargetId = PublishTargetKind.Map, RevisionId = dataset.Id, ReleaseId = release.ReleaseId, UpdatedAt = now });
+        await db.SaveChangesAsync();
+    }
+
     private async Task<List<IdReservation>> ReservationsAsync()
     {
         await using var scope = _root.Services.CreateAsyncScope();
@@ -180,6 +211,7 @@ public sealed class PublishingTests : IAsyncLifetime
     [Fact]
     public async Task PublishingSpot_RegistersIdOnceAndWithdrawDoesNotRetire()
     {
+        await SeedPublishedMapAsync(_root, "mb_2f_cl_001", "mb_2f_cl_002");
         var spot = await GetJsonAsync("/api/spots/item?id=mb_2f_cl_002");
         var published = await PreviewAndPublishAsync(Entry("spot", "mb_2f_cl_002", revisionId: spot["revisionId"]!.GetValue<string>()));
 
@@ -191,6 +223,32 @@ public sealed class PublishingTests : IAsyncLifetime
         await PreviewAndPublishAsync(Entry("spot", "mb_2f_cl_002", "withdraw"));
         await PreviewAndPublishAsync(Entry("spot", "mb_2f_cl_002", "restore", spot["revisionId"]!.GetValue<string>()));
         Assert.Single(await ReservationsAsync());
+    }
+
+    [Fact]
+    public async Task PublishingSpot_RequiresAPublishedMapThatHasTheDestination()
+    {
+        var spot = await GetJsonAsync("/api/spots/item?id=mb_2f_cl_002");
+        JsonObject Publish() => Entry("spot", "mb_2f_cl_002", revisionId: spot["revisionId"]!.GetValue<string>());
+        Assert.Contains("spot_map_unpublished", Codes(await PreviewAsync(Publish())));
+
+        await SeedPublishedMapAsync(_root, "mb_2f_cl_001");
+        Assert.Contains("undefined_spot_canonical_id", Codes(await PreviewAsync(Publish())));
+    }
+
+    [Fact]
+    public async Task PublishingSpot_RejectsANonDestinationMapFeature()
+    {
+        await SeedPublishedMapAsync(_root);
+        var spot = await GetJsonAsync("/api/spots/item?id=mb_2f_cl_002");
+        await WithDbAsync(async db =>
+        {
+            var map = await db.MapDatasets.SingleAsync();
+            map.Payload = map.Payload.Replace("\"mb_1f_n_004\"", "\"mb_2f_cl_002\"", StringComparison.Ordinal);
+            return await db.SaveChangesAsync();
+        });
+
+        Assert.Contains("spot_not_destination_feature", Codes(await PreviewAsync(Entry("spot", "mb_2f_cl_002", revisionId: spot["revisionId"]!.GetValue<string>()))));
     }
 
     [Theory]
@@ -328,6 +386,7 @@ public sealed class PublishingTests : IAsyncLifetime
     [Fact]
     public async Task RelatedPublicationChangedAfterConfirmation_RequiresARecheck()
     {
+        await SeedPublishedMapAsync(_root, "mb_2f_cl_001", "mb_2f_cl_002");
         await PublishReferencesAsync();
         var (id, revision) = await CreateEventAsync();
         var preview = await PreviewAsync(Entry("event", id, revisionId: revision));
@@ -516,6 +575,7 @@ public sealed class PublishingTests : IAsyncLifetime
     [Fact]
     public async Task Restore_Spot_RestoresKindAndDescriptionIntoTheDraft()
     {
+        await SeedPublishedMapAsync(_root, "mb_2f_cl_001", "mb_2f_cl_002");
         async Task<(string RevisionId, JsonNode Draft)> SaveSpotAsync(Action<JsonNode> change)
         {
             var detail = await GetJsonAsync("/api/spots/item?id=mb_2f_cl_002");

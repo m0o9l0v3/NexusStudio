@@ -277,7 +277,7 @@ public sealed class StudioDbContext(DbContextOptions<StudioDbContext> options)
 
     private static void ConfigurePublishing(ModelBuilder modelBuilder)
     {
-        const string targetKinds = "'event', 'occurrence', 'categories', 'spot'";
+        const string targetKinds = "'event', 'occurrence', 'categories', 'spot', 'map'";
 
         modelBuilder.Entity<Release>(entity =>
         {

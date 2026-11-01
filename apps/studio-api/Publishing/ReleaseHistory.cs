@@ -10,7 +10,7 @@ namespace StudioApi.Publishing;
 public sealed record ReleasePage(IReadOnlyList<ReleaseSummary> Items, long? NextBefore);
 
 /// <summary>対象の内容の比較（公開中／公開候補にあたる2つ）。種類に応じて1つだけが入る。</summary>
-public sealed record PayloadSides(EventSides? Event, OccurrenceSides? Occurrence, CategorySides? Categories, SpotSides? Spot);
+public sealed record PayloadSides(EventSides? Event, OccurrenceSides? Occurrence, CategorySides? Categories, SpotSides? Spot, MapSides? Map);
 
 /// <summary>Release に含まれる対象1件の詳細（11 RL-09）。</summary>
 /// <param name="Changes">直前の公開版 → この Release で公開した版。取り下げでは空。</param>
@@ -88,7 +88,7 @@ public static class ReleaseHistory
             var current = currentRevisions.GetValueOrDefault((entry.TargetKind, entry.TargetId));
             var withdraw = entry.Action == ReleaseAction.Withdraw;
             var changes = withdraw
-                ? new PayloadSides(null, null, null, null)
+                ? new PayloadSides(null, null, null, null, null)
                 : await SidesAsync(db, entry, entry.PreviousRevisionId, entry.RevisionId);
             var stash = entry.StashedRevisionId is { } stashed ? await SidesAsync(db, entry, stashed, entry.RevisionId) : null;
             var isCurrent = row is { State: PublicationRowState.Published } && row.ReleaseId == release.ReleaseId;
@@ -122,12 +122,17 @@ public static class ReleaseHistory
         var to = await PublishCandidate.LoadPayloadAsync(db, entry.TargetKind, entry.TargetId, toRevision);
         return entry.TargetKind switch
         {
-            PublishTargetKind.Event => new PayloadSides(new EventSides(from as EventDraft, to as EventDraft), null, null, null),
-            PublishTargetKind.Occurrence => new PayloadSides(null, new OccurrenceSides(from as OccurrenceDraft, to as OccurrenceDraft), null, null),
-            PublishTargetKind.Categories => new PayloadSides(null, null, new CategorySides(from as List<CategoryDraft>, to as List<CategoryDraft>), null),
-            _ => new PayloadSides(null, null, null, new SpotSides(from as SpotDraft, to as SpotDraft)),
+            PublishTargetKind.Event => new PayloadSides(new EventSides(from as EventDraft, to as EventDraft), null, null, null, null),
+            PublishTargetKind.Occurrence => new PayloadSides(null, new OccurrenceSides(from as OccurrenceDraft, to as OccurrenceDraft), null, null, null),
+            PublishTargetKind.Categories => new PayloadSides(null, null, new CategorySides(from as List<CategoryDraft>, to as List<CategoryDraft>), null, null),
+            PublishTargetKind.Map => new PayloadSides(null, null, null, null, new MapSides(MapVersion.Of(from as MapDataset), MapVersion.Of(to as MapDataset))),
+            _ => new PayloadSides(null, null, null, new SpotSides(from as SpotDraft, to as SpotDraft), null),
         };
     }
+
+    /// <summary>地図の「現在の下書き」にあたる、最後に取り込んだ版。</summary>
+    internal static async Task<Guid?> LatestMapAsync(StudioDbContext db)
+        => await db.MapDatasets.AsNoTracking().OrderByDescending(m => m.Version).Select(m => (Guid?)m.Id).FirstOrDefaultAsync();
 
     /// <summary>対象ごとの現在の下書きの版（公開状態の算出に使う）。</summary>
     private static async Task<Dictionary<(string, string), Guid?>> CurrentRevisionsAsync(StudioDbContext db, IReadOnlyList<ReleaseEntrySummary> entries)
@@ -144,6 +149,7 @@ public static class ReleaseHistory
                 PublishTargetKind.Categories => (await db.CategoryListStates.AsNoTracking().SingleAsync()).CurrentRevisionId,
                 PublishTargetKind.Spot => (await db.Spots.AsNoTracking().Where(s => s.CanonicalId == entry.TargetId).ToListAsync())
                     .SingleOrDefault(s => string.Equals(s.CanonicalId, entry.TargetId, StringComparison.Ordinal))?.CurrentRevisionId,
+                PublishTargetKind.Map => await LatestMapAsync(db),
                 _ => null,
             };
             result[(entry.TargetKind, entry.TargetId)] = current;

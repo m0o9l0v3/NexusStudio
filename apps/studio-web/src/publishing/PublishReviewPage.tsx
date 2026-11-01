@@ -22,7 +22,7 @@ import { ValidationPanel } from './ValidationPanel'
 
 type Target = { kind: TargetKind; id: string; action: PublishAction; revisionId: string | null; label: string }
 
-const areaLabels: Record<TargetKind, string> = { event: 'Events', occurrence: 'Open Campus', categories: 'Events / カテゴリ', spot: 'Spots' }
+const areaLabels: Record<TargetKind, string> = { event: 'Events', occurrence: 'Open Campus', categories: 'Events / カテゴリ', spot: 'Spots', map: 'Map Data' }
 
 /**
  * 公開確認（Figma R01 `19:2`）と公開結果（R02〜R05）。イベント・開催回・カテゴリ一覧・Spotで共通に使う。
@@ -31,11 +31,13 @@ const areaLabels: Record<TargetKind, string> = { event: 'Events', occurrence: 'O
 export function PublishReviewPage({ kind }: { kind: TargetKind }) {
   const params = useParams()
   const [search] = useSearchParams()
-  const id = kind === 'categories' ? 'categories' : kind === 'spot' ? (search.get('id') ?? '') : (params.id ?? '')
+  const id = kind === 'categories' || kind === 'map' ? kind : kind === 'spot' ? (search.get('id') ?? '') : (params.id ?? '')
   const requested = search.get('action')
   const action: PublishAction = requested === 'withdraw' || requested === 'restore' ? requested : 'publish'
   // 復旧では戻す過去の版。公開では画面を開いた時点の現在の版。
   const restoreRevision = action === 'restore' ? search.get('revision') : null
+  // 地図の公開では、公開する版（取り込んだ版）を URL で受け取る（地図には編集中の下書きが無い。決定事項31 D1）。
+  const mapRevision = kind === 'map' && action === 'publish' ? search.get('revision') : null
 
   // 公開の画面にいる間は、対象の読み込み中・取得失敗でも公開向けの文言で期限切れを案内する（L05 の「保存してください」を出さない）。
   // 結果を待つ間の L07 は PublishFlow が上書きする。子の effect が先に走り、片付けも子が先なので、画面を離れたときだけ既定に戻る。
@@ -47,7 +49,7 @@ export function PublishReviewPage({ kind }: { kind: TargetKind }) {
 
   // 公開するのは保存済みの現在の版。確認画面を開いた時点の版に固定する（11 §5）。
   const target = useQuery({
-    queryKey: ['publish-target', kind, id],
+    queryKey: ['publish-target', kind, id, mapRevision],
     queryFn: async (): Promise<Omit<Target, 'action'>> => {
       switch (kind) {
         case 'event': {
@@ -62,6 +64,9 @@ export function PublishReviewPage({ kind }: { kind: TargetKind }) {
           const detail = await getCategories()
           return { kind, id, revisionId: detail.revisionId, label: 'カテゴリ一覧' }
         }
+        case 'map':
+          // 版の名前（地図 vN）は公開確認の応答の対象名で示す。
+          return { kind, id, revisionId: mapRevision, label: '地図' }
         default: {
           const detail = await getSpot(id)
           return { kind, id, revisionId: detail.revisionId, label: detail.draft.name?.trim() || id }
@@ -75,13 +80,15 @@ export function PublishReviewPage({ kind }: { kind: TargetKind }) {
     retry: false,
   })
 
-  if (action === 'restore' && !restoreRevision) {
+  if ((action === 'restore' && !restoreRevision) || (kind === 'map' && action === 'publish' && !mapRevision)) {
     return (
       <>
-        <Toolbar title={`${areaLabels[kind]} / 復旧確認`} />
+        <Toolbar title={`${areaLabels[kind]} / ${action === 'restore' ? '復旧確認' : '公開確認'}`} />
         <main className="min-h-0 flex-1 overflow-auto px-6 pt-[22px] pb-10">
           <NoticeBanner tone="blocking" className="w-[784px] max-w-full">
-            戻す版が指定されていません。Releases の履歴から［この版に戻す］を選び直してください。
+            {action === 'restore'
+              ? '戻す版が指定されていません。Releases の履歴から［この版に戻す］を選び直してください。'
+              : '公開する地図の版が指定されていません。地図を取り込んだときに表示された公開確認の URL から開いてください。'}
           </NoticeBanner>
         </main>
       </>
@@ -91,7 +98,7 @@ export function PublishReviewPage({ kind }: { kind: TargetKind }) {
   if (target.data)
     return (
       <PublishFlow
-        key={`${kind}:${id}:${action}:${restoreRevision ?? ''}`}
+        key={`${kind}:${id}:${action}:${restoreRevision ?? ''}:${mapRevision ?? ''}`}
         target={{ ...target.data, action, revisionId: restoreRevision ?? target.data.revisionId }}
       />
     )
@@ -334,6 +341,7 @@ const returnTo: Record<TargetKind, (id: string) => { path: string; label: string
   occurrence: () => ({ path: '/open-campus', label: 'Open Campusへ戻る' }),
   categories: () => ({ path: '/events/categories', label: 'カテゴリへ戻る' }),
   spot: (id) => ({ path: `/spots?id=${encodeURIComponent(id)}`, label: 'Spotsへ戻る' }),
+  map: () => ({ path: '/releases?targetKind=map', label: 'Releasesへ戻る' }),
 }
 
 const dateTime = new Intl.DateTimeFormat('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Tokyo' })

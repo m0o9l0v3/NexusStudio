@@ -63,6 +63,7 @@ export function ReleasesPage() {
               <option value="occurrence">対象：開催回</option>
               <option value="categories">対象：カテゴリ一覧</option>
               <option value="spot">対象：Spot</option>
+              <option value="map">対象：地図</option>
             </FilterChip>
             <FilterChip label="操作" value={action} onChange={(value) => update('action', value)}>
               <option value="">操作：すべて</option>
