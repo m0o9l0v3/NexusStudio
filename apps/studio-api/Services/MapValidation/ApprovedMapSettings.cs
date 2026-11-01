@@ -19,6 +19,8 @@ public sealed record ApprovedMapSettings
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow,
         ReadCommentHandling = JsonCommentHandling.Disallow,
+        // enuOrigin の経度・緯度の書き忘れを 0 にしない（0 は実在する座標として検証を通ってしまう）。
+        RespectRequiredConstructorParameters = true,
     };
 
     /// <summary>draft／approved。</summary>

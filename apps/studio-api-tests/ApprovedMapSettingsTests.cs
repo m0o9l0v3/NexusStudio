@@ -80,6 +80,9 @@ public sealed class ApprovedMapSettingsTests : IDisposable
     [InlineData("\"status\": \"approved\",", "\"status\": \"reviewed\",")]
     [InlineData("\"startNodeIds\"", "\"startNodes\"")]
     [InlineData("\"entranceMaxGapMetres\": 1.5", "\"entranceMaxGapMetres\": \"1.5\"")]
+    [InlineData("{ \"longitude\": 0.5, \"latitude\": 0.5 }", "{}")]
+    [InlineData("{ \"longitude\": 0.5, \"latitude\": 0.5 }", "{ \"longitude\": 0.5 }")]
+    [InlineData("{ \"longitude\": 0.5, \"latitude\": 0.5 }", "{ \"latitude\": 0.5 }")]
     public void RejectsIncompleteApprovalUnknownFieldsAndWrongTypes(string from, string to)
         => Assert.Throws<InvalidOperationException>(() => ApprovedMapSettings.Load(Write(ApprovedJson.Replace(from, to))));
 
