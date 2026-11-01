@@ -10,10 +10,10 @@ using StudioApi.Reference;
 namespace StudioApi.Publishing;
 
 /// <summary>公開・取り下げの対象1件。</summary>
-/// <param name="TargetKind">event／occurrence／categories／spot。</param>
-/// <param name="TargetId">イベントID・開催回ID・canonical ID。カテゴリ一覧は "categories"。</param>
+/// <param name="TargetKind">event／occurrence／categories／spot／map。</param>
+/// <param name="TargetId">イベントID・開催回ID・canonical ID。カテゴリ一覧は "categories"、地図は "map"（29 M1-D5）。</param>
 /// <param name="Action">publish／withdraw／restore。</param>
-/// <param name="RevisionId">公開する版（確認した保存版）。復旧では戻す過去の版。取り下げでは指定しない。</param>
+/// <param name="RevisionId">公開する版（確認した保存版）。地図では取り込んだ版（map_datasets の行）のID。復旧では戻す過去の版。取り下げでは指定しない。</param>
 public sealed record PublishEntry(string TargetKind, string TargetId, string Action, Guid? RevisionId);
 
 /// <summary>公開データ一式（ある時点の公開版、または公開後の候補）。</summary>
@@ -23,10 +23,12 @@ public sealed class PublishedSet
     public Dictionary<Guid, (Guid RevisionId, OccurrenceDraft Draft)> Occurrences { get; } = [];
     public (Guid RevisionId, IReadOnlyList<CategoryDraft> Items)? Categories { get; set; }
     public Dictionary<string, (Guid RevisionId, SpotDraft Draft)> Spots { get; } = new(StringComparer.Ordinal);
+    /// <summary>公開中の地図（版は map_datasets の行。公開中は1件だけ）。</summary>
+    public (Guid RevisionId, MapDataset Dataset)? Map { get; set; }
 
     public PublishedSet Clone()
     {
-        var copy = new PublishedSet { Categories = Categories };
+        var copy = new PublishedSet { Categories = Categories, Map = Map };
         foreach (var pair in Events) copy.Events[pair.Key] = pair.Value;
         foreach (var pair in Occurrences) copy.Occurrences[pair.Key] = pair.Value;
         foreach (var pair in Spots) copy.Spots[pair.Key] = pair.Value;
@@ -237,6 +239,7 @@ public sealed class PublishCandidate
             PublishTargetKind.Spot => spotRows.TryGetValue(entry.TargetId, out var spot)
                 ? (true, spot.CurrentRevisionId, SpotLabel(spot.Name, spot.CanonicalId))
                 : (false, null, entry.TargetId),
+            PublishTargetKind.Map => await MapStateAsync(db, entry.TargetId),
             _ => (false, null, entry.TargetId),
         };
 
@@ -258,6 +261,19 @@ public sealed class PublishCandidate
         return row is null ? (false, null, id) : (true, row.CurrentRevisionId, EventLabel(Deserialize<EventDraft>(row.Payload).Title));
     }
 
+    /// <summary>地図の「現在の下書き」は最後に取り込んだ版（地図は下書きを編集しない。決定事項31 D1）。</summary>
+    private static async Task<(bool, Guid?, string)> MapStateAsync(StudioDbContext db, string id)
+    {
+        if (id != PublishTargetKind.Map)
+        {
+            return (false, null, id);
+        }
+
+        var latest = await db.MapDatasets.AsNoTracking().OrderByDescending(m => m.Version)
+            .Select(m => new { m.Id, m.Version }).FirstOrDefaultAsync();
+        return latest is null ? (false, null, MapLabel(null)) : (true, latest.Id, MapLabel(latest.Version));
+    }
+
     private static async Task<(bool, Guid?, string)> OccurrenceStateAsync(StudioDbContext db, string id)
     {
         if (!Guid.TryParse(id, out var occurrenceId))
@@ -275,10 +291,16 @@ public sealed class PublishCandidate
         var set = new PublishedSet();
         var eventRevisionIds = rows.Where(r => r.TargetKind == PublishTargetKind.Event).Select(r => r.RevisionId).ToList();
         var eventPayloads = await db.EventRevisions.AsNoTracking().Where(r => eventRevisionIds.Contains(r.RevisionId)).ToDictionaryAsync(r => r.RevisionId, r => r.Payload);
-        var referenceRevisionIds = rows.Where(r => r.TargetKind != PublishTargetKind.Event).Select(r => r.RevisionId).ToList();
+        var referenceRevisionIds = rows.Where(r => r.TargetKind is not (PublishTargetKind.Event or PublishTargetKind.Map)).Select(r => r.RevisionId).ToList();
         var referencePayloads = await db.ReferenceRevisions.AsNoTracking().Where(r => referenceRevisionIds.Contains(r.RevisionId)).ToDictionaryAsync(r => r.RevisionId, r => r.Payload);
 
-        foreach (var row in rows)
+        foreach (var row in rows.Where(r => r.TargetKind == PublishTargetKind.Map))
+        {
+            set.Map = (row.RevisionId, await db.MapDatasets.AsNoTracking().SingleOrDefaultAsync(m => m.Id == row.RevisionId)
+                ?? throw new InvalidOperationException($"公開中の地図の版 {row.RevisionId} を読み込めません。"));
+        }
+
+        foreach (var row in rows.Where(r => r.TargetKind != PublishTargetKind.Map))
         {
             var payload = row.TargetKind == PublishTargetKind.Event ? eventPayloads.GetValueOrDefault(row.RevisionId) : referencePayloads.GetValueOrDefault(row.RevisionId);
             if (payload is null)
@@ -299,6 +321,11 @@ public sealed class PublishCandidate
         {
             var revision = await db.EventRevisions.AsNoTracking().SingleOrDefaultAsync(r => r.RevisionId == revisionId);
             return revision is null || revision.EventId.ToString() != targetId ? null : Deserialize<EventDraft>(revision.Payload);
+        }
+
+        if (kind == PublishTargetKind.Map)
+        {
+            return targetId == PublishTargetKind.Map ? await db.MapDatasets.AsNoTracking().SingleOrDefaultAsync(m => m.Id == revisionId) : null;
         }
 
         var reference = await db.ReferenceRevisions.AsNoTracking().SingleOrDefaultAsync(r => r.RevisionId == revisionId && r.Kind == kind);
@@ -330,6 +357,9 @@ public sealed class PublishCandidate
             case SpotDraft draft:
                 set.Spots[entry.TargetId] = (revisionId, draft);
                 break;
+            case MapDataset dataset:
+                set.Map = (revisionId, dataset);
+                break;
         }
     }
 
@@ -349,6 +379,9 @@ public sealed class PublishCandidate
             case PublishTargetKind.Spot:
                 set.Spots.Remove(entry.TargetId);
                 break;
+            case PublishTargetKind.Map:
+                set.Map = null;
+                break;
         }
     }
 
@@ -357,12 +390,15 @@ public sealed class PublishCandidate
         EventDraft draft => EventLabel(draft.Title),
         OccurrenceDraft draft => OccurrenceLabel(draft.Name),
         SpotDraft draft => SpotLabel(draft.Name, id),
+        MapDataset dataset => MapLabel(dataset.Version),
         _ => kind == PublishTargetKind.Categories ? "カテゴリ一覧" : id,
     };
 
     public static string EventLabel(string? title) => string.IsNullOrWhiteSpace(title) ? "無題のイベント" : title.Trim();
 
     public static string OccurrenceLabel(string? name) => string.IsNullOrWhiteSpace(name) ? "無題の開催回" : name.Trim();
+
+    public static string MapLabel(long? version) => version is { } v ? $"地図 v{v}" : "地図";
 
     public static string SpotLabel(string? name, string canonicalId) => string.IsNullOrWhiteSpace(name) ? canonicalId : name.Trim();
 

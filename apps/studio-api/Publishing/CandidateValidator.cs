@@ -1,6 +1,8 @@
 using StudioApi.Events;
 using StudioApi.Models;
 using StudioApi.Reference;
+using StudioApi.Services.MapValidation;
+using MapFinding = StudioApi.Services.MapValidation.ValidationFinding;
 
 namespace StudioApi.Publishing;
 
@@ -29,8 +31,11 @@ public static class FindingSeverity
 /// 選んでいない下書きの問題は見ない（RA-01）。検証処理が例外で終わった場合は呼び出し側が「検証失敗」として扱い、合格にしない（RA-07）。
 /// テストで検証処理の失敗を再現できるよう、中身は仮想メソッドにしている。
 /// </summary>
-public class CandidateValidator(TimeProvider timeProvider)
+public class CandidateValidator(TimeProvider timeProvider, MapDatasetValidator mapValidator, ApprovedMapSettingsSource mapSettings)
 {
+    /// <summary>地図の検証結果のうち、所見に載せる件数の上限（残りは件数だけ示す）。</summary>
+    private const int MapErrorLimit = 20;
+
     private static readonly TimeZoneInfo Campus = TimeZoneInfo.FindSystemTimeZoneById("Asia/Tokyo");
 
     public virtual IReadOnlyList<ValidationFinding> Validate(PublishCandidate candidate)
@@ -107,6 +112,9 @@ public class CandidateValidator(TimeProvider timeProvider)
                 case SpotDraft draft:
                     ValidateSpot(candidate, entry.TargetId, draft, add);
                     break;
+                case MapDataset dataset:
+                    ValidateMap(candidate, dataset, add);
+                    break;
             }
         }
 
@@ -139,7 +147,8 @@ public class CandidateValidator(TimeProvider timeProvider)
             return false;
         }
 
-        if (item.CurrentRevisionId != item.Publication?.RevisionId)
+        // 地図は下書きを編集しないため、退避するものが無い（取り込んだ版はそのまま残る）。
+        if (item.Entry.TargetKind != PublishTargetKind.Map && item.CurrentRevisionId != item.Publication?.RevisionId)
         {
             add(FindingSeverity.Info, "restore_stashes_draft", "未公開の下書きがあります。復旧の前に退避し、Releases の履歴から内容を確認できます。", null);
         }
@@ -203,6 +212,7 @@ public class CandidateValidator(TimeProvider timeProvider)
         PublishTargetKind.Occurrence => Guid.TryParse(entry.TargetId, out var id) && set.Occurrences.TryGetValue(id, out var o) ? o.Draft : null,
         PublishTargetKind.Categories => set.Categories?.Items,
         PublishTargetKind.Spot => set.Spots.TryGetValue(entry.TargetId, out var s) ? s.Draft : null,
+        PublishTargetKind.Map => set.Map?.Dataset,
         _ => null,
     };
 
@@ -246,6 +256,15 @@ public class CandidateValidator(TimeProvider timeProvider)
                 if (usingSpot.Count > 0)
                 {
                     add(FindingSeverity.Blocking, "spot_in_use", $"公開中のイベント（{Summarize(usingSpot)}）がこのSpotを会場にしています。先にイベントの会場を変更して公開してください。", null);
+                }
+
+                break;
+            case PublishTargetKind.Map:
+                // 公開中の Spot は地図の目的地Featureから位置を得る。地図だけを取り下げると Spot の位置が無くなる（決定事項31 D2）。
+                var mappedSpots = candidate.After.Spots.Select(s => PublishCandidate.SpotLabel(s.Value.Draft.Name, s.Key)).ToList();
+                if (mappedSpots.Count > 0)
+                {
+                    add(FindingSeverity.Blocking, "map_in_use", $"公開中のSpot（{Summarize(mappedSpots)}）が地図の場所を使っています。先にSpotを取り下げてください。", null);
                 }
 
                 break;
@@ -500,6 +519,20 @@ public class CandidateValidator(TimeProvider timeProvider)
             add(FindingSeverity.Blocking, "spot_name_required", "名称を入力してください。", "name");
         }
 
+        // Spot の位置は公開中の地図の目的地Featureから得る（E2-5 §5.4）。地図が無い・ID が地図に無い Spot は公開しない（決定事項31 D2）。
+        if (candidate.After.Map is not { } map)
+        {
+            add(FindingSeverity.Blocking, "spot_map_unpublished", "地図が公開されていません。Spot は地図を公開してから公開できます。", null);
+        }
+        else if (!MapFeatureIndex.Parse(map.Dataset.Payload).Features.TryGetValue(canonicalId, out var featureType))
+        {
+            add(FindingSeverity.Blocking, "undefined_spot_canonical_id", $"公開中の地図（v{map.Dataset.Version}）にこの ID の場所がありません。", null);
+        }
+        else if (!IdEntityKind.Destinations.Contains(featureType))
+        {
+            add(FindingSeverity.Blocking, "spot_not_destination_feature", $"この ID は地図の目的地（建物・正面入口・部屋・ランドマーク）ではなく {featureType} を指しています。", null);
+        }
+
         // 名前空間の一意性と再利用禁止（E2-5 §5.5）。廃止した ID・旧 ID（alias）を spot として公開しない。
         switch (candidate.Reservations.Conflict(canonicalId, IdEntityKind.Spot))
         {
@@ -537,6 +570,44 @@ public class CandidateValidator(TimeProvider timeProvider)
         if (draft.Description is not null)
         {
             add(FindingSeverity.Warning, "spot_description_pending_supply", "説明文の供給体制（NexusMobile #49）が決まるまで、説明文は公開しない取り決めです。公開してよいか確認してください。", "description");
+        }
+    }
+
+    /// <summary>
+    /// 地図の公開・復旧（29 M1-D5、決定事項31）。公開判定の検証（MapDatasetValidator の公開モード）に、承認済み設定・版ごとの根拠・
+    /// 公開後の Spot と ID 予約表を渡す。不足する値を推測で補わない（不足は検証器が missing_validation_context で止める）。
+    /// </summary>
+    private void ValidateMap(PublishCandidate candidate, MapDataset dataset, Add add)
+    {
+        var context = new DatasetValidationContext { ForPublication = true };
+        context = mapSettings.Load()?.ApplyTo(context) ?? context;
+        if (dataset.ValidationEvidence is { } evidence)
+        {
+            context = MapDatasetEvidence.Parse(evidence).ApplyTo(context);
+        }
+
+        // 公開後の Spot と、その旧 ID（alias）。DB の行 ID は検証器の中で対応付けに使うだけなので、ここで割り振る。
+        var spotIds = candidate.After.Spots.Keys.ToDictionary(id => id, _ => Guid.NewGuid(), StringComparer.Ordinal);
+        context = context with
+        {
+            DatabaseSpots = spotIds.Select(s => new SpotIdentity(s.Value, s.Key, IsPublished: true)).ToList(),
+            PublishedNavigationSpotIds = spotIds.Keys.ToList(),
+            Aliases = candidate.Reservations.Aliases
+                .Where(a => spotIds.ContainsKey(a.CanonicalId))
+                .Select(a => new SpotAlias(a.Alias, spotIds[a.CanonicalId])).ToList(),
+            OtherReservedCanonicalIds = [],
+            ReservedIds = candidate.Reservations.ToValidationContext(),
+        };
+
+        var result = mapValidator.Validate(dataset.Payload, context);
+        foreach (var error in result.Errors.Take(MapErrorLimit))
+        {
+            add(FindingSeverity.Blocking, $"map_{error.Code}", error.CanonicalId is null ? error.Message : $"{error.Message}（{error.CanonicalId}）", error.Path);
+        }
+
+        if (result.Errors.Count > MapErrorLimit)
+        {
+            add(FindingSeverity.Blocking, "map_more_errors", $"ほかに{result.Errors.Count - MapErrorLimit}件の問題があります。", null);
         }
     }
 

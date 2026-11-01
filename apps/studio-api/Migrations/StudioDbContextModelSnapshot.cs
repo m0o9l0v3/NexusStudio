@@ -352,6 +352,10 @@ namespace StudioApi.Migrations
                         .HasColumnType("text")
                         .HasColumnName("status");
 
+                    b.Property<string>("ValidationEvidence")
+                        .HasColumnType("text")
+                        .HasColumnName("validation_evidence");
+
                     b.Property<long>("Version")
                         .HasColumnType("bigint")
                         .HasColumnName("version");
@@ -579,7 +583,7 @@ namespace StudioApi.Migrations
                         {
                             t.HasCheckConstraint("ck_publications_state", "state IN ('published', 'withdrawn')");
 
-                            t.HasCheckConstraint("ck_publications_target_kind", "target_kind IN ('event', 'occurrence', 'categories', 'spot')");
+                            t.HasCheckConstraint("ck_publications_target_kind", "target_kind IN ('event', 'occurrence', 'categories', 'spot', 'map')");
                         });
                 });
 
@@ -752,7 +756,7 @@ namespace StudioApi.Migrations
                         {
                             t.HasCheckConstraint("ck_release_entries_action", "action IN ('publish', 'withdraw', 'restore')");
 
-                            t.HasCheckConstraint("ck_release_entries_target_kind", "target_kind IN ('event', 'occurrence', 'categories', 'spot')");
+                            t.HasCheckConstraint("ck_release_entries_target_kind", "target_kind IN ('event', 'occurrence', 'categories', 'spot', 'map')");
                         });
                 });
 
