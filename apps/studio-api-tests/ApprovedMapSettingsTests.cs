@@ -31,18 +31,26 @@ public sealed class ApprovedMapSettingsTests : IDisposable
         }
         """;
 
+    /// <summary>
+    /// リポジトリの承認済み設定（2026-11-01 オーナー承認）。値の形が検証器に受け入れられ、出発ノードは経路データ
+    /// （nexus-mobile #16・#39）が揃うまで未記入のため、公開判定はその不足で止まることを確かめる。
+    /// </summary>
     [Fact]
-    public void RepositoryTemplateIsAnUnapprovedDraftThatAddsNothing()
+    public void RepositorySettingsAreApprovedAndStillLackStartNodes()
     {
         var settings = ApprovedMapSettings.Load(Path.Combine(FindRepositoryRoot(), "deploy/map-validation/approved-settings.json"));
 
-        Assert.False(settings.IsApproved);
+        Assert.True(settings.IsApproved);
         var context = settings.ApplyTo(new DatasetValidationContext { ForPublication = true });
-        Assert.Null(context.CampusBoundaryGeoJson);
-        Assert.Null(context.EnuOrigin);
-        Assert.Null(context.EntranceMaxGapMetres);
-        Assert.Null(context.PathDistanceToleranceMetres);
+        Assert.NotNull(context.CampusBoundaryGeoJson);
+        Assert.Equal(new GeoOrigin(141.622712, 42.783592), context.EnuOrigin);
+        Assert.Equal(5, context.EntranceMaxGapMetres);
+        Assert.Equal(2, context.PathDistanceToleranceMetres);
         Assert.Null(context.StartNodeIds);
+
+        var errors = new MapDatasetValidator().Validate(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Fixtures/map-dataset.json")), context).Errors;
+        Assert.DoesNotContain(errors, e => e.Code == "invalid_validation_context");
+        Assert.Contains(errors, e => e.Code == "missing_validation_context" && e.Path == "/context/startNodeIds");
     }
 
     [Fact]

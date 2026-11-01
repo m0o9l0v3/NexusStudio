@@ -11,7 +11,15 @@ NexusStudio #11。Studio は地図（MapDataset）を公開する前に、nexus-
 
 ## A. `approved-settings.json`
 
-**現在は `status: draft` で、値はすべて未記入（null）。** このままでは地図を公開できない（Spot も、決定事項31 D2 により地図が無いと公開できない）。オーナーが値を記入し、`status` を `approved` にして `approvedBy`・`approvedAt` を書き、PR でレビューしてから使う。開発チームは値を作らない。
+**2026-11-01 にオーナー（m0o9l0v3）が承認した（`status: approved`）。ただし `startNodeIds` は未記入（null）。** 出発ノードは経路データ（nexus-mobile #16・#39）が未作成でノード ID が存在しないため、まだ決められない。`approved` でも null の項目は `missing_validation_context` のままなので、`startNodeIds` を記入して承認し直すまで地図は公開できない（Spot も、決定事項31 D2 により地図が無いと公開できない）。値の変更は、オーナーが記入・承認し、PR でレビューしてから使う。開発チームは値を作らない。
+
+| 項目 | 承認した値 | 根拠・経緯 |
+|---|---|---|
+| `campusBoundary` | 6頂点の Polygon（ファイルのとおり） | オーナーが作図して提供。2点目の経度・緯度の順の入れ替えと、時計回りだった並びの反転（形は同じ）は、オーナーの了承を得て直した。nexus-mobile `map-data/normalized/entrances.csv` の入口12か所と ENU 原点がすべて内側にあることを確認した |
+| `enuOrigin` | 経度 141.622712、緯度 42.783592 | 入口12か所（同 CSV）の外接矩形の中心を小数6桁に丸めた点。オーナーが採用を判断 |
+| `entranceMaxGapMetres` | 5 | オーナーの判断。入口写真の GPS 精度は 3.4〜14.2 m |
+| `pathDistanceToleranceMetres` | 2 | オーナーの判断 |
+| `startNodeIds` | null | 経路データ未作成のため保留 |
 
 | 項目 | 型・単位 | 内容 | 決める人・出典 |
 |---|---|---|---|
