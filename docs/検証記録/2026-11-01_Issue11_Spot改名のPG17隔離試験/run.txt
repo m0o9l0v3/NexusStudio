@@ -23,11 +23,11 @@ PASS: dry run succeeds and leaves nothing (counts and bundle pointer unchanged)
 イベント「下書きだけのイベント」の会場を mb_1f_cl_002 に替えます（下書きのみ）。
 [info] 1A教室：spot_used_by_published_events 公開中のイベント（公開中のイベント）の会場表示にも反映されます。
 [info] 1A教室：spot_no_new_selection 新規選択停止として公開します。公開中のイベントの会場参照は維持します。
-改名しました（Release #5、01a19784-1ae9-737a-a96f-0c46e854ddbb）。
+改名しました（Release #5、01a1978b-68cc-724e-a474-6a05669e797f）。
 PASS: rename applied (Production CLI, nexus_studio_app)
 PASS: exactly one new release and one new bundle; pointer advanced by one
 release: 改名 mb_1f_cl_001 → mb_1f_cl_002
-entries: event:01a19783-ef53-74eb-8be2-7194b8246a55:publish map:map:publish spot:mb_1f_cl_001:withdraw spot:mb_1f_cl_002:publish
+entries: event:01a1978b-3e57-7402-99ee-38ab3d0a239d:publish map:map:publish spot:mb_1f_cl_001:withdraw spot:mb_1f_cl_002:publish
 PASS: release entries: event republish, map v4 publish, new spot publish, old spot withdraw
 PASS: publications: old spot withdrawn, new spot published
 PASS: map v4 is the published map

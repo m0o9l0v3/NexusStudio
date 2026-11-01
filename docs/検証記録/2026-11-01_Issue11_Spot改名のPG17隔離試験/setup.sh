@@ -10,7 +10,7 @@ docker ps -a --format '{{.Names}}' | grep -qx nexus-postgres-1 && { echo live co
 docker volume ls --format '{{.Name}}' | grep -qx nexus_postgres_data && { echo live volume present >&2; exit 1; }
 docker volume ls --format '{{.Name}}' | grep -qx $VOL && { echo trial volume exists >&2; exit 1; }
 mkdir -m 700 "$T/secrets"
-for n in superuser public migrator app; do openssl rand -hex 24 > "$T/secrets/$n"; chmod 600 "$T/secrets/$n"; done
+for n in superuser public migrator app admin_password; do openssl rand -hex 24 > "$T/secrets/$n"; chmod 600 "$T/secrets/$n"; done
 printf 'Host=127.0.0.1;Port=55432;Database=nexus;Username=nexus_studio_app;Password=%s' "$(cat $T/secrets/app)" > "$T/secrets/app_connection"; chmod 600 "$T/secrets/app_connection"
 docker network create $NET >/dev/null
 docker volume create $VOL >/dev/null

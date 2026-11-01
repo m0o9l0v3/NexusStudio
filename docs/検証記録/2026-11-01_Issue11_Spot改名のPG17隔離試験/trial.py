@@ -134,26 +134,27 @@ COUNTS = ("SELECT (SELECT count(*) FROM studio.releases) || ',' || (SELECT count
 def rename(version, apply, frm=OLD, to=NEW):
     return cli("spot", "rename", "--from", frm, "--to", to, "--map-version", str(version), "--admin", ADMIN, *(["--apply"] if apply else []))
 def refused(name, expected, run):
+    # Take the snapshot before the command runs (run is a callable), so a refusal that changed state is caught.
     before = sql(COUNTS)
-    code, out, err = run
+    code, out, err = run()
     check(f"refused: {name}", code == 1 and expected in err and sql(COUNTS) == before, f"{code} {out} {err}")
 
-refused("published map version (not a draft)", "取り込み済みの下書きではありません", rename(1, True))
+refused("published map version (not a draft)", "取り込み済みの下書きではありません", lambda: rename(1, True))
 code, out, err = cli("map", "import", "--file", write("map-v2.json", renamed(fixture)), "--evidence", evidence)
 check("map import v2 (destination renamed)", code == 0, err)
 still = renamed(fixture); copy = json.loads(json.dumps(next(f for f in still["features"] if f["id"] == NEW))); copy["id"] = OLD
 copy["properties"]["access_node_id"] = "mb_1f_n_005"; still["features"].append(copy)
 code, out, err = cli("map", "import", "--file", write("map-v3.json", still), "--evidence", evidence)
 check("map import v3 (still has the old ID)", code == 0, err)
-refused("map still has the old ID", "まだ mb_1f_cl_001 があります", rename(3, True))
-refused("older version than the latest import", "より新しい版 v3 が取り込まれています", rename(2, True))
+refused("map still has the old ID", "まだ mb_1f_cl_001 があります", lambda: rename(3, True))
+refused("older version than the latest import", "より新しい版 v3 が取り込まれています", lambda: rename(2, True))
 code, out, err = cli("map", "import", "--file", write("map-v4.json", renamed(fixture)), "--evidence", evidence)
 check("map import v4 (destination renamed, latest)", code == 0, err)
-refused("new ID already reserved (alias)", "予約表にあります", rename(4, True, to="old_cl_001"))
-refused("new ID absent from the map", "同じ種別", rename(4, True, to="mb_1f_cl_003"))
-refused("old ID not published", "公開中ではありません", rename(4, True, frm="mb_ent_001"))
-code, out, err = cli("spot", "rename", "--from", OLD, "--to", NEW, "--map-version", "4", "--admin", "nobody@example.test", "--apply")
-check("refused: unknown admin", code == 1)
+refused("new ID already reserved (alias)", "予約表にあります", lambda: rename(4, True, to="old_cl_001"))
+refused("new ID absent from the map", "同じ種別", lambda: rename(4, True, to="mb_1f_cl_003"))
+refused("old ID not published", "公開中ではありません", lambda: rename(4, True, frm="mb_ent_001"))
+refused("unknown admin", "有効な管理者 nobody@example.test が見つかりません",
+        lambda: cli("spot", "rename", "--from", OLD, "--to", NEW, "--map-version", "4", "--admin", "nobody@example.test", "--apply"))
 
 before = sql(COUNTS)
 code, out, err = rename(4, False)
@@ -191,5 +192,5 @@ bundle = json.loads(sql("SELECT convert_from(b.payload, 'UTF8') FROM delivery.cu
 check("nexus_public reads the new bundle: spots = [new ID] in the room", [s["id"] for s in bundle["spots"]] == [NEW] and bundle["spots"][0]["placement"]["feature_type"] == "room", bundle["spots"])
 check("bundle id_aliases: old ID and old alias resolve to the new ID",
       sorted((a["alias"], a["canonical_id"]) for a in bundle["id_aliases"]) == [(OLD, NEW), ("old_cl_001", NEW)], bundle["id_aliases"])
-refused("second rename of the same old ID", "公開中ではありません", rename(4, True))
+refused("second rename of the same old ID", "公開中ではありません", lambda: rename(4, True))
 print(f"{len(results)} checks passed (disposable PG17 only; production untouched)")
