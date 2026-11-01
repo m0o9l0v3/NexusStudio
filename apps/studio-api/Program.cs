@@ -1,11 +1,13 @@
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using StudioApi.Admin;
 using StudioApi.Auth;
 using StudioApi.Data;
 using StudioApi.Events;
 using StudioApi.Map;
+using StudioApi.Models;
 using StudioApi.Publishing;
 using StudioApi.Reference;
 using StudioApi.Services.MapValidation;
@@ -65,6 +67,14 @@ if (args.Length > 0 && args[0] == "map")
     await using var scope = app.Services.CreateAsyncScope();
     var importer = scope.ServiceProvider.GetRequiredService<MapImporter>();
     return await MapCommand.RunAsync(args[1..], importer, Console.Out, Console.Error);
+}
+
+// 運用者用の Spot の改名（画面には置かない。nexus-mobile E2-5 O-3c R2、決定事項32）。
+if (args.Length > 0 && args[0] == "spot")
+{
+    await using var scope = app.Services.CreateAsyncScope();
+    return await SpotCommand.RunAsync(args[1..], scope.ServiceProvider.GetRequiredService<PublishingService>(),
+        scope.ServiceProvider.GetRequiredService<UserManager<StudioAdmin>>(), Console.Out, Console.Error);
 }
 
 if (app.Environment.IsDevelopment())

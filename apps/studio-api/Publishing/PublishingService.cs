@@ -53,7 +53,7 @@ public sealed record PublishOutcome(PublishOutcomeKind Kind, OperationResult? Re
 /// <summary>
 /// 公開・取り下げ（15 v01 §5.3）。公開処理の実体は1つで、取り下げも新しい Release として記録する。
 /// </summary>
-public sealed class PublishingService(StudioDbContext db, CandidateValidator validator, ApprovedMapSettingsSource mapSettings, TimeProvider timeProvider, ILogger<PublishingService> logger)
+public sealed partial class PublishingService(StudioDbContext db, CandidateValidator validator, ApprovedMapSettingsSource mapSettings, TimeProvider timeProvider, ILogger<PublishingService> logger)
 {
     /// <summary>処理中のまま、この時間を過ぎた操作は完了しなかった（未反映）とみなす。公開はトランザクション内で行うため、途中で止まれば何も反映されない。</summary>
     public static readonly TimeSpan AbandonedAfter = TimeSpan.FromMinutes(2);
@@ -216,16 +216,40 @@ public sealed class PublishingService(StudioDbContext db, CandidateValidator val
         }
 
         var now = timeProvider.GetUtcNow();
+        var release = await WriteReleaseAsync(candidate, log.OperationId, confirmed.Id, message, adminId, now);
+
+        logRow.Status = OperationStatus.Succeeded;
+        logRow.FinishedAt = now;
+        logRow.ReleaseId = release.ReleaseId;
+        logRow.Action = OperationAction.Publish;
+        logRow.Detail = string.Join("・", entries.Select(e => e.Action).Distinct().Select(action => action switch
+        {
+            ReleaseAction.Withdraw => "取り下げ",
+            ReleaseAction.Restore => "復旧",
+            _ => "公開",
+        }));
+        await db.SaveChangesAsync();
+        await transaction.CommitAsync();
+        return new(PublishOutcomeKind.Done, await ToResultAsync(logRow));
+    }
+
+    /// <summary>
+    /// 検証に合格した公開候補を1つの Release として書き込む（公開の状態・予約表・参加者向け bundle）。呼び出し側のトランザクションの中で使う。
+    /// beforeRegister は、公開した ID を予約表に登録する前に追記する行（改名の廃止と alias）を書く。
+    /// </summary>
+    private async Task<Release> WriteReleaseAsync(PublishCandidate candidate, Guid? operationId, Guid validationRunId, string? message, Guid adminId,
+        DateTimeOffset now, Action<IdReservationLedger, Guid>? beforeRegister = null)
+    {
         var release = new Release
         {
             ReleaseId = Guid.CreateVersion7(),
             Sequence = await NextSequenceAsync(),
-            OperationId = log.OperationId,
+            OperationId = operationId,
             CreatedAt = now,
             CreatedBy = adminId,
             Source = ReleaseSource.Studio,
             Message = string.IsNullOrWhiteSpace(message) ? null : message.Trim(),
-            ValidationRunId = confirmed.Id,
+            ValidationRunId = validationRunId,
         };
 
         foreach (var item in candidate.Items)
@@ -286,7 +310,9 @@ public sealed class PublishingService(StudioDbContext db, CandidateValidator val
             .Where(i => i.Entry.TargetKind == PublishTargetKind.Map && i.Entry.Action != ReleaseAction.Withdraw && i.CandidatePayload is MapDataset)
             .Select(i => MapFeatureIndex.Parse(((MapDataset)i.CandidatePayload!).Payload))
             .SelectMany(index => index.Floors.Keys.Select(id => (id, IdEntityKind.Floor)).Concat(index.Features.Select(f => (f.Key, f.Value))));
-        new IdReservationLedger(db, candidate.Reservations, timeProvider).RegisterPublished(
+        var ledger = new IdReservationLedger(db, candidate.Reservations, timeProvider);
+        beforeRegister?.Invoke(ledger, release.ReleaseId);
+        ledger.RegisterPublished(
             publishedMaps.Concat(candidate.Items.Where(i => i.Entry.TargetKind == PublishTargetKind.Spot && i.Entry.Action != ReleaseAction.Withdraw)
                 .Select(i => (i.Entry.TargetId, IdEntityKind.Spot))),
             release.ReleaseId);
@@ -296,19 +322,7 @@ public sealed class PublishingService(StudioDbContext db, CandidateValidator val
             await AddBundleAsync(candidate, release, now);
         }
 
-        logRow.Status = OperationStatus.Succeeded;
-        logRow.FinishedAt = now;
-        logRow.ReleaseId = release.ReleaseId;
-        logRow.Action = OperationAction.Publish;
-        logRow.Detail = string.Join("・", entries.Select(e => e.Action).Distinct().Select(action => action switch
-        {
-            ReleaseAction.Withdraw => "取り下げ",
-            ReleaseAction.Restore => "復旧",
-            _ => "公開",
-        }));
-        await db.SaveChangesAsync();
-        await transaction.CommitAsync();
-        return new(PublishOutcomeKind.Done, await ToResultAsync(logRow));
+        return release;
     }
 
     /// <summary>

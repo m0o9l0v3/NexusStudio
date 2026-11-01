@@ -48,6 +48,15 @@ public sealed class IdReservationSnapshot
     public bool IsActiveInAnyKind(string id)
         => _latest.Any(e => string.Equals(e.Key.Id, id, StringComparison.Ordinal) && e.Value.State == IdReservationState.Active);
 
+    /// <summary>ID が公開中（active）の種別。</summary>
+    public IReadOnlyList<string> ActiveKinds(string id)
+        => _latest.Where(e => string.Equals(e.Key.Id, id, StringComparison.Ordinal) && e.Value.State == IdReservationState.Active)
+            .Select(e => e.Key.Kind).OrderBy(k => k, StringComparer.Ordinal).ToList();
+
+    /// <summary>ID が予約表のどこかに現れるか（種別・状態・alias を問わない）。新しく発行する ID はこれが false でなければならない。</summary>
+    public bool IsReserved(string id)
+        => _aliases.ContainsKey(id) || _latest.Keys.Any(k => string.Equals(k.Id, id, StringComparison.Ordinal));
+
     /// <summary>alias の現在の解決先（alias ごとの最新の行）。alias でなければnull。</summary>
     public string? Resolve(string alias) => _aliases.GetValueOrDefault(alias)?.CanonicalId;
 
