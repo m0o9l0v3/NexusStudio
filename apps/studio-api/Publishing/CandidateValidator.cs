@@ -118,15 +118,15 @@ public class CandidateValidator(TimeProvider timeProvider, MapDatasetValidator m
             }
         }
 
-        ValidateBundleSize(candidate, findings);
+        ValidateBundle(candidate, findings);
         return findings;
     }
 
     /// <summary>
-    /// 参加者向け bundle の大きさ（E2-5 §3.4）。ほかに公開阻止が無いとき、公開後の内容で bundle を組み立てて測る。所見は spot・地図の最初の対象に付ける。
-    /// 版番号と Release ID はまだ決まっていないため、桁の最も多い値で代用する（実際より小さく測らない）。
+    /// 参加者向け bundle の大きさ（E2-5 §3.4）と不変条件（§5.3）。ほかに公開阻止が無いとき、公開後の内容で bundle を組み立てて確かめる。
+    /// 所見は spot・地図の最初の対象に付ける。版番号と Release ID はまだ決まっていないため、桁の最も多い値で代用する（実際より小さく測らない）。
     /// </summary>
-    private void ValidateBundleSize(PublishCandidate candidate, List<ValidationFinding> findings)
+    private void ValidateBundle(PublishCandidate candidate, List<ValidationFinding> findings)
     {
         var item = candidate.Items.FirstOrDefault(i => i.Entry.TargetKind is PublishTargetKind.Spot or PublishTargetKind.Map);
         // ほかの理由で公開できない候補は bundle を作らないため測らない（予約表と衝突する ID などは組み立てられない）。
@@ -135,8 +135,16 @@ public class CandidateValidator(TimeProvider timeProvider, MapDatasetValidator m
             return;
         }
 
-        var length = ParticipantBundleProjection.Build(candidate.After, candidate.Reservations, long.MaxValue, Guid.Empty, timeProvider.GetUtcNow()).Length;
+        var bundle = ParticipantBundleProjection.Build(candidate.After, candidate.Reservations, long.MaxValue, Guid.Empty, timeProvider.GetUtcNow());
+        var length = bundle.Length;
         var add = Adder(findings, item.Entry.TargetKind, item.Entry.TargetId, item.Label);
+        var violations = ParticipantBundleInvariants.Check(bundle, candidate.After);
+        if (violations.Count > 0)
+        {
+            // 個々の検証を通っても、組み合わせた結果が配信契約を破る場合（射影の不具合を含む）は公開しない。
+            add(FindingSeverity.Blocking, "bundle_invariant_violated", $"参加者向けの配信データが配信契約（E2-5 §5.3）を満たしません：{string.Join(" ", violations.Take(5))}", null);
+        }
+
         if (length > ParticipantBundleProjection.HardLimitBytes)
         {
             add(FindingSeverity.Blocking, "bundle_too_large", $"参加者向けの配信データが上限（10 MiB）を超えます（{Megabytes(length)}）。地図や Spot の内容を見直してください。", null);
@@ -557,13 +565,17 @@ public class CandidateValidator(TimeProvider timeProvider, MapDatasetValidator m
         {
             add(FindingSeverity.Blocking, "spot_map_unpublished", "地図が公開されていません。Spot は地図を公開してから公開できます。", null);
         }
-        else if (!MapFeatureIndex.Parse(map.Dataset.Payload).Features.TryGetValue(canonicalId, out var featureType))
+        else if (MapFeatureIndex.Parse(map.Dataset.Payload) is var index && !index.Features.TryGetValue(canonicalId, out var featureType))
         {
             add(FindingSeverity.Blocking, "undefined_spot_canonical_id", $"公開中の地図（v{map.Dataset.Version}）にこの ID の場所がありません。", null);
         }
         else if (!IdEntityKind.Destinations.Contains(featureType))
         {
             add(FindingSeverity.Blocking, "spot_not_destination_feature", $"この ID は地図の目的地（建物・正面入口・部屋・ランドマーク）ではなく {featureType} を指しています。", null);
+        }
+        else if (BuildingNameDiffers(index, canonicalId, draft.Name) is { } mapName)
+        {
+            add(FindingSeverity.Warning, "building_name_differs", BuildingNameMessage(draft.Name, mapName), "name");
         }
 
         // 名前空間の一意性と再利用禁止（E2-5 §5.5）。廃止した ID・旧 ID（alias）を spot として公開しない。
@@ -642,7 +654,34 @@ public class CandidateValidator(TimeProvider timeProvider, MapDatasetValidator m
         {
             add(FindingSeverity.Blocking, "map_more_errors", $"ほかに{result.Errors.Count - MapErrorLimit}件の問題があります。", null);
         }
+
+        if (result.Errors.Count == 0)
+        {
+            // 公開後も残る建物の Spot と、新しい地図の建物名の食い違い（E2-5 O-1c）。同じ候補で公開する Spot は Spot 側で警告する。
+            var index = MapFeatureIndex.Parse(dataset.Payload);
+            var publishing = candidate.Items.Where(i => i.Entry.TargetKind == PublishTargetKind.Spot).Select(i => i.Entry.TargetId).ToHashSet(StringComparer.Ordinal);
+            foreach (var (id, (_, spot)) in candidate.After.Spots.OrderBy(s => s.Key, StringComparer.Ordinal))
+            {
+                if (!publishing.Contains(id) && spot.Utilization != SpotUtilization.Withdrawn && BuildingNameDiffers(index, id, spot.Name) is { } mapName)
+                {
+                    add(FindingSeverity.Warning, "building_name_differs", $"{id}：{BuildingNameMessage(spot.Name, mapName)}", null);
+                }
+            }
+        }
     }
+
+    /// <summary>
+    /// 建物を指す Spot の名称と、同じ ID の building Feature の name が異なるとき、地図側の名前を返す（E2-5 O-1c）。
+    /// 表示名の原本間の不一致を見つけるための警告で、公開は止めない。前後の空白だけの違いは同じとみなす。
+    /// </summary>
+    private static string? BuildingNameDiffers(MapFeatureIndex index, string canonicalId, string? spotName)
+        => index.BuildingNames.TryGetValue(canonicalId, out var mapName) && !string.IsNullOrWhiteSpace(spotName)
+           && !string.Equals(spotName.Trim(), mapName?.Trim(), StringComparison.Ordinal)
+            ? mapName ?? "（名前なし）"
+            : null;
+
+    private static string BuildingNameMessage(string? spotName, string mapName)
+        => $"Spot の名称「{spotName?.Trim()}」と地図の建物名「{mapName}」が異なります。この建物を目的地として示すときは Spot の名称、ほかの地点の所在（例「{mapName}・2F」）には地図の建物名が使われます。意図した違いか確認してください。";
 
     /// <summary>開始・終了が揃っていて前後が正しい開催時間。</summary>
     private static (string Start, string End)? ValidHours(string? start, string? end)

@@ -281,6 +281,31 @@ public sealed class MapPublishingTests : IAsyncLifetime
         Assert.Equal(3, await WithDbAsync(db => db.ParticipantBundles.CountAsync()));
     }
 
+    /// <summary>建物の Spot の名称と地図の建物名の食い違いは警告し、公開は止めない（nexus-mobile E2-5 O-1c）。</summary>
+    [Fact]
+    public async Task BuildingSpotNameDifferingFromTheMap_IsWarned()
+    {
+        var dataset = await ImportAsync(MapImportTests.FixturePayload);
+        await PreviewAndPublishAsync(Entry("map", "map", revisionId: dataset.Id));
+
+        var same = await AddSpotAsync("mb", "教室棟");
+        Assert.DoesNotContain("building_name_differs", Codes(await PreviewAsync(Entry("spot", "mb", revisionId: same)), "warning"));
+        var renamed = await AddSpotAsync("mb", "メインキャンパス教室棟");
+        var preview = await PreviewAsync(Entry("spot", "mb", revisionId: renamed));
+        Assert.Contains("building_name_differs", Codes(preview, "warning"));
+        Assert.Empty(Codes(preview));
+        await PreviewAndPublishAsync(Entry("spot", "mb", revisionId: renamed));
+
+        // 地図側の建物名を変えて公開するときも、公開中の建物の Spot との食い違いを地図の確認に出す。
+        var data = JsonNode.Parse(MapImportTests.FixturePayload)!.AsObject();
+        Feature(data, "mb")["properties"]!["name"] = "メインキャンパス教室棟";
+        var aligned = await ImportAsync(data.ToJsonString());
+        Assert.DoesNotContain("building_name_differs", Codes(await PreviewAsync(Entry("map", "map", revisionId: aligned.Id)), "warning"));
+        Feature(data, "mb")["properties"]!["name"] = "第2教室棟";
+        var differing = await ImportAsync(data.ToJsonString());
+        Assert.Contains("building_name_differs", Codes(await PreviewAsync(Entry("map", "map", revisionId: differing.Id)), "warning"));
+    }
+
     [Fact]
     public async Task RestoringMap_RepublishesThePastVersionWithoutCopyingIt()
     {
@@ -301,11 +326,11 @@ public sealed class MapPublishingTests : IAsyncLifetime
         Assert.Equal(first.Id, publication.RevisionId);
     }
 
-    private async Task<Guid> AddSpotAsync(string canonicalId)
+    private async Task<Guid> AddSpotAsync(string canonicalId, string name = "1A教室")
     {
         await using var scope = _factory.Services.CreateAsyncScope();
         var result = await scope.ServiceProvider.GetRequiredService<ReferenceImporter>().ImportAsync(new ReferenceFile(null, null,
-            [new ReferenceFileSpot(canonicalId, "1A教室", ["1A"], null, null, false, null, Kind: "classroom")]));
+            [new ReferenceFileSpot(canonicalId, name, ["1A"], null, null, false, null, Kind: "classroom")]));
         Assert.True(result.Succeeded, string.Join("\n", result.Messages));
         var db = scope.ServiceProvider.GetRequiredService<StudioDbContext>();
         return (await db.Spots.AsNoTracking().SingleAsync(s => s.CanonicalId == canonicalId)).CurrentRevisionId!.Value;

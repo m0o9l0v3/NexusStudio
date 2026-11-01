@@ -38,6 +38,9 @@ public sealed class IdReservationSnapshot
     public static async Task<IdReservationSnapshot> LoadAsync(StudioDbContext db)
         => new(await db.IdReservations.AsNoTracking().ToListAsync());
 
+    /// <summary>読み込み済みの行から作る（DB を使わない検査・試験用）。</summary>
+    public static IdReservationSnapshot Of(IReadOnlyList<IdReservation> rows) => new(rows);
+
     /// <summary>ID と種別の最新の状態（active／retired）。登録が無ければnull。</summary>
     public string? StateOf(string id, string kind) => _latest.GetValueOrDefault((id, kind))?.State;
 
