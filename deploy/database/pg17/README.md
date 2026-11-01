@@ -24,7 +24,7 @@ NexusInfra #8。Studioを第1段階の現行PG17で動かすための手順。PG
 | 1 | superuser | `sql/pg17-baseline/01-roles.sql`、public-apiの移行、`grant-runtime.sql`（既に適用済みなら飛ばす） | NexusInfra §6 |
 | 2 | superuser | `deploy/database/pg17/setup-studio-roles.sh`（本書） | NexusStudio |
 | 3 | superuser | `sql/pg17-baseline/02-delivery-schema.sql -v studio_migrator=nexus_studio_migrator -v studio_app=nexus_studio_app` | NexusInfra |
-| 4 | `nexus_studio_migrator` | CIの`studio-migration-script`で作り、SHA-256を記録したレビュー済みSQL（`studio`と`delivery`の表） | NexusStudio |
+| 4 | `nexus_studio_migrator` | CIの`studio-migration-script`で作り、SHA-256を記録したレビュー済みSQL（`studio`と`delivery`の表）。移行1件ごとにコミットされる（§4） | NexusStudio |
 | 5 | superuser | `deploy/database/grant-studio-runtime.sql`（`studio`の表だけ） | NexusStudio |
 | 6 | superuser | `sql/pg17-baseline/03-grant-delivery.sql`（同じ`-v`） | NexusInfra |
 | 7 | 運用者 | `dotnet StudioApi.dll admin add --email … --name …`（初期管理者。パスワードは対話入力） | NexusStudio |
@@ -40,7 +40,10 @@ NexusInfra #8。Studioを第1段階の現行PG17で動かすための手順。PG
 
 ## 4. rollback境界
 
-- 2〜6のどこかで失敗した場合：各スクリプトは1トランザクションで、失敗したものは何も残さない。そこで止め、原因を直してから再レビューする。
+- 2・3・5・6で失敗した場合：各スクリプトは1トランザクションで、失敗したものは何も残さない。そこで止め、原因を直してから再レビューする。
+- 4（Studioの移行SQL）は**移行1件ごとにコミットする**。`dotnet-ef migrations script --idempotent`の出力は、先頭で`studio`（無ければ）と`studio."__EFMigrationsHistory"`をトランザクションの外で作り、その後の移行ごとに`START TRANSACTION; … COMMIT;`を出す。後半の移行で失敗すると、それより前の移行の表・データ・履歴は残る。失敗後のDBを適用前と見なさない。
+  - 失敗したら止め、`nexus_studio_migrator`で`SELECT "MigrationId" FROM studio."__EFMigrationsHistory" ORDER BY 1`を実行し、レビュー済みSQLの移行一覧と照らして、どこまで適用されたかを記録する。
+  - 原因を直した同じSQL（冪等）の再実行で残りを適用して再開するか、下のSQLで取り除いて最初からやり直すかを、記録を添えて判断する（最初のbundleの公開前に限る）。5・6は、4が最後まで終わってから行う。
 - Studioが`delivery`へ最初のbundleを書く前なら、作ったものを取り除ける（下のSQL。レビューと承認の後にsuperuserで1回だけ。public-apiは`delivery`が無いと`/api/v2/bundle`で配信できないだけで、`public`の表は影響を受けない）。
 
   ```sql

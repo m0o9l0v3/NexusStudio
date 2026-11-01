@@ -23,7 +23,8 @@ BEGIN
     -- The NexusInfra PG17 baseline must already own the database and have closed PUBLIC access.
     IF to_regrole('nexus_owner') IS NULL OR to_regrole('nexus_public') IS NULL
        OR (SELECT datdba::regrole::text FROM pg_database WHERE datname = current_database()) <> 'nexus_owner'
-       OR EXISTS (SELECT 1 FROM pg_database d, aclexplode(d.datacl) a
+       -- A NULL datacl means the default ACL (PUBLIC has CONNECT and TEMPORARY), so expand it first.
+       OR EXISTS (SELECT 1 FROM pg_database d, aclexplode(COALESCE(d.datacl, acldefault('d', d.datdba))) a
                   WHERE d.datname = current_database() AND a.grantee = 0) THEN
         RAISE EXCEPTION 'Apply the NexusInfra PG17 baseline (01-roles.sql) first';
     END IF;

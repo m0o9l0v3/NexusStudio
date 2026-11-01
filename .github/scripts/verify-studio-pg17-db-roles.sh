@@ -31,6 +31,15 @@ if sh deploy/database/pg17/setup-studio-roles.sh >/dev/null 2>&1; then
 fi
 no_studio_objects
 
+# A baseline that changed the owner but left the default database ACL (NULL datacl, PUBLIC CONNECT) is incomplete.
+psql -X -v ON_ERROR_STOP=1 -U nexus -d nexus -c "CREATE ROLE nexus_owner NOLOGIN; CREATE ROLE nexus_public LOGIN PASSWORD '$public_password'; ALTER DATABASE nexus OWNER TO nexus_owner;"
+psql -X -v ON_ERROR_STOP=1 -U nexus -d nexus -Atc "SELECT datacl IS NULL FROM pg_database WHERE datname = 'nexus'" | grep -qx t
+if sh deploy/database/pg17/setup-studio-roles.sh >/dev/null 2>&1; then
+  echo 'setup ran while PUBLIC still had the default database privileges' >&2; exit 1
+fi
+no_studio_objects
+psql -X -v ON_ERROR_STOP=1 -U nexus -d nexus -c "ALTER DATABASE nexus OWNER TO nexus; DROP ROLE nexus_public; DROP ROLE nexus_owner;"
+
 # Same effect as NexusInfra sql/pg17-baseline/01-roles.sql (kept inline: CI has no Infra checkout).
 psql -X -v ON_ERROR_STOP=1 -U nexus -d nexus -c "CREATE ROLE nexus_owner NOLOGIN; CREATE ROLE nexus_admin_app NOLOGIN; CREATE ROLE nexus_public LOGIN PASSWORD '$public_password'; ALTER DATABASE nexus OWNER TO nexus_owner; REVOKE ALL ON DATABASE nexus FROM PUBLIC; GRANT CONNECT ON DATABASE nexus TO nexus_admin_app, nexus_public; ALTER SCHEMA public OWNER TO nexus_owner; REVOKE ALL ON SCHEMA public FROM PUBLIC; GRANT USAGE ON SCHEMA public TO nexus_admin_app, nexus_public;"
 
