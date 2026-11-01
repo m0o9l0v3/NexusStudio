@@ -1,0 +1,161 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/m0o9l0v3/NexusMobile/develop/docs/schemas/participant-bundle-v2.schema.json",
+  "title": "Nexus participant bundle schema v2",
+  "description": "E2-5 §5 の参加者向け bundle（schema_version 2.0.0）。Studio が射影する payload の形を検査する。§5.3 の不変条件のうち配列をまたぐ参照整合は Schema では表せないため、Studio の射影と iOS の受信時の検査で確かめる。",
+  "type": "object",
+  "required": ["nexus_bundle", "spots", "id_aliases", "map"],
+  "properties": {
+    "nexus_bundle": { "$ref": "#/$defs/bundleMetadata" },
+    "spots": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/spot" }
+    },
+    "id_aliases": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/idAlias" }
+    },
+    "map": {
+      "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/map" }]
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "bundleMetadata": {
+      "type": "object",
+      "required": ["schema_version", "bundle_version", "release_id", "published_at"],
+      "properties": {
+        "schema_version": { "const": "2.0.0" },
+        "bundle_version": { "type": "integer", "minimum": 1 },
+        "release_id": {
+          "type": "string",
+          "pattern": "^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$"
+        },
+        "published_at": {
+          "type": "string",
+          "description": "RFC 3339 の UTC 日時（オフセットは Z または +00:00）。月・日・時・分・秒の範囲を検査する。月ごとの日数（2月30日など）は Schema では検査しない。",
+          "pattern": "^[0-9]{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12][0-9]|3[01])[Tt](?:[01][0-9]|2[0-3]):[0-5][0-9]:(?:[0-5][0-9]|60)(?:\\.[0-9]+)?(?:[Zz]|\\+00:00)$"
+        }
+      },
+      "additionalProperties": false
+    },
+    "canonicalId": {
+      "description": "E1-3 規則1：ASCII 小文字の lower_snake_case。Studio の canonical_id 列に合わせて128文字まで。",
+      "type": "string",
+      "maxLength": 128,
+      "pattern": "^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$"
+    },
+    "aliasId": {
+      "description": "旧ID（E1-3 の alias）。正規形に従わない旧資料の ID もありうるため字句形式は課さない。Studio の alias 列に合わせて200文字まで。",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "description": {
+      "description": "E2-5 §5.2：未作成は null とし、空文字で埋めない。最大長は契約で定めていない。",
+      "oneOf": [{ "type": "null" }, { "type": "string", "minLength": 1 }]
+    },
+    "spot": {
+      "type": "object",
+      "required": ["id", "name", "kind", "description", "search_aliases", "utilization", "placement"],
+      "properties": {
+        "id": { "$ref": "#/$defs/canonicalId" },
+        "name": { "$ref": "map-dataset-geojson-v2.schema.json#/$defs/displayName" },
+        "kind": {
+          "enum": [null, "classroom", "facility", "service"]
+        },
+        "description": { "$ref": "#/$defs/description" },
+        "search_aliases": {
+          "type": "array",
+          "items": { "$ref": "map-dataset-geojson-v2.schema.json#/$defs/displayName" }
+        },
+        "utilization": {
+          "enum": ["available", "noNewSelection"]
+        },
+        "placement": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/buildingPlacement" },
+            { "$ref": "#/$defs/formalEntrancePlacement" },
+            { "$ref": "#/$defs/roomPlacement" },
+            { "$ref": "#/$defs/landmarkPlacement" }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "buildingPlacement": {
+      "type": "object",
+      "required": ["feature_type", "building_id", "floor_id", "point", "access_node_id"],
+      "properties": {
+        "feature_type": { "const": "building" },
+        "building_id": { "$ref": "map-dataset-geojson-v2.schema.json#/$defs/buildingId" },
+        "floor_id": { "type": "null" },
+        "point": { "type": "null" },
+        "access_node_id": {
+          "oneOf": [{ "type": "null" }, { "$ref": "map-dataset-geojson-v2.schema.json#/$defs/indoorNodeId" }]
+        }
+      },
+      "additionalProperties": false
+    },
+    "formalEntrancePlacement": {
+      "type": "object",
+      "required": ["feature_type", "building_id", "floor_id", "point", "access_node_id"],
+      "properties": {
+        "feature_type": { "const": "formal_entrance" },
+        "building_id": { "$ref": "map-dataset-geojson-v2.schema.json#/$defs/buildingId" },
+        "floor_id": { "$ref": "map-dataset-geojson-v2.schema.json#/$defs/floorId" },
+        "point": { "$ref": "map-dataset-geojson-v2.schema.json#/$defs/position" },
+        "access_node_id": { "type": "null" }
+      },
+      "additionalProperties": false
+    },
+    "roomPlacement": {
+      "type": "object",
+      "required": ["feature_type", "building_id", "floor_id", "point", "access_node_id"],
+      "properties": {
+        "feature_type": { "const": "room" },
+        "building_id": { "$ref": "map-dataset-geojson-v2.schema.json#/$defs/buildingId" },
+        "floor_id": { "$ref": "map-dataset-geojson-v2.schema.json#/$defs/floorId" },
+        "point": { "$ref": "map-dataset-geojson-v2.schema.json#/$defs/position" },
+        "access_node_id": {
+          "oneOf": [{ "type": "null" }, { "$ref": "map-dataset-geojson-v2.schema.json#/$defs/indoorNodeId" }]
+        }
+      },
+      "additionalProperties": false
+    },
+    "landmarkPlacement": {
+      "type": "object",
+      "required": ["feature_type", "building_id", "floor_id", "point", "access_node_id"],
+      "properties": {
+        "feature_type": { "const": "landmark" },
+        "building_id": { "type": "null" },
+        "floor_id": { "type": "null" },
+        "point": { "$ref": "map-dataset-geojson-v2.schema.json#/$defs/position" },
+        "access_node_id": {
+          "oneOf": [{ "type": "null" }, { "$ref": "map-dataset-geojson-v2.schema.json#/$defs/outdoorNodeId" }]
+        }
+      },
+      "additionalProperties": false
+    },
+    "idAlias": {
+      "type": "object",
+      "required": ["alias", "canonical_id"],
+      "properties": {
+        "alias": { "$ref": "#/$defs/aliasId" },
+        "canonical_id": { "$ref": "#/$defs/canonicalId" }
+      },
+      "additionalProperties": false
+    },
+    "map": {
+      "type": "object",
+      "required": ["dataset_version", "dataset_sha256", "geojson"],
+      "properties": {
+        "dataset_version": { "type": "integer", "minimum": 1 },
+        "dataset_sha256": { "type": "string", "pattern": "^[0-9A-Fa-f]{64}$" },
+        "geojson": { "$ref": "map-dataset-geojson-v2.schema.json" }
+      },
+      "additionalProperties": false
+    }
+  }
+}

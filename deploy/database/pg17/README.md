@@ -62,4 +62,5 @@ NexusInfra #8。Studioを第1段階の現行PG17で動かすための手順。PG
 
 - CI `studio-db-role-pg17-check`：採用PG17（17.11、NexusInfra #7のdigest）を本番と同じ形（DB `nexus`、superuser `nexus`）で作り、baseline前の拒否、誤った識別子・承認フラグなしの`production`の拒否、2回目の拒否、全移行の適用と再適用、所有者、`grant-studio-runtime.sql`、runtimeの許可・拒否、`nexus_public`から`studio`が読めないことを確かめる。
 - CI `studio-role-target-preflight`：`tests/test_setup_studio_roles_pg17.py`で、18.x・16.x・別DB・別ユーザー・非superuser・別識別子・承認フラグ違いをDDLの前に拒否することを確かめる。
-- 実際のNexusInfra baseline（01〜03）との結合はNexusInfraの`scripts/pg17-baseline.py`で行う（`delivery`の表はNexusStudio #11の移行で作る）。
+- CI `studio-db-role-pg17-check`は、NexusInfraの`02-delivery-schema.sql`・`03-grant-delivery.sql`と同じ処理（CIにInfraのcheckoutが無いため同じSQLを直接書く）も行い、`delivery`が契約の2表（migrator所有）と版を減らさないトリガーだけを持つこと、runtimeがbundleを追記してポインタを進められること、bundleの変更・削除・ポインタの削除と版を戻す更新を拒否すること、`nexus_public`が`delivery`を読めて書けないことを確かめる。
+- 実際のNexusInfra baseline（01〜03）との結合はNexusInfraの`scripts/pg17-baseline.py`で行う（`delivery`の表は移行`AddParticipantBundles`で作る。NexusStudio #11）。

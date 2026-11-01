@@ -218,6 +218,69 @@ public sealed class MapPublishingTests : IAsyncLifetime
         Assert.Contains("map_undefined_navigation_id", Codes(await PreviewAsync(Entry("map", "map", revisionId: withoutRoom.Id))));
     }
 
+    private async Task<(ParticipantBundle Bundle, JsonNode Payload)> CurrentBundleAsync()
+    {
+        var (current, bundle) = await WithDbAsync(async db =>
+        {
+            var pointer = await db.CurrentBundle.AsNoTracking().SingleAsync();
+            return (pointer, await db.ParticipantBundles.AsNoTracking().SingleAsync(b => b.BundleVersion == pointer.BundleVersion));
+        });
+        Assert.Equal(bundle.BundleVersion, current.BundleVersion);
+        Assert.Equal(Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(bundle.Payload)), bundle.Sha256);
+        Assert.Equal(bundle.Payload.Length, bundle.ByteLength);
+        ParticipantBundleSchema.AssertValid(bundle.Payload);
+        var payload = JsonNode.Parse(bundle.Payload)!;
+        var release = await WithDbAsync(db => db.Releases.AsNoTracking().SingleAsync(r => r.ReleaseId == bundle.ReleaseId));
+        Assert.Equal(release.Sequence, payload["nexus_bundle"]!["bundle_version"]!.GetValue<long>());
+        return (bundle, payload);
+    }
+
+    /// <summary>spot・地図を含む公開ごとに、公開中の全件から bundle の新しい版を作る（nexus-mobile E2-5 §3.3）。</summary>
+    [Fact]
+    public async Task PublishingMapAndSpots_ProjectsEachReleaseIntoANewBundle()
+    {
+        var dataset = await ImportAsync(MapImportTests.FixturePayload);
+        await PreviewAndPublishAsync(Entry("map", "map", revisionId: dataset.Id));
+
+        var (first, mapOnly) = await CurrentBundleAsync();
+        Assert.Empty(mapOnly["spots"]!.AsArray());
+        Assert.Empty(mapOnly["id_aliases"]!.AsArray());
+        Assert.Equal(1, mapOnly["map"]!["dataset_version"]!.GetValue<long>());
+        Assert.Equal(dataset.Checksum, mapOnly["map"]!["dataset_sha256"]!.GetValue<string>());
+        Assert.True(JsonNode.DeepEquals(JsonNode.Parse(MapImportTests.FixturePayload), mapOnly["map"]!["geojson"]));
+
+        // 旧 ID は、解決先が公開中の spot のときだけ配信する（§5.5）。
+        await WithDbAsync(async db =>
+        {
+            new StudioApi.Publishing.IdReservationLedger(db, await StudioApi.Publishing.IdReservationSnapshot.LoadAsync(db), TimeProvider.System)
+                .AddAlias("old_cl_001", "mb_1f_cl_001", IdEntityKind.Spot, IdReservationSource.Import, null);
+            return await db.SaveChangesAsync();
+        });
+        var spotRevision = await AddSpotAsync("mb_1f_cl_001");
+        await PreviewAndPublishAsync(Entry("spot", "mb_1f_cl_001", revisionId: spotRevision));
+
+        var (second, withSpot) = await CurrentBundleAsync();
+        Assert.True(second.BundleVersion > first.BundleVersion);
+        var spot = withSpot["spots"]!.AsArray().Single()!;
+        Assert.Equal("mb_1f_cl_001", spot["id"]!.GetValue<string>());
+        Assert.Equal("1A教室", spot["name"]!.GetValue<string>());
+        Assert.Equal("classroom", spot["kind"]!.GetValue<string>());
+        Assert.Equal(["1A"], spot["search_aliases"]!.AsArray().Select(a => a!.GetValue<string>()));
+        Assert.True(JsonNode.DeepEquals(JsonNode.Parse("""
+            { "feature_type": "room", "building_id": "mb", "floor_id": "mb_1f", "point": [141.6813, 42.7715], "access_node_id": "mb_1f_n_005" }
+            """), spot["placement"]));
+        var alias = withSpot["id_aliases"]!.AsArray().Single()!;
+        Assert.Equal(("old_cl_001", "mb_1f_cl_001"), (alias["alias"]!.GetValue<string>(), alias["canonical_id"]!.GetValue<string>()));
+
+        // すべての spot を取り下げても bundle は消さず、空の spots の版を作る（§3.3 の4）。
+        await PreviewAndPublishAsync(Entry("spot", "mb_1f_cl_001", "withdraw"));
+        var (third, withdrawn) = await CurrentBundleAsync();
+        Assert.True(third.BundleVersion > second.BundleVersion);
+        Assert.Empty(withdrawn["spots"]!.AsArray());
+        Assert.Empty(withdrawn["id_aliases"]!.AsArray());
+        Assert.Equal(3, await WithDbAsync(db => db.ParticipantBundles.CountAsync()));
+    }
+
     [Fact]
     public async Task RestoringMap_RepublishesThePastVersionWithoutCopyingIt()
     {
@@ -242,7 +305,7 @@ public sealed class MapPublishingTests : IAsyncLifetime
     {
         await using var scope = _factory.Services.CreateAsyncScope();
         var result = await scope.ServiceProvider.GetRequiredService<ReferenceImporter>().ImportAsync(new ReferenceFile(null, null,
-            [new ReferenceFileSpot(canonicalId, "1A教室", null, null, null, false, null, Kind: "classroom")]));
+            [new ReferenceFileSpot(canonicalId, "1A教室", ["1A"], null, null, false, null, Kind: "classroom")]));
         Assert.True(result.Succeeded, string.Join("\n", result.Messages));
         var db = scope.ServiceProvider.GetRequiredService<StudioDbContext>();
         return (await db.Spots.AsNoTracking().SingleAsync(s => s.CanonicalId == canonicalId)).CurrentRevisionId!.Value;

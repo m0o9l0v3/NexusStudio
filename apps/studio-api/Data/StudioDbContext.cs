@@ -25,16 +25,20 @@ public sealed class StudioDbContext(DbContextOptions<StudioDbContext> options)
     public DbSet<ValidationRun> ValidationRuns => Set<ValidationRun>();
     public DbSet<OperationLog> OperationLogs => Set<OperationLog>();
     public DbSet<IdReservation> IdReservations => Set<IdReservation>();
+    public DbSet<ParticipantBundle> ParticipantBundles => Set<ParticipantBundle>();
+    public DbSet<CurrentBundle> CurrentBundle => Set<CurrentBundle>();
 
     public override int SaveChanges(bool acceptAllChangesOnSuccess)
     {
         RejectIdReservationChanges();
+        RejectBundleChanges();
         return base.SaveChanges(acceptAllChangesOnSuccess);
     }
 
     public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
     {
         RejectIdReservationChanges();
+        RejectBundleChanges();
         return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
     }
 
@@ -44,6 +48,16 @@ public sealed class StudioDbContext(DbContextOptions<StudioDbContext> options)
         if (ChangeTracker.Entries<IdReservation>().Any(e => e.State is EntityState.Modified or EntityState.Deleted))
         {
             throw new InvalidOperationException("ID 予約表の行は変更・削除できません。状態の変化は行の追記で表します。");
+        }
+    }
+
+    /// <summary>配信した bundle は追記専用（E2-5 §3.2・§3.5）。行の変更・削除を保存しない（本番では実行時 role の権限でも拒否する）。</summary>
+    private void RejectBundleChanges()
+    {
+        if (ChangeTracker.Entries<ParticipantBundle>().Any(e => e.State is EntityState.Modified or EntityState.Deleted)
+            || ChangeTracker.Entries<CurrentBundle>().Any(e => e.State is EntityState.Deleted))
+        {
+            throw new InvalidOperationException("配信した bundle は変更・削除できません。新しい版を追記します。");
         }
     }
 
@@ -411,6 +425,33 @@ public sealed class StudioDbContext(DbContextOptions<StudioDbContext> options)
             entity.Property(e => e.Note).HasColumnName("note").HasMaxLength(1000);
             entity.HasIndex(e => e.Id).HasDatabaseName("ix_id_reservations_id");
             entity.HasOne<Release>().WithMany().HasForeignKey(e => e.ReleaseId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // 配信表（nexus-mobile E2-5 §3.1）。public-api が読むため、studio とは別の delivery スキーマに契約どおりの形で置く。
+        // スキーマは Infra の手順（NexusInfra sql/pg17-baseline/02-delivery-schema.sql）が先に作り、移行用 role に渡す。
+        // 権限は 03-grant-delivery.sql が付ける（この2表だけがあることと、版を減らさないトリガーを確かめる）。
+        modelBuilder.Entity<ParticipantBundle>(entity =>
+        {
+            entity.ToTable("participant_bundles", "delivery");
+            entity.HasKey(e => e.BundleVersion);
+            entity.Property(e => e.BundleVersion).HasColumnName("bundle_version").ValueGeneratedNever();
+            entity.Property(e => e.ReleaseId).HasColumnName("release_id");
+            entity.Property(e => e.SchemaVersion).HasColumnName("schema_version").HasColumnType("text").IsRequired();
+            entity.Property(e => e.Payload).HasColumnName("payload").IsRequired();
+            entity.Property(e => e.Sha256).HasColumnName("sha256").HasColumnType("character(64)").IsRequired();
+            entity.Property(e => e.ByteLength).HasColumnName("byte_length");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+            entity.HasIndex(e => e.ReleaseId).IsUnique();
+        });
+
+        modelBuilder.Entity<CurrentBundle>(entity =>
+        {
+            entity.ToTable("current_bundle", "delivery", table => table.HasCheckConstraint("ck_current_bundle_singleton", "singleton"));
+            entity.HasKey(e => e.Singleton);
+            entity.Property(e => e.Singleton).HasColumnName("singleton").HasDefaultValue(true).ValueGeneratedNever();
+            entity.Property(e => e.BundleVersion).HasColumnName("bundle_version");
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+            entity.HasOne<ParticipantBundle>().WithMany().HasForeignKey(e => e.BundleVersion).OnDelete(DeleteBehavior.Restrict);
         });
     }
 }
