@@ -411,6 +411,49 @@ public sealed class PublishingTests : IAsyncLifetime
         await CreateEventAsync(title: null, occurrence: null, spot: "mb_2f_cl_002"); // 無関係な不完全な下書き（RA-01、AC10）
         var (id, revision) = await CreateEventAsync();
         await PreviewAndPublishAsync(Entry("event", id, revisionId: revision));
+
+        // spot・地図を含まない公開では参加者向け bundle を作らない（E2-5 §3.1）。
+        Assert.Equal(0, await WithDbAsync(db => db.ParticipantBundles.CountAsync()));
+    }
+
+    /// <summary>公開中の地図の GeoJSON を、建物の任意の項目で水増しする（bundle の大きさの検査用）。</summary>
+    private async Task PadPublishedMapAsync(int bytes)
+        => await WithDbAsync(async db =>
+        {
+            var map = await db.MapDatasets.SingleAsync();
+            var data = JsonNode.Parse(map.Payload)!;
+            data["features"]!.AsArray().Single(f => f!["id"]!.GetValue<string>() == "mb")!["properties"]!["padding"] = new string('x', bytes);
+            map.Payload = data.ToJsonString();
+            return await db.SaveChangesAsync();
+        });
+
+    /// <summary>bundle の大きさ（E2-5 §3.4）：10 MiB 超は公開阻止、2 MiB 超と前版の1.5倍以上は要確認。</summary>
+    [Fact]
+    public async Task BundleSize_IsCheckedBeforePublishing()
+    {
+        await SeedPublishedMapAsync(_root, "mb_2f_cl_001", "mb_2f_cl_002");
+        var spot = await GetJsonAsync("/api/spots/item?id=mb_2f_cl_002");
+        JsonObject Publish() => Entry("spot", "mb_2f_cl_002", revisionId: spot["revisionId"]!.GetValue<string>());
+        Assert.Empty(Codes(await PreviewAsync(Publish()), "warning").Where(c => c.StartsWith("bundle_", StringComparison.Ordinal)));
+
+        await PadPublishedMapAsync(3 * 1024 * 1024);
+        Assert.Contains("bundle_large", Codes(await PreviewAsync(Publish()), "warning"));
+
+        await PadPublishedMapAsync(11 * 1024 * 1024);
+        Assert.Contains("bundle_too_large", Codes(await PreviewAsync(Publish())));
+    }
+
+    [Fact]
+    public async Task BundleGrowth_AgainstTheCurrentBundle_IsWarned()
+    {
+        await SeedPublishedMapAsync(_root, "mb_2f_cl_001", "mb_2f_cl_002");
+        var spot = await GetJsonAsync("/api/spots/item?id=mb_2f_cl_002");
+        await PreviewAndPublishAsync(Entry("spot", "mb_2f_cl_002", revisionId: spot["revisionId"]!.GetValue<string>()));
+        var first = await WithDbAsync(db => db.ParticipantBundles.SingleAsync());
+
+        await PadPublishedMapAsync(first.ByteLength);
+        var withdraw = await PreviewAsync(Entry("spot", "mb_2f_cl_002", "withdraw"));
+        Assert.Contains("bundle_grew", Codes(withdraw, "warning"));
     }
 
     [Fact]

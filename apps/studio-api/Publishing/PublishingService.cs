@@ -290,6 +290,12 @@ public sealed class PublishingService(StudioDbContext db, CandidateValidator val
             publishedMaps.Concat(candidate.Items.Where(i => i.Entry.TargetKind == PublishTargetKind.Spot && i.Entry.Action != ReleaseAction.Withdraw)
                 .Select(i => (i.Entry.TargetId, IdEntityKind.Spot))),
             release.ReleaseId);
+        // spot・地図の公開データが変われば、同じトランザクションで参加者向け bundle の新しい版を作る（E2-5 §3.3）。
+        if (ParticipantBundleProjection.Affects(candidate))
+        {
+            await AddBundleAsync(candidate, release, now);
+        }
+
         logRow.Status = OperationStatus.Succeeded;
         logRow.FinishedAt = now;
         logRow.ReleaseId = release.ReleaseId;
@@ -403,6 +409,42 @@ public sealed class PublishingService(StudioDbContext db, CandidateValidator val
 
             default:
                 throw new InvalidOperationException($"復旧できない対象です: {item.Entry.TargetKind}");
+        }
+    }
+
+    /// <summary>
+    /// 公開後の spot 全件と地図から bundle を作って追記し、配信する版を切り替える（E2-5 §3.3）。
+    /// 硬い上限を超える bundle は作らない（公開前の検証で止めているはず。ここでは例外で公開全体を取り消す）。
+    /// </summary>
+    private async Task AddBundleAsync(PublishCandidate candidate, Release release, DateTimeOffset now)
+    {
+        var payload = ParticipantBundleProjection.Build(candidate.After, candidate.Reservations, release.Sequence, release.ReleaseId, release.CreatedAt);
+        if (payload.Length > ParticipantBundleProjection.HardLimitBytes)
+        {
+            throw new InvalidOperationException($"参加者向け bundle が上限を超えました（{payload.Length} バイト）。");
+        }
+
+        db.ParticipantBundles.Add(new ParticipantBundle
+        {
+            BundleVersion = release.Sequence,
+            ReleaseId = release.ReleaseId,
+            SchemaVersion = ParticipantBundleProjection.SchemaVersion,
+            Payload = payload,
+            Sha256 = Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(payload)),
+            ByteLength = payload.Length,
+            CreatedAt = now,
+        });
+
+        // 最初の公開で行を作り、以後は版を進める。公開は直列化しているため、読んでから書く間に別の公開は入らない。
+        var current = await db.CurrentBundle.SingleOrDefaultAsync();
+        if (current is null)
+        {
+            db.CurrentBundle.Add(new CurrentBundle { BundleVersion = release.Sequence, UpdatedAt = now });
+        }
+        else
+        {
+            current.BundleVersion = release.Sequence;
+            current.UpdatedAt = now;
         }
     }
 

@@ -167,6 +167,31 @@ namespace StudioApi.Migrations
                         });
                 });
 
+            modelBuilder.Entity("StudioApi.Models.CurrentBundle", b =>
+                {
+                    b.Property<bool>("Singleton")
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true)
+                        .HasColumnName("singleton");
+
+                    b.Property<long>("BundleVersion")
+                        .HasColumnType("bigint")
+                        .HasColumnName("bundle_version");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Singleton");
+
+                    b.HasIndex("BundleVersion");
+
+                    b.ToTable("current_bundle", "delivery", t =>
+                        {
+                            t.HasCheckConstraint("ck_current_bundle_singleton", "singleton");
+                        });
+                });
+
             modelBuilder.Entity("StudioApi.Models.EventHead", b =>
                 {
                     b.Property<Guid>("EventId")
@@ -545,6 +570,47 @@ namespace StudioApi.Migrations
 
                             t.HasCheckConstraint("ck_operation_logs_status", "status IN ('processing', 'succeeded', 'failed')");
                         });
+                });
+
+            modelBuilder.Entity("StudioApi.Models.ParticipantBundle", b =>
+                {
+                    b.Property<long>("BundleVersion")
+                        .HasColumnType("bigint")
+                        .HasColumnName("bundle_version");
+
+                    b.Property<int>("ByteLength")
+                        .HasColumnType("integer")
+                        .HasColumnName("byte_length");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<byte[]>("Payload")
+                        .IsRequired()
+                        .HasColumnType("bytea")
+                        .HasColumnName("payload");
+
+                    b.Property<Guid>("ReleaseId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("release_id");
+
+                    b.Property<string>("SchemaVersion")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("schema_version");
+
+                    b.Property<string>("Sha256")
+                        .IsRequired()
+                        .HasColumnType("character(64)")
+                        .HasColumnName("sha256");
+
+                    b.HasKey("BundleVersion");
+
+                    b.HasIndex("ReleaseId")
+                        .IsUnique();
+
+                    b.ToTable("participant_bundles", "delivery");
                 });
 
             modelBuilder.Entity("StudioApi.Models.Publication", b =>
@@ -1030,6 +1096,15 @@ namespace StudioApi.Migrations
                         .WithMany()
                         .HasForeignKey("UpdatedBy")
                         .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("StudioApi.Models.CurrentBundle", b =>
+                {
+                    b.HasOne("StudioApi.Models.ParticipantBundle", null)
+                        .WithMany()
+                        .HasForeignKey("BundleVersion")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("StudioApi.Models.EventHead", b =>

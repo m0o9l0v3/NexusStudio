@@ -118,8 +118,41 @@ public class CandidateValidator(TimeProvider timeProvider, MapDatasetValidator m
             }
         }
 
+        ValidateBundleSize(candidate, findings);
         return findings;
     }
+
+    /// <summary>
+    /// 参加者向け bundle の大きさ（E2-5 §3.4）。ほかに公開阻止が無いとき、公開後の内容で bundle を組み立てて測る。所見は spot・地図の最初の対象に付ける。
+    /// 版番号と Release ID はまだ決まっていないため、桁の最も多い値で代用する（実際より小さく測らない）。
+    /// </summary>
+    private void ValidateBundleSize(PublishCandidate candidate, List<ValidationFinding> findings)
+    {
+        var item = candidate.Items.FirstOrDefault(i => i.Entry.TargetKind is PublishTargetKind.Spot or PublishTargetKind.Map);
+        // ほかの理由で公開できない候補は bundle を作らないため測らない（予約表と衝突する ID などは組み立てられない）。
+        if (item is null || findings.Any(f => f.Severity == FindingSeverity.Blocking))
+        {
+            return;
+        }
+
+        var length = ParticipantBundleProjection.Build(candidate.After, candidate.Reservations, long.MaxValue, Guid.Empty, timeProvider.GetUtcNow()).Length;
+        var add = Adder(findings, item.Entry.TargetKind, item.Entry.TargetId, item.Label);
+        if (length > ParticipantBundleProjection.HardLimitBytes)
+        {
+            add(FindingSeverity.Blocking, "bundle_too_large", $"参加者向けの配信データが上限（10 MiB）を超えます（{Megabytes(length)}）。地図や Spot の内容を見直してください。", null);
+        }
+        else if (length > ParticipantBundleProjection.WarningBytes)
+        {
+            add(FindingSeverity.Warning, "bundle_large", $"参加者向けの配信データが {Megabytes(length)} になります（目安 2 MiB）。重複や頂点の多すぎる図形がないか確認してください。", null);
+        }
+
+        if (candidate.CurrentBundleLength is { } previous && length >= previous * ParticipantBundleProjection.GrowthWarningRatio)
+        {
+            add(FindingSeverity.Warning, "bundle_grew", $"参加者向けの配信データが、いま配信している版（{Megabytes(previous)}）の1.5倍以上（{Megabytes(length)}）になります。意図した増加か確認してください。", null);
+        }
+    }
+
+    private static string Megabytes(long bytes) => $"{bytes / 1024d / 1024d:0.00} MiB";
 
     /// <summary>
     /// 過去の版からの復旧（11 §6・§7）。戻す版が過去に公開されていたこと、現在の公開と違うことを確かめる。

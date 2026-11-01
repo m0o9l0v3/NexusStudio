@@ -85,6 +85,8 @@ public sealed class PublishCandidate
     public required IReadOnlyDictionary<string, Spot> SpotRows { get; init; }
     /// <summary>ID 予約表（E2-5 §5.5）。公開する ID の再利用・衝突の検査と、公開時の登録に使う。</summary>
     public required IdReservationSnapshot Reservations { get; init; }
+    /// <summary>いま配信している bundle の大きさ（バイト）。まだ配信していなければnull（E2-5 §3.4 の前版比の警告に使う）。</summary>
+    public int? CurrentBundleLength { get; init; }
     /// <summary>イベントの現在の下書きが参照している開催日（開催回の復旧で、参照中の開催日を消さないため）。</summary>
     public IReadOnlySet<Guid> DraftDayReferences { get; init; } = new HashSet<Guid>();
     /// <summary>復旧する開催回の、現在の開催日（ID → 日付）。</summary>
@@ -93,7 +95,7 @@ public sealed class PublishCandidate
     public IReadOnlySet<Guid> CurrentCategoryIds { get; init; } = new HashSet<Guid>();
 
     /// <summary>候補の土台（現在の公開データとSpotの行）。全下書き診断では一度だけ読み、対象ごとの候補で使い回す。</summary>
-    public sealed record Base(List<Publication> Publications, PublishedSet Published, Dictionary<string, Spot> SpotRows, IdReservationSnapshot Reservations);
+    public sealed record Base(List<Publication> Publications, PublishedSet Published, Dictionary<string, Spot> SpotRows, IdReservationSnapshot Reservations, int? CurrentBundleLength);
 
     public static async Task<Base> LoadBaseAsync(StudioDbContext db)
     {
@@ -102,12 +104,15 @@ public sealed class PublishCandidate
             publications,
             await LoadPublishedAsync(db, publications.Where(p => p.State == PublicationRowState.Published).ToList()),
             (await db.Spots.AsNoTracking().Include(s => s.NameAliases).ToListAsync()).ToDictionary(s => s.CanonicalId, StringComparer.Ordinal),
-            await IdReservationSnapshot.LoadAsync(db));
+            await IdReservationSnapshot.LoadAsync(db),
+            await (from c in db.CurrentBundle.AsNoTracking()
+                   join b in db.ParticipantBundles.AsNoTracking() on c.BundleVersion equals b.BundleVersion
+                   select (int?)b.ByteLength).SingleOrDefaultAsync());
     }
 
     public static async Task<PublishCandidate> BuildAsync(StudioDbContext db, IReadOnlyList<PublishEntry> entries, Base? shared = null)
     {
-        var (publications, before, spotRows, reservations) = shared ?? await LoadBaseAsync(db);
+        var (publications, before, spotRows, reservations, currentBundleLength) = shared ?? await LoadBaseAsync(db);
         var after = before.Clone();
 
         var items = new List<CandidateItem>();
@@ -154,6 +159,7 @@ public sealed class PublishCandidate
             Fingerprint = ComputeFingerprint(entries, items, publications),
             SpotRows = spotRows,
             Reservations = reservations,
+            CurrentBundleLength = currentBundleLength,
             DraftDayReferences = restoring.Contains(PublishTargetKind.Occurrence)
                 ? (await EventReferenceIndex.LoadAsync(db)).ReferencedDayIds()
                 : new HashSet<Guid>(),

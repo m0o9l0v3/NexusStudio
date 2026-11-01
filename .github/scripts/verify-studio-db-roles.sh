@@ -20,6 +20,9 @@ psql -X -w -v ON_ERROR_STOP=1 -U postgres -d nexus_admin -Atc "SELECT count(*) F
 psql -X -w -v ON_ERROR_STOP=1 -U postgres -d nexus_admin -Atc "SELECT count(*) FROM pg_namespace WHERE nspname = 'studio'" | grep -qx 0
 
 sh deploy/database/setup-studio-roles.sh
+# The migrator has no CREATE on the database, so the delivery schema (E2-5 §3.1) is handed to it first,
+# as NexusInfra sql/pg17-baseline/02-delivery-schema.sql does on PG17. The PG18 procedure is designed with the PG18 move.
+psql -X -v ON_ERROR_STOP=1 -U postgres -d nexus_admin -c "CREATE SCHEMA delivery AUTHORIZATION nexus_studio_migrator; REVOKE ALL ON SCHEMA delivery FROM PUBLIC; GRANT USAGE ON SCHEMA delivery TO nexus_studio_app;"
 PGPASSWORD="$NEXUS_STUDIO_MIGRATOR_PASSWORD" psql -X -v ON_ERROR_STOP=1 -U nexus_studio_migrator -d nexus_admin -f artifacts/studio/migrate.sql
 PGPASSWORD="$NEXUS_STUDIO_MIGRATOR_PASSWORD" psql -X -v ON_ERROR_STOP=1 -U nexus_studio_migrator -d nexus_admin -c 'CREATE TABLE studio.permission_probe(id integer PRIMARY KEY)'
 psql -X -v ON_ERROR_STOP=1 -U postgres -d nexus_admin -f deploy/database/grant-studio-runtime.sql
