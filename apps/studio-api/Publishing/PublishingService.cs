@@ -424,6 +424,12 @@ public sealed class PublishingService(StudioDbContext db, CandidateValidator val
             throw new InvalidOperationException($"参加者向け bundle が上限を超えました（{payload.Length} バイト）。");
         }
 
+        // E2-5 §5.3 の不変条件を破る bundle は配信しない。例外でトランザクションごと取り消し、Release も残さない。
+        if (ParticipantBundleInvariants.Check(payload, candidate.After) is [_, ..] violations)
+        {
+            throw new InvalidOperationException($"参加者向け bundle が不変条件を満たしません：{string.Join(" ", violations)}");
+        }
+
         db.ParticipantBundles.Add(new ParticipantBundle
         {
             BundleVersion = release.Sequence,

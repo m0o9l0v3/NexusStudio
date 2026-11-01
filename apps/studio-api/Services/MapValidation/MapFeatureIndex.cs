@@ -9,6 +9,8 @@ public sealed class MapFeatureIndex
     public required IReadOnlyDictionary<string, string> Floors { get; init; }
     /// <summary>Feature の ID → feature_type。</summary>
     public required IReadOnlyDictionary<string, string> Features { get; init; }
+    /// <summary>building Feature の ID → properties.name（無ければ null）。</summary>
+    public IReadOnlyDictionary<string, string?> BuildingNames { get; init; } = new Dictionary<string, string?>();
 
     public static MapFeatureIndex Parse(string payload)
     {
@@ -21,11 +23,19 @@ public sealed class MapFeatureIndex
         }
 
         var features = new Dictionary<string, string>(StringComparer.Ordinal);
+        var buildingNames = new Dictionary<string, string?>(StringComparer.Ordinal);
         foreach (var feature in root.GetProperty("features").EnumerateArray())
         {
-            features[feature.GetProperty("id").GetString()!] = feature.GetProperty("properties").GetProperty("feature_type").GetString()!;
+            var id = feature.GetProperty("id").GetString()!;
+            var properties = feature.GetProperty("properties");
+            var type = properties.GetProperty("feature_type").GetString()!;
+            features[id] = type;
+            if (type == "building")
+            {
+                buildingNames[id] = properties.TryGetProperty("name", out var name) && name.ValueKind == JsonValueKind.String ? name.GetString() : null;
+            }
         }
 
-        return new MapFeatureIndex { Floors = floors, Features = features };
+        return new MapFeatureIndex { Floors = floors, Features = features, BuildingNames = buildingNames };
     }
 }
