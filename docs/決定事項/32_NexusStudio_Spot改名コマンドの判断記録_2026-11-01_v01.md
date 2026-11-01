@@ -34,4 +34,4 @@ dotnet run -- spot rename --from <旧 ID> --to <新しい ID> --map-version <版
 ## 4. 後続
 
 - Spot 以外の ID の改名・廃止の管理操作（D1 の範囲外）。必要になった時点で判断する。
-- 本番で最初に使う前に、隔離環境（NexusInfra の PG17 baseline）で試験する。
+- 本番で最初に使う前に、隔離環境（NexusInfra の PG17 baseline）で試験する。→ 2026-11-01 に実施（[検証記録](../検証記録/2026-11-01_Issue11_Spot改名のPG17隔離試験.md)、develop `36ef517`、32項目成功）。本番での実行は、対象の ID・地図の版を決めたうえで別途判断する。

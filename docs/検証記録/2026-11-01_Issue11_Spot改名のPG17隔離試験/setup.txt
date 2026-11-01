@@ -1,0 +1,4 @@
+localhost:5432 - accepting connections
+17.11
+14
+setup done
