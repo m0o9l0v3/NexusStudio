@@ -79,6 +79,8 @@ jobs:
           python-version: '3.12'
       - run: sh -n deploy/database/setup-studio-roles.sh
       - run: python tests/test_setup_studio_roles.py
+      - run: sh -n deploy/database/pg17/setup-studio-roles.sh
+      - run: python tests/test_setup_studio_roles_pg17.py
 
   studio-db-role-check:
     needs: studio-migration-script
@@ -124,6 +126,30 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - run: sh .github/scripts/verify-studio-pg17-reject.sh
+
+  # Current production shape (DB nexus, superuser nexus), Infra #8. The server is the PG17 image
+  # adopted in NexusInfra #7 (Alpine); the job container is Debian because JavaScript actions need glibc.
+  studio-db-role-pg17-check:
+    needs: studio-migration-script
+    runs-on: ubuntu-latest
+    container: postgres:17.11-trixie
+    services:
+      postgres:
+        image: postgres@sha256:b0f9560a2de083e2cc7382e75f808c7381a32852a7ec49117deedb300e552b24 # 17.11
+        env:
+          POSTGRES_DB: nexus
+          POSTGRES_USER: nexus
+          POSTGRES_PASSWORD: ci-disposable-postgres-password
+    env:
+      PGHOST: postgres
+      PGPASSWORD: ci-disposable-postgres-password
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: studio-migration-sql
+          path: artifacts/studio
+      - run: sh .github/scripts/verify-studio-pg17-db-roles.sh
 
   image-build-check:
     runs-on: ubuntu-latest
