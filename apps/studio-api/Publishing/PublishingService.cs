@@ -316,17 +316,7 @@ public sealed class PublishingService(StudioDbContext db, CandidateValidator val
             return candidate.Fingerprint;
         }
 
-        string settings;
-        try
-        {
-            settings = mapSettings.Load()?.Sha256 ?? "none";
-        }
-        catch (Exception exception) when (exception is InvalidOperationException or IOException or UnauthorizedAccessException)
-        {
-            settings = "unreadable";
-        }
-
-        return $"{candidate.Fingerprint}|map-settings:{settings}";
+        return $"{candidate.Fingerprint}|map-settings:{mapSettings.Fingerprint()}";
     }
 
     /// <summary>復旧：過去の版の内容を現在の下書きへ反映し、新しい版を作る。返すのは新しい版のID。</summary>

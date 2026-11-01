@@ -49,7 +49,7 @@ export function PublishReviewPage({ kind }: { kind: TargetKind }) {
 
   // 公開するのは保存済みの現在の版。確認画面を開いた時点の版に固定する（11 §5）。
   const target = useQuery({
-    queryKey: ['publish-target', kind, id],
+    queryKey: ['publish-target', kind, id, mapRevision],
     queryFn: async (): Promise<Omit<Target, 'action'>> => {
       switch (kind) {
         case 'event': {
@@ -98,7 +98,7 @@ export function PublishReviewPage({ kind }: { kind: TargetKind }) {
   if (target.data)
     return (
       <PublishFlow
-        key={`${kind}:${id}:${action}:${restoreRevision ?? ''}`}
+        key={`${kind}:${id}:${action}:${restoreRevision ?? ''}:${mapRevision ?? ''}`}
         target={{ ...target.data, action, revisionId: restoreRevision ?? target.data.revisionId }}
       />
     )

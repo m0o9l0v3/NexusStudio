@@ -186,6 +186,20 @@ public sealed class MapPublishingTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task ChangingApprovedSettings_MakesTheDraftDiagnosisStale()
+    {
+        await ImportAsync(MapImportTests.FixturePayload);
+        var (response, body) = await SendAsync("/api/validation/draft", new JsonObject());
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.False(body!["stale"]!.GetValue<bool>());
+        Assert.Contains(body["areas"]!.AsArray(), a => a!["targetKind"]!.GetValue<string>() == "map" && a["targetCount"]!.GetValue<int>() == 1);
+
+        File.WriteAllText(SettingsPath, """{ "status": "draft" }""");
+        var latest = JsonNode.Parse(await _client.GetStringAsync("/api/validation/draft/latest"))!;
+        Assert.True(latest["stale"]!.GetValue<bool>());
+    }
+
+    [Fact]
     public async Task Spots_DependOnThePublishedMap()
     {
         var dataset = await ImportAsync(MapImportTests.FixturePayload);

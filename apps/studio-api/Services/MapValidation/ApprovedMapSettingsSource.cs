@@ -11,4 +11,20 @@ public class ApprovedMapSettingsSource(IConfiguration configuration)
 
     public virtual ApprovedMapSettings? Load()
         => configuration[ConfigurationKey] is { Length: > 0 } path ? ApprovedMapSettings.Load(path) : null;
+
+    /// <summary>
+    /// 確認結果の鮮度の判定に使う、設定ファイルの状態（SHA-256、未設定は none、読めなければ unreadable）。
+    /// 読めない設定は検証の側で失敗として扱うため、ここでは例外にしない。
+    /// </summary>
+    public string Fingerprint()
+    {
+        try
+        {
+            return Load()?.Sha256 ?? "none";
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or IOException or UnauthorizedAccessException)
+        {
+            return "unreadable";
+        }
+    }
 }
