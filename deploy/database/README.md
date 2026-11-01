@@ -1,5 +1,7 @@
 # Studio DBロールとschemaの適用契約
 
+本書はPostgreSQL 18用。第1段階の現行PostgreSQL 17では、本書のスクリプトを使わず[PG17用の手順](pg17/README.md)に従う（NexusInfra #8）。
+
 `nexus-mobile`のPostgreSQL 18派生イメージは`nexus_admin` DBとMobile用roleを作る。Studio用roleは作らない。本repoの`setup-studio-roles.sql`は、**新規の隔離DBで検証し、人間がSQLとsecret注入方法を承認した後に一度だけ**適用する。既存roleまたは`studio` schemaがあれば失敗させ、現行VPSへ自動適用しない。
 
 ## 順序
