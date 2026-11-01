@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Identity;
 using StudioApi.Events;
 using StudioApi.Models;
 using StudioApi.Reference;
+using StudioApi.Services.MapValidation;
 
 namespace StudioApi.Publishing;
 
@@ -16,6 +17,24 @@ public sealed record OccurrenceSides(OccurrenceDraft? Published, OccurrenceDraft
 public sealed record CategorySides(IReadOnlyList<CategoryDraft>? Published, IReadOnlyList<CategoryDraft>? Candidate);
 
 public sealed record SpotSides(SpotDraft? Published, SpotDraft? Candidate);
+
+/// <summary>地図の版の要約（GeoJSON 本体は返さない。地図の中身の比較は Map Data 画面の構成確定後に扱う）。</summary>
+/// <param name="ByteLength">GeoJSON の UTF-8 バイト数。</param>
+public sealed record MapVersion(Guid Id, long Version, string Checksum, long ByteLength, int FloorCount, int FeatureCount, DateTimeOffset? PublishedAt)
+{
+    public static MapVersion? Of(MapDataset? dataset)
+    {
+        if (dataset is null)
+        {
+            return null;
+        }
+
+        var index = MapFeatureIndex.Parse(dataset.Payload);
+        return new(dataset.Id, dataset.Version, dataset.Checksum, System.Text.Encoding.UTF8.GetByteCount(dataset.Payload), index.Floors.Count, index.Features.Count, dataset.PublishedAt);
+    }
+}
+
+public sealed record MapSides(MapVersion? Published, MapVersion? Candidate);
 
 /// <summary>公開確認の対象1件（左：公開中との差分。17 §3）。種類に応じて1つの Sides だけが入る。</summary>
 /// <param name="Publication">現在の公開状態。</param>
@@ -31,7 +50,8 @@ public sealed record PreviewItem(
     EventSides? Event,
     OccurrenceSides? Occurrence,
     CategorySides? Categories,
-    SpotSides? Spot);
+    SpotSides? Spot,
+    MapSides? Map);
 
 /// <summary>差分の表示に使う参照先（開催日・Spot・カテゴリ）の名称と時間。公開中と公開後の候補の両方を返す。</summary>
 public sealed record PreviewDay(Guid Id, Guid OccurrenceId, DateOnly? Date, string? PublicStart, string? PublicEnd, string Status);
@@ -110,6 +130,7 @@ public static class ReleaseEndpoints
         OccurrenceSides? occurrenceSides = null;
         CategorySides? categorySides = null;
         SpotSides? spotSides = null;
+        MapSides? mapSides = null;
 
         switch (entry.TargetKind)
         {
@@ -125,9 +146,12 @@ public static class ReleaseEndpoints
             case PublishTargetKind.Spot:
                 spotSides = new(candidate.Before.Spots.TryGetValue(entry.TargetId, out var s) ? s.Draft : null, item.CandidatePayload as SpotDraft);
                 break;
+            case PublishTargetKind.Map:
+                mapSides = new(MapVersion.Of(candidate.Before.Map?.Dataset), MapVersion.Of(item.CandidatePayload as MapDataset));
+                break;
         }
 
-        return new PreviewItem(entry.TargetKind, entry.TargetId, item.Label, entry.Action, entry.RevisionId, summary, item.CurrentRevisionId, eventSides, occurrenceSides, categorySides, spotSides);
+        return new PreviewItem(entry.TargetKind, entry.TargetId, item.Label, entry.Action, entry.RevisionId, summary, item.CurrentRevisionId, eventSides, occurrenceSides, categorySides, spotSides, mapSides);
     }
 
     /// <summary>差分に出てくる開催日・Spot・カテゴリだけを返す。</summary>

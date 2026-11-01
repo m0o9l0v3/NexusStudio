@@ -41,6 +41,8 @@ export const router = createBrowserRouter([
           { path: '/open-campus/:id/publish', element: <PublishReviewPage kind="occurrence" /> },
           { path: '/spots', element: <SpotsPage /> },
           { path: '/spots/publish', element: <PublishReviewPage kind="spot" /> },
+          // 地図の公開確認だけを置く。Map Data 画面（一覧・差分表示）は構成の確定後に作る（UI補完記録）。
+          { path: '/map-data/publish', element: <PublishReviewPage kind="map" /> },
           { path: '/validation', element: <ValidationPage /> },
           { path: '/releases', element: <ReleasesPage /> },
           { path: '/logs', element: <LogsPage /> },

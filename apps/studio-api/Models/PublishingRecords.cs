@@ -60,8 +60,10 @@ public static class PublishTargetKind
     public const string Occurrence = ReferenceRevisionKind.Occurrence;
     public const string Categories = ReferenceRevisionKind.Categories;
     public const string Spot = ReferenceRevisionKind.Spot;
+    /// <summary>地図（29 M1-D5）。TargetId は固定の "map"、版は studio.map_datasets の行。</summary>
+    public const string Map = "map";
 
-    public static readonly string[] All = [Event, Occurrence, Categories, Spot];
+    public static readonly string[] All = [Event, Occurrence, Categories, Spot, Map];
 }
 
 /// <summary>対象ごとの現在の公開版。取り下げても行は残し、State で区別する（取り下げ済みと未公開を分けるため）。</summary>

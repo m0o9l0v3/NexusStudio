@@ -9,6 +9,7 @@ using StudioApi.Data;
 using StudioApi.Events;
 using StudioApi.Models;
 using StudioApi.Reference;
+using StudioApi.Services.MapValidation;
 
 namespace StudioApi.Publishing;
 
@@ -44,10 +45,10 @@ public static class DraftDiagnosis
     }
 
     private static async Task<Ok<DraftDiagnosisResult>> RunAsync(
-        StudioDbContext db, CandidateValidator validator, TimeProvider timeProvider, ClaimsPrincipal principal, UserManager<StudioAdmin> userManager, ILoggerFactory loggerFactory)
+        StudioDbContext db, CandidateValidator validator, ApprovedMapSettingsSource mapSettings, TimeProvider timeProvider, ClaimsPrincipal principal, UserManager<StudioAdmin> userManager, ILoggerFactory loggerFactory)
     {
         var adminId = ReferenceSaving.CurrentAdminId(principal, userManager);
-        var (targets, fingerprint) = await LoadTargetsAsync(db);
+        var (targets, fingerprint) = await LoadTargetsAsync(db, mapSettings);
         var findings = new List<ValidationFinding>();
         var status = ValidationRunStatus.Ok;
         try
@@ -82,7 +83,7 @@ public static class DraftDiagnosis
     }
 
     /// <summary>最後の診断結果。まだ一度も診断していなければ 204（未検証）。</summary>
-    private static async Task<Results<Ok<DraftDiagnosisResult>, NoContent>> LatestAsync(StudioDbContext db)
+    private static async Task<Results<Ok<DraftDiagnosisResult>, NoContent>> LatestAsync(StudioDbContext db, ApprovedMapSettingsSource mapSettings)
     {
         // Id は時刻順に並ぶ UUID v7。
         var run = await db.ValidationRuns.AsNoTracking().Where(r => r.Kind == ValidationRunKind.Draft).OrderByDescending(r => r.Id).FirstOrDefaultAsync();
@@ -91,7 +92,7 @@ public static class DraftDiagnosis
             return TypedResults.NoContent();
         }
 
-        var (_, fingerprint) = await LoadTargetsAsync(db);
+        var (_, fingerprint) = await LoadTargetsAsync(db, mapSettings);
         return TypedResults.Ok(await ToResultAsync(db, run, fingerprint));
     }
 
@@ -120,8 +121,9 @@ public static class DraftDiagnosis
 
     /// <summary>
     /// 診断する下書き（公開中と同じ内容ではないもの）と、下書き・公開の状態から作る値（結果が古いかの判定に使う）。
+    /// 地図を診断するときは、承認済み設定のファイルの状態も含める（設定が変われば地図の所見も変わるため。決定事項31 D3）。
     /// </summary>
-    private static async Task<(List<PublishEntry> Targets, string Fingerprint)> LoadTargetsAsync(StudioDbContext db)
+    private static async Task<(List<PublishEntry> Targets, string Fingerprint)> LoadTargetsAsync(StudioDbContext db, ApprovedMapSettingsSource mapSettings)
     {
         var publications = await PublicationIndex.LoadAsync(db);
         var current = new List<(string Kind, string Id, Guid? Revision)>();
@@ -132,6 +134,10 @@ public static class DraftDiagnosis
         current.Add((PublishTargetKind.Categories, PublishTargetKind.Categories, (await db.CategoryListStates.AsNoTracking().SingleAsync()).CurrentRevisionId));
         current.AddRange((await db.Spots.AsNoTracking().Select(s => new { s.CanonicalId, s.CurrentRevisionId }).ToListAsync())
             .Select(s => (PublishTargetKind.Spot, s.CanonicalId, s.CurrentRevisionId)));
+        if (await ReleaseHistory.LatestMapAsync(db) is { } map)
+        {
+            current.Add((PublishTargetKind.Map, PublishTargetKind.Map, map));
+        }
 
         var builder = new StringBuilder();
         var targets = new List<PublishEntry>();
@@ -143,6 +149,11 @@ public static class DraftDiagnosis
             {
                 targets.Add(new PublishEntry(kind, id, ReleaseAction.Publish, revisionId));
             }
+        }
+
+        if (targets.Any(t => t.TargetKind == PublishTargetKind.Map))
+        {
+            builder.Append($"map-settings|{mapSettings.Fingerprint()}\n");
         }
 
         return (targets, Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(builder.ToString()))));
