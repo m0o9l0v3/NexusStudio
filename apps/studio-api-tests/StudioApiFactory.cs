@@ -37,6 +37,8 @@ public sealed class StudioApiFactory : WebApplicationFactory<Program>
         // Programは接続文字列が無いと起動を拒否する（Step 0-d）。実際のDBには接続しない値を渡し、下で差し替える。
         builder.UseSetting("ConnectionStrings:StudioDatabase", "Host=unused.invalid;Database=unused;Username=nexus_studio_app;Password=unused");
         builder.UseSetting("ReverseProxy:TrustedNetwork", "172.30.250.0/28");
+        if (_environment != "Development")
+            builder.UseSetting("DataProtection:KeysDirectory", CreatePrivateKeysDirectory());
         builder.ConfigureTestServices(services =>
         {
             services.RemoveAll<DbContextOptions<StudioDbContext>>();
@@ -45,6 +47,16 @@ public sealed class StudioApiFactory : WebApplicationFactory<Program>
                 .UseSqlite(_connection)
                 .ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning)));
         });
+    }
+
+    private static string CreatePrivateKeysDirectory()
+    {
+        var path = Path.Combine(Path.GetTempPath(), "studio-dp-keys-" + Guid.NewGuid().ToString("N"));
+        if (OperatingSystem.IsWindows())
+            Directory.CreateDirectory(path);
+        else
+            Directory.CreateDirectory(path, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        return path;
     }
 
     public async Task InitializeDatabaseAsync()
