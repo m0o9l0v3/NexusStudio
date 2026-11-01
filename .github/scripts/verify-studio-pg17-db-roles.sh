@@ -67,6 +67,7 @@ psql -X -v ON_ERROR_STOP=1 -U nexus -d nexus -Atc "SELECT count(*) FROM pg_class
 # delivery holds exactly the two contract tables (E2-5 §3.1), owned by the migrator, with the monotonic trigger (§3.2).
 psql -X -v ON_ERROR_STOP=1 -U nexus -d nexus -Atc "SELECT string_agg(relname || ':' || relowner::regrole::text, ',' ORDER BY relname) FROM pg_class WHERE relnamespace = 'delivery'::regnamespace AND relkind IN ('r', 'p', 'v', 'm', 'f')" | grep -qx 'current_bundle:nexus_studio_migrator,participant_bundles:nexus_studio_migrator'
 psql -X -v ON_ERROR_STOP=1 -U nexus -d nexus -Atc "SELECT count(*) FROM pg_trigger t JOIN pg_proc f ON f.oid = t.tgfoid WHERE t.tgrelid = 'delivery.current_bundle'::regclass AND t.tgname = 'current_bundle_monotonic' AND t.tgtype & 19 = 19 AND f.proname = 'reject_bundle_version_decrease' AND f.proowner = 'nexus_studio_migrator'::regrole" | grep -qx 1
+psql -X -v ON_ERROR_STOP=1 -U nexus -d nexus -Atc "SELECT proconfig::text FROM pg_proc WHERE oid = 'delivery.reject_bundle_version_decrease()'::regprocedure" | grep -qx '{search_path=pg_catalog}'
 PGPASSWORD="$NEXUS_STUDIO_MIGRATOR_PASSWORD" psql -X -v ON_ERROR_STOP=1 -U nexus_studio_migrator -d nexus -c 'CREATE TABLE studio.permission_probe(id integer PRIMARY KEY)'
 psql -X -v ON_ERROR_STOP=1 -U nexus -d nexus -f deploy/database/grant-studio-runtime.sql
 psql -X -v ON_ERROR_STOP=1 -U nexus -d nexus -f deploy/database/grant-studio-runtime.sql >/dev/null
@@ -92,8 +93,16 @@ app_sql() { PGPASSWORD="$NEXUS_STUDIO_APP_PASSWORD" psql -X -v ON_ERROR_STOP=1 -
 app_sql "INSERT INTO delivery.participant_bundles VALUES (1, gen_random_uuid(), '2.0.0', '\\x7b7d', repeat('0', 64), 2, now()), (2, gen_random_uuid(), '2.0.0', '\\x7b7d', repeat('0', 64), 2, now())"
 app_sql "INSERT INTO delivery.current_bundle (bundle_version, updated_at) VALUES (1, now()) ON CONFLICT (singleton) DO UPDATE SET bundle_version = excluded.bundle_version, updated_at = excluded.updated_at"
 app_sql "INSERT INTO delivery.current_bundle (bundle_version, updated_at) VALUES (2, now()) ON CONFLICT (singleton) DO UPDATE SET bundle_version = excluded.bundle_version, updated_at = excluded.updated_at"
-for statement in "UPDATE delivery.participant_bundles SET schema_version = '9.9.9'" "DELETE FROM delivery.participant_bundles" "TRUNCATE delivery.participant_bundles" "DELETE FROM delivery.current_bundle" "UPDATE delivery.current_bundle SET bundle_version = 1"; do
+for statement in "UPDATE delivery.participant_bundles SET schema_version = '9.9.9'" "DELETE FROM delivery.participant_bundles" "TRUNCATE delivery.participant_bundles" "DELETE FROM delivery.current_bundle"; do
   expect_denied nexus_studio_app "$NEXUS_STUDIO_APP_PASSWORD" "$statement" "delivery: $statement"
+done
+# 版を戻す更新はトリガーが check_violation（23514）で拒否する。所有者の migrator でも同じ。
+for role in app migrator; do
+  if [ "$role" = app ]; then user=nexus_studio_app password="$NEXUS_STUDIO_APP_PASSWORD"; else user=nexus_studio_migrator password="$NEXUS_STUDIO_MIGRATOR_PASSWORD"; fi
+  if out=$(PGPASSWORD="$password" psql -X -v ON_ERROR_STOP=1 -v VERBOSITY=sqlstate -U "$user" -d nexus -c "UPDATE delivery.current_bundle SET bundle_version = 1" 2>&1); then
+    echo "unexpectedly allowed: pointer rollback by $user" >&2; exit 1
+  fi
+  printf %s "$out" | grep -q 23514 || { echo "pointer rollback by $user must fail with 23514: $out" >&2; exit 1; }
 done
 psql -X -v ON_ERROR_STOP=1 -U nexus -d nexus -Atc 'SELECT bundle_version FROM delivery.current_bundle' | grep -qx 2
 PGPASSWORD="$public_password" psql -X -v ON_ERROR_STOP=1 -U nexus_public -d nexus -Atc 'SELECT b.byte_length FROM delivery.current_bundle c JOIN delivery.participant_bundles b USING (bundle_version)' | grep -qx 2
