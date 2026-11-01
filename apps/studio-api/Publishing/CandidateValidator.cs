@@ -363,6 +363,8 @@ public class CandidateValidator(TimeProvider timeProvider, MapDatasetValidator m
         }
 
         var publishedVenues = published?.Slots.SelectMany(s => s.Venues).Select(v => v.CanonicalSpotId).ToHashSet(StringComparer.Ordinal) ?? [];
+        // 改名で旧 ID から替えた会場は、公開中の会場の続きとして扱う（決定事項32）。
+        publishedVenues.UnionWith(publishedVenues.Where(candidate.RenamedSpotIds.ContainsKey).Select(id => candidate.RenamedSpotIds[id]).ToList());
         for (var i = 0; i < draft.Slots.Count; i++)
         {
             var slot = draft.Slots[i];

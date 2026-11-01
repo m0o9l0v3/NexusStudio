@@ -226,7 +226,7 @@ public sealed class StudioDbContext(DbContextOptions<StudioDbContext> options)
             entity.ToTable("reference_revisions", table =>
             {
                 table.HasCheckConstraint("ck_reference_revisions_kind", "kind IN ('occurrence', 'categories', 'spot')");
-                table.HasCheckConstraint("ck_reference_revisions_source", "source IN ('editor', 'import', 'restore')");
+                table.HasCheckConstraint("ck_reference_revisions_source", "source IN ('editor', 'import', 'restore', 'rename')");
             });
             entity.HasKey(e => e.RevisionId);
             entity.Property(e => e.RevisionId).HasColumnName("revision_id");

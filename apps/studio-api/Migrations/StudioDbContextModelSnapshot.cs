@@ -709,7 +709,7 @@ namespace StudioApi.Migrations
                         {
                             t.HasCheckConstraint("ck_reference_revisions_kind", "kind IN ('occurrence', 'categories', 'spot')");
 
-                            t.HasCheckConstraint("ck_reference_revisions_source", "source IN ('editor', 'import', 'restore')");
+                            t.HasCheckConstraint("ck_reference_revisions_source", "source IN ('editor', 'import', 'restore', 'rename')");
                         });
                 });
 

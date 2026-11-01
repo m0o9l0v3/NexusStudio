@@ -152,4 +152,6 @@ public static class ReferenceRevisionSource
     public const string Import = "import";
     /// <summary>過去の版からの復旧で作った版。</summary>
     public const string Restore = "restore";
+    /// <summary>改名（管理コマンド `spot rename`）で作った版。</summary>
+    public const string Rename = "rename";
 }

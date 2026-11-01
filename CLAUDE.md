@@ -83,6 +83,9 @@ dotnet run -- reference import --file ../../docs/samples/reference-sample.json  
 # 地図の取り込み（下書きの版を作るだけで公開しない。根拠の形式は deploy/map-validation/README.md）
 dotnet run -- map import --file <GeoJSON> [--evidence <根拠のJSON>]
 
+# 公開中の Spot の改名（画面には置かない。--apply なしは確認だけ。docs/決定事項/32）
+dotnet run -- spot rename --from <旧ID> --to <新ID> --map-version <新IDの地図の版> --admin <メールアドレス> [--apply]
+
 # APIを変えたら：OpenAPI文書を更新して型を再生成する（CIで食い違いを検出する）
 STUDIO_UPDATE_OPENAPI=1 dotnet test ../studio-api-tests/StudioApi.Tests.csproj
 cd ../studio-web && npm run gen:api
