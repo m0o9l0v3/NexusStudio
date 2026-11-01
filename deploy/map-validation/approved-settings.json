@@ -1,0 +1,10 @@
+{
+  "status": "draft",
+  "approvedBy": null,
+  "approvedAt": null,
+  "campusBoundary": null,
+  "enuOrigin": null,
+  "entranceMaxGapMetres": null,
+  "pathDistanceToleranceMetres": null,
+  "startNodeIds": null
+}
