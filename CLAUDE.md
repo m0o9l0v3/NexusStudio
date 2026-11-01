@@ -80,6 +80,9 @@ dotnet run -- admin add --email <メールアドレス> --name <表示名>   # �
 # 参照データの取り込み（開催回・開催日・カテゴリ・Spot。起動時には取り込まない）
 dotnet run -- reference import --file ../../docs/samples/reference-sample.json   # 開発用の設計用サンプル
 
+# 地図の取り込み（下書きの版を作るだけで公開しない。根拠の形式は deploy/map-validation/README.md）
+dotnet run -- map import --file <GeoJSON> [--evidence <根拠のJSON>]
+
 # APIを変えたら：OpenAPI文書を更新して型を再生成する（CIで食い違いを検出する）
 STUDIO_UPDATE_OPENAPI=1 dotnet test ../studio-api-tests/StudioApi.Tests.csproj
 cd ../studio-web && npm run gen:api

@@ -5,6 +5,7 @@ using StudioApi.Admin;
 using StudioApi.Auth;
 using StudioApi.Data;
 using StudioApi.Events;
+using StudioApi.Map;
 using StudioApi.Publishing;
 using StudioApi.Reference;
 using StudioApi.Services.MapValidation;
@@ -30,6 +31,7 @@ builder.Services.AddDbContext<StudioDbContext>(options => options.UseStudioNpgsq
 builder.Services.AddSingleton<MapDatasetValidator>();
 builder.Services.AddStudioAuth(builder.Environment);
 builder.Services.AddScoped<ReferenceImporter>();
+builder.Services.AddScoped<MapImporter>();
 builder.Services.AddScoped<CandidateValidator>();
 builder.Services.AddScoped<PublishingService>();
 builder.Services.AddProblemDetails();
@@ -54,6 +56,14 @@ if (args.Length > 0 && args[0] == "reference")
     await using var scope = app.Services.CreateAsyncScope();
     var importer = scope.ServiceProvider.GetRequiredService<ReferenceImporter>();
     return await ReferenceCommand.RunAsync(args[1..], importer, Console.Out, Console.Error);
+}
+
+// 運用者用の地図の取り込み（下書きの版を作るだけで、公開はしない。決定事項31 D1）。
+if (args.Length > 0 && args[0] == "map")
+{
+    await using var scope = app.Services.CreateAsyncScope();
+    var importer = scope.ServiceProvider.GetRequiredService<MapImporter>();
+    return await MapCommand.RunAsync(args[1..], importer, Console.Out, Console.Error);
 }
 
 if (app.Environment.IsDevelopment())

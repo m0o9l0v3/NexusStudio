@@ -7,7 +7,7 @@ NexusStudio #11。Studio は地図（MapDataset）を公開する前に、nexus-
 | 種類 | 置き場所 | 変わる時 |
 |---|---|---|
 | A. キャンパス全体の承認済み設定 | 本ディレクトリの `approved-settings.json`（Git でレビュー） | キャンパスや許容値の方針を見直した時だけ |
-| B. 地図の版ごとの根拠 | 地図の取り込みコマンドで、GeoJSON と一緒に渡す（次の PR で実装） | 地図の版ごと |
+| B. 地図の版ごとの根拠 | 地図の取り込みコマンド（`map import`）で、GeoJSON と一緒に渡す | 地図の版ごと |
 
 ## A. `approved-settings.json`
 
@@ -35,4 +35,22 @@ NexusStudio #11。Studio は地図（MapDataset）を公開する前に、nexus-
 | `expectedPathSeconds` | 各 `walking_path` の ID → 元データの所要時間（秒）。GeoJSON の `estimated_seconds` と一致しなければ `path_seconds_mismatch` | — |
 | `floorTransforms` | 各フロアの ID → 座標変換の検証結果（`roundTripMaxMetres`・`fitRmsMetres`・`fitMaxMetres`・`checkMaxMetres`・`roundingMaxMetres`、m） | E1-5：0.05・2・3・3・0.10 |
 
-いずれも地図を作った変換工程（nexus-mobile の map-dataset CLI など）の出力から得る値で、Studio は値を作らない。形式は取り込みコマンドの PR で定める。
+いずれも地図を作った変換工程（nexus-mobile の map-dataset CLI など）の出力から得る値で、Studio は値を作らない。
+
+```sh
+cd apps/studio-api
+dotnet run -- map import --file <GeoJSON> --evidence <根拠の JSON>   # --evidence は任意（無いと公開判定で不足として止まる）
+```
+
+根拠のファイルの形式（キーは canonical ID。大文字小文字を区別する）:
+
+```json
+{
+  "expectedPathSeconds": { "<walking_path の ID>": 秒 },
+  "floorTransforms": {
+    "<フロアの ID>": { "roundTripMaxMetres": m, "fitRmsMetres": m, "fitMaxMetres": m, "checkMaxMetres": m, "roundingMaxMetres": m }
+  }
+}
+```
+
+2つの項目と、各フロアの5つの値はすべて必須。未知の項目・数を文字列で書いたもの・地図に無い経路やフロアの ID は取り込みで拒否する。値が地図と一致するか・上限内かは公開判定で調べる。取り込みは下書きの版を作るだけで、公開は Releases の操作で行う。

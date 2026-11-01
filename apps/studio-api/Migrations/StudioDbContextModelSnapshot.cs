@@ -352,6 +352,10 @@ namespace StudioApi.Migrations
                         .HasColumnType("text")
                         .HasColumnName("status");
 
+                    b.Property<string>("ValidationEvidence")
+                        .HasColumnType("text")
+                        .HasColumnName("validation_evidence");
+
                     b.Property<long>("Version")
                         .HasColumnType("bigint")
                         .HasColumnName("version");

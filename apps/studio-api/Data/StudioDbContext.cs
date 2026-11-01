@@ -69,6 +69,7 @@ public sealed class StudioDbContext(DbContextOptions<StudioDbContext> options)
             entity.Property(e => e.Payload).HasColumnName("payload").HasColumnType("text").IsRequired();
             entity.Property(e => e.Checksum).HasColumnName("checksum").IsRequired();
             entity.Property(e => e.PublishedAt).HasColumnName("published_at");
+            entity.Property(e => e.ValidationEvidence).HasColumnName("validation_evidence").HasColumnType("text");
         });
 
         modelBuilder.Entity<StudioAdmin>(entity =>
