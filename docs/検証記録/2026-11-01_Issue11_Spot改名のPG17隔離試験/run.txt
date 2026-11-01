@@ -1,0 +1,46 @@
+PASS: admin add (Production, nexus_studio_app)
+PASS: reference import
+PASS: map import v1
+PASS: starting state published: map v1, occurrence, categories, spot, one event; one draft-only event; spot then set to noNewSelection
+PASS: existing alias old_cl_001 -> mb_1f_cl_001 appended by nexus_studio_app
+PASS: refused: published map version (not a draft)
+PASS: map import v2 (destination renamed)
+PASS: map import v3 (still has the old ID)
+PASS: refused: map still has the old ID
+PASS: refused: older version than the latest import
+PASS: map import v4 (destination renamed, latest)
+PASS: refused: new ID already reserved (alias)
+PASS: refused: new ID absent from the map
+PASS: refused: old ID not published
+PASS: refused: unknown admin
+イベント「公開中のイベント」の会場を mb_1f_cl_002 に替えます（公開し直す）。
+イベント「下書きだけのイベント」の会場を mb_1f_cl_002 に替えます（下書きのみ）。
+[info] 1A教室：spot_used_by_published_events 公開中のイベント（公開中のイベント）の会場表示にも反映されます。
+[info] 1A教室：spot_no_new_selection 新規選択停止として公開します。公開中のイベントの会場参照は維持します。
+確認だけ行いました。何も変えていません。改名するには --apply を付けて実行してください。
+PASS: dry run succeeds and leaves nothing (counts and bundle pointer unchanged)
+イベント「公開中のイベント」の会場を mb_1f_cl_002 に替えます（公開し直す）。
+イベント「下書きだけのイベント」の会場を mb_1f_cl_002 に替えます（下書きのみ）。
+[info] 1A教室：spot_used_by_published_events 公開中のイベント（公開中のイベント）の会場表示にも反映されます。
+[info] 1A教室：spot_no_new_selection 新規選択停止として公開します。公開中のイベントの会場参照は維持します。
+改名しました（Release #5、01a1978b-68cc-724e-a474-6a05669e797f）。
+PASS: rename applied (Production CLI, nexus_studio_app)
+PASS: exactly one new release and one new bundle; pointer advanced by one
+release: 改名 mb_1f_cl_001 → mb_1f_cl_002
+entries: event:01a1978b-3e57-7402-99ee-38ab3d0a239d:publish map:map:publish spot:mb_1f_cl_001:withdraw spot:mb_1f_cl_002:publish
+PASS: release entries: event republish, map v4 publish, new spot publish, old spot withdraw
+PASS: publications: old spot withdrawn, new spot published
+PASS: map v4 is the published map
+PASS: new spot copied with noNewSelection and a 'rename' revision
+PASS: published event republished with the new venue
+PASS: draft-only event gets a new draft revision with the new venue and stays unpublished
+ledger: mb_1f_cl_001:room:active:-:release:false mb_1f_cl_001:spot:active:-:release:false old_cl_001:spot:alias:mb_1f_cl_001:import:false mb_1f_cl_001:room:retired:-:rename:true mb_1f_cl_001:spot:retired:-:rename:true mb_1f_cl_001:spot:alias:mb_1f_cl_002:rename:true old_cl_001:spot:alias:mb_1f_cl_002:rename:true mb_1f_cl_002:room:active:-:release:true mb_1f_cl_002:spot:active:-:release:true
+PASS: ledger appended: mb_1f_cl_001:spot:retired:-:rename:true
+PASS: ledger appended: mb_1f_cl_001:room:retired:-:rename:true
+PASS: ledger appended: mb_1f_cl_001:spot:alias:mb_1f_cl_002:rename:true
+PASS: ledger appended: old_cl_001:spot:alias:mb_1f_cl_002:rename:true
+PASS: ledger appended: mb_1f_cl_002:spot:active:-:release:true
+PASS: nexus_public reads the new bundle: spots = [new ID] in the room
+PASS: bundle id_aliases: old ID and old alias resolve to the new ID
+PASS: refused: second rename of the same old ID
+32 checks passed (disposable PG17 only; production untouched)
