@@ -281,6 +281,75 @@ public sealed class MapPublishingTests : IAsyncLifetime
         Assert.Equal(3, await WithDbAsync(db => db.ParticipantBundles.CountAsync()));
     }
 
+    /// <summary>復旧も公開と同じく、戻した内容で bundle の新しい版を作る（nexus-mobile E2-5 §9 の受入条件）。</summary>
+    [Fact]
+    public async Task RestoringASpot_ProjectsTheRestoredVersionIntoANewBundle()
+    {
+        var dataset = await ImportAsync(MapImportTests.FixturePayload);
+        await PreviewAndPublishAsync(Entry("map", "map", revisionId: dataset.Id));
+        var original = await AddSpotAsync("mb_1f_cl_001");
+        await PreviewAndPublishAsync(Entry("spot", "mb_1f_cl_001", revisionId: original));
+        var renamed = await AddSpotAsync("mb_1f_cl_001", "1A教室（改称）");
+        await PreviewAndPublishAsync(Entry("spot", "mb_1f_cl_001", revisionId: renamed));
+        var (before, changed) = await CurrentBundleAsync();
+        Assert.Equal("1A教室（改称）", changed["spots"]![0]!["name"]!.GetValue<string>());
+
+        await PreviewAndPublishAsync(Entry("spot", "mb_1f_cl_001", "restore", original));
+
+        var (after, restored) = await CurrentBundleAsync();
+        Assert.True(after.BundleVersion > before.BundleVersion);
+        Assert.Equal("1A教室", restored["spots"]![0]!["name"]!.GetValue<string>());
+        Assert.Equal(4, await WithDbAsync(db => db.ParticipantBundles.CountAsync()));
+    }
+
+    /// <summary>bundle を書けなければ、Release・公開状態・予約表も残さない（nexus-mobile E2-5 §9 の受入条件）。</summary>
+    [Fact]
+    public async Task FailingToWriteTheBundle_LeavesNoRelease()
+    {
+        var dataset = await ImportAsync(MapImportTests.FixturePayload);
+        await PreviewAndPublishAsync(Entry("map", "map", revisionId: dataset.Id));
+        var spotRevision = await AddSpotAsync("mb_1f_cl_001");
+        var preview = await PreviewAsync(Entry("spot", "mb_1f_cl_001", revisionId: spotRevision));
+        Assert.Empty(Codes(preview));
+
+        // 次の Release の番号の bundle を先に置き、射影の書き込みだけを失敗させる。
+        var (pointer, releases, reservations) = await WithDbAsync(async db =>
+        {
+            var next = await db.Releases.MaxAsync(r => r.Sequence) + 1;
+            db.ParticipantBundles.Add(new ParticipantBundle
+            {
+                BundleVersion = next, ReleaseId = Guid.CreateVersion7(), SchemaVersion = "2.0.0", Payload = "{}"u8.ToArray(),
+                Sha256 = new string('0', 64), ByteLength = 2, CreatedAt = DateTimeOffset.UtcNow,
+            });
+            await db.SaveChangesAsync();
+            return ((await db.CurrentBundle.AsNoTracking().SingleAsync()).BundleVersion, await db.Releases.CountAsync(), await db.IdReservations.CountAsync());
+        });
+
+        var (response, body) = await SendAsync("/api/releases", new JsonObject
+        {
+            ["operationId"] = Guid.NewGuid().ToString(),
+            ["entries"] = preview["validation"]!["entries"]!.DeepClone(),
+            ["confirmedValidationId"] = preview["validation"]!["id"]!.DeepClone(),
+            ["message"] = null,
+        });
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("failed", body!["status"]!.GetValue<string>());
+
+        await WithDbAsync(async db =>
+        {
+            Assert.Equal(releases, await db.Releases.CountAsync());
+            Assert.Equal(reservations, await db.IdReservations.CountAsync());
+            Assert.Equal(pointer, (await db.CurrentBundle.AsNoTracking().SingleAsync()).BundleVersion);
+            Assert.False(await db.Publications.AnyAsync(p => p.TargetKind == "spot"));
+            return 0;
+        });
+
+        // 失敗の原因が射影の書き込みだけだったことを確かめる：置いた bundle を除けば同じ内容で公開できる。
+        // （アプリは bundle の削除を拒否するため、試験の後片付けとして直接消す）
+        Assert.Equal(1, await WithDbAsync(db => db.ParticipantBundles.Where(b => b.BundleVersion == releases + 1).ExecuteDeleteAsync()));
+        await PreviewAndPublishAsync(Entry("spot", "mb_1f_cl_001", revisionId: spotRevision));
+    }
+
     /// <summary>建物の Spot の名称と地図の建物名の食い違いは警告し、公開は止めない（nexus-mobile E2-5 O-1c）。</summary>
     [Fact]
     public async Task BuildingSpotNameDifferingFromTheMap_IsWarned()
