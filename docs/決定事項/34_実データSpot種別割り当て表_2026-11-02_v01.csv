@@ -87,3 +87,4 @@ sab_1f_rm_006,room,sab,sab_1f,rm,応接室,yes,facility,指針,その他の室,
 sab_1f_rm_007,room,sab,sab_1f,rm,技能審査員控室,yes,facility,指針,その他の室,
 sab_1f_wc_001,room,sab,sab_1f,wc,男子トイレ,yes,facility,指針,トイレ（指針。restroom は不採用）,
 sab_1f_wc_002,room,sab,sab_1f,wc,女子トイレ,yes,facility,指針,トイレ（指針。restroom は不採用）,
+campus_lm_001,landmark,,,,航空神社,yes,facility,指針,ランドマーク（指針）,旧 ID lm_koku_shrine。2026-11-02 追加
