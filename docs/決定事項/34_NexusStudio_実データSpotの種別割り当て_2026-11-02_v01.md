@@ -2,9 +2,9 @@
 
 - 作成日：2026-11-02
 - 版：v01
-- 状態：**利用者が決定**（2026-11-02、承認者 m0o9l0v3）
+- 状態：**利用者が決定**（2026-11-02、承認者 m0o9l0v3）。同日、ランドマーク1件と正式入口の扱いを追記
 - 関連：[33 v01](33_NexusStudio_Spot種別の必須化の判断記録_2026-11-02_v01.md)（種別の必須化）、[26 v01](26_NexusStudio_部屋canonicalID規則・対応表_2026-09-22_v01.md)（部屋の canonical ID）、nexus-mobile E1-1（建物14棟）・E1-7（部屋）・E2-5 §5.2（`kind` の割り当ての指針）
-- 割り当て表：[`34_実データSpot種別割り当て表_2026-11-02_v01.csv`](34_実データSpot種別割り当て表_2026-11-02_v01.csv)（88行）
+- 割り当て表：[`34_実データSpot種別割り当て表_2026-11-02_v01.csv`](34_実データSpot種別割り当て表_2026-11-02_v01.csv)（89行）
 
 ## 1. 目的
 
@@ -17,7 +17,8 @@
 | nexus-mobile E1-1 | 14 | 建物（canonical ID と表示名） |
 | 26 の対応表（= nexus-mobile E1-7 の CSV。SHA-256 `fa7fb8ce…ba989b`） | 74 | 部屋（新 ID・型・資料上の名称） |
 
-- 正式入口（`formal_entrance`）とランドマーク（`landmark`）は、canonical ID の一覧がまだ無いため対象外。ID が決まったら追記する（正式入口・ランドマークは指針どおり `facility`）。
+- ランドマークは航空神社（`campus_lm_001`。nexus-mobile E1-4 改訂1 §4.2、2026-11-02 採番）の1件を追加した（`facility`）。
+- 正式入口（`formal_entrance`、`{building_id}_ent_001` の12件）は Spot にしない。建物の Spot から入口へ案内されるため（E1-4 改訂1 §4.3）。必要になれば `facility` で追加する。
 - 当日の受付・救護などの臨時の地点も対象外。作るときは `service` にする。
 
 ## 3. 決定
@@ -33,15 +34,16 @@
 | A7 | 保健室 | する | `service` | 指針の例 |
 | A8 | 審査室1〜5 | する | `facility` | 技能審査の室で、授業・体験の場ではない（個別確認） |
 | A9 | その他の室（職員室・STAFF ROOM・機械室・準備室・学友会室・CLUB ROOM・ジム・シャワールーム・カフェエリア・応接室・控室） | する | `facility` | 指針（その他の室） |
+| A10 | ランドマーク（航空神社） | する | `facility` | 指針 |
 
-内訳：`facility` 50、`classroom` 35、`service` 1、Spot にしない 2（計88）。
+内訳：`facility` 51、`classroom` 35、`service` 1、Spot にしない 2（計89）。
 
 ## 4. 割り当て表の列
 
 | 列 | 内容 |
 |---|---|
 | `canonical_id` | 建物 ID または部屋の新 ID |
-| `entity` | `building` / `room` |
+| `entity` | `building` / `room` / `landmark` |
 | `building_id`・`floor_id` | 所属（建物は `floor_id` なし） |
 | `source_type`・`source_name` | 出典の型コードと資料上の名称。**Spot の表示名の正本ではない**（表示名は Studio の Spot で決める。E1-7） |
 | `spot` | `yes`：Spot にする、`no`：しない |
@@ -59,4 +61,3 @@
 ## 6. 本書で決めないこと
 
 - Spot の表示名・別名・利用状態（`source_name` は資料上の名称で、表記揺れも残っている。E1-7 §5-4）
-- 正式入口・ランドマークの canonical ID

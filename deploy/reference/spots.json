@@ -876,6 +876,16 @@
       "isPublished": false,
       "utilization": "available",
       "kind": "facility"
+    },
+    {
+      "canonicalId": "campus_lm_001",
+      "name": "航空神社",
+      "aliases": null,
+      "building": null,
+      "floor": null,
+      "isPublished": false,
+      "utilization": "available",
+      "kind": "facility"
     }
   ]
 }
