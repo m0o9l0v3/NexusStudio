@@ -111,8 +111,8 @@ public sealed class ReferenceDataTests : IAsyncLifetime
         var importer = scope.ServiceProvider.GetRequiredService<ReferenceImporter>();
         var result = await importer.ImportAsync(new ReferenceFile(null, null,
         [
-            new ReferenceFileSpot("mb_f2_rm_2a", "小文字", null, null, null, true, null),
-            new ReferenceFileSpot("MB_F2_RM_2A", "大文字", null, null, null, true, null),
+            new ReferenceFileSpot("mb_f2_rm_2a", "小文字", null, null, null, true, null, Kind: "classroom"),
+            new ReferenceFileSpot("MB_F2_RM_2A", "大文字", null, null, null, true, null, Kind: "classroom"),
         ]));
         Assert.True(result.Succeeded, string.Join(" ", result.Messages));
 
@@ -120,6 +120,26 @@ public sealed class ReferenceDataTests : IAsyncLifetime
         Assert.Equal("大文字", Assert.Single(lookup!).Name);
         var missing = await _client.GetFromJsonAsync<List<SpotItem>>("/api/spots/lookup?id=Mb_F2_Rm_2A", Json);
         Assert.Empty(missing!);
+    }
+
+    /// <summary>取り込みで公開する Spot にも種別を求める（E2-5 O-2c C4、決定事項33）。公開しない Spot は種別なしで取り込める。</summary>
+    [Fact]
+    public async Task ImportingAPublishedSpotWithoutKind_IsRejectedWithoutWritingAnything()
+    {
+        await using var scope = _factory.Services.CreateAsyncScope();
+        var importer = scope.ServiceProvider.GetRequiredService<ReferenceImporter>();
+        var result = await importer.ImportAsync(new ReferenceFile(null, null,
+        [
+            new ReferenceFileSpot("mb_1f_cl_001", "1A教室", null, null, null, true, null),
+            new ReferenceFileSpot("mb_1f_cl_002", "1B教室", null, null, null, false, null),
+        ]));
+        Assert.False(result.Succeeded);
+        Assert.Contains(result.Messages, m => m.Contains("種別") && m.Contains("mb_1f_cl_001"));
+        var db = scope.ServiceProvider.GetRequiredService<StudioDbContext>();
+        Assert.Equal(0, await db.Spots.CountAsync());
+
+        var draftOnly = await importer.ImportAsync(new ReferenceFile(null, null, [new ReferenceFileSpot("mb_1f_cl_002", "1B教室", null, null, null, false, null)]));
+        Assert.True(draftOnly.Succeeded, string.Join(" ", draftOnly.Messages));
     }
 
     [Fact]
