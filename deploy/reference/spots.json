@@ -1,0 +1,881 @@
+{
+  "_note": "実データの Spot の取り込み元（deploy/reference/README.md）。種別は決定事項34、建物名は nexus-mobile E1-1（C-012）による。すべて下書きとして取り込み、公開は Studio の公開前検証を通して行う。",
+  "occurrences": null,
+  "categories": null,
+  "spots": [
+    {
+      "canonicalId": "ab",
+      "name": "管理棟",
+      "aliases": null,
+      "building": "管理棟",
+      "floor": null,
+      "isPublished": false,
+      "utilization": "available",
+      "kind": "facility"
+    },
+    {
+      "canonicalId": "amh",
+      "name": "女子寮（アメリアホール）",
+      "aliases": null,
+      "building": "女子寮（アメリアホール）",
+      "floor": null,
+      "isPublished": false,
+      "utilization": "available",
+      "kind": "facility"
+    },
+    {
+      "canonicalId": "aptr",
+      "name": "機体実習室",
+      "aliases": null,
+      "building": "機体実習室",
+      "floor": null,
+      "isPublished": false,
+      "utilization": "available",
+      "kind": "facility"
+    },
+    {
+      "canonicalId": "ar",
+      "name": "アリーナ",
+      "aliases": null,
+      "building": "アリーナ",
+      "floor": null,
+      "isPublished": false,
+      "utilization": "available",
+      "kind": "facility"
+    },
+    {
+      "canonicalId": "ctc_main",
+      "name": "CTC",
+      "aliases": null,
+      "building": "CTC",
+      "floor": null,
+      "isPublished": false,
+      "utilization": "available",
+      "kind": "facility"
+    },
+    {
+      "canonicalId": "ctc2",
+      "name": "CTC2",
+      "aliases": null,
+      "building": "CTC2",
+      "floor": null,
+      "isPublished": false,
+      "utilization": "available",
+      "kind": "facility"
+    },
+    {
+      "canonicalId": "dh",
+      "name": "食堂",
+      "aliases": null,
+      "building": "食堂",
+      "floor": null,
+      "isPublished": false,
+      "utilization": "available",
+      "kind": "facility"
+    },
+    {
+      "canonicalId": "dvh",
+      "name": "Da Vinci Hall",
+      "aliases": null,
+      "building": "Da Vinci Hall",
+      "floor": null,
+      "isPublished": false,
+      "utilization": "available",
+      "kind": "facility"
+    },
+    {
+      "canonicalId": "hgr_a",
+      "name": "格納庫A",
+      "aliases": null,
+      "building": "格納庫A",
+      "floor": null,
+      "isPublished": false,
+      "utilization": "available",
+      "kind": "facility"
+    },
+    {
+      "canonicalId": "hgr_b",
+      "name": "格納庫B",
+      "aliases": null,
+      "building": "格納庫B",
+      "floor": null,
+      "isPublished": false,
+      "utilization": "available",
+      "kind": "facility"
+    },
+    {
+      "canonicalId": "lbh",
+      "name": "男子寮（リンドバーグホール）",
+      "aliases": null,
+      "building": "男子寮（リンドバーグホール）",
+      "floor": null,
+      "isPublished": false,
+      "utilization": "available",
+      "kind": "facility"
+    },
+    {
+      "canonicalId": "mb",
+      "name": "教室棟",
+      "aliases": null,
+      "building": "教室棟",
+      "floor": null,
+      "isPublished": false,
+      "utilization": "available",
+      "kind": "facility"
+    },
+    {
+      "canonicalId": "ptb",
+      "name": "実習棟",
+      "aliases": null,
+      "building": "実習棟",
+      "floor": null,
+      "isPublished": false,
+      "utilization": "available",
+      "kind": "facility"
+    },
+    {
+      "canonicalId": "sab",
+      "name": "技能審査棟",
+      "aliases": null,
+      "building": "技能審査棟",
+      "floor": null,
+      "isPublished": false,
+      "utilization": "available",
+      "kind": "facility"
+    },
+    {
+      "canonicalId": "ab_1f_wc_001",
+      "name": "男子トイレ",
+      "aliases": null,
+      "building": "管理棟",
+      "floor": "1階",
+      "isPublished": false,
+      "utilization": "available",
+      "kind": "facility"
+    },
+    {
+      "canonicalId": "ab_1f_wc_002",
+      "name": "女子トイレ",
+      "aliases": null,
+      "building": "管理棟",
+      "floor": "1階",
+      "isPublished": false,
+      "utilization": "available",
+      "kind": "facility"
+    },
+    {
+      "canonicalId": "ab_2f_wc_001",
+      "name": "男子トイレ",
+      "aliases": null,
+      "building": "管理棟",
+      "floor": "2階",
+      "isPublished": false,
+      "utilization": "available",
+      "kind": "facility"
+    },
+    {
+      "canonicalId": "ab_2f_wc_002",
+      "name": "女子トイレ",
+      "aliases": null,
+      "building": "管理棟",
+      "floor": "2階",
+      "isPublished": false,
+      "utilization": "available",
+      "kind": "facility"
+    },
+    {
+      "canonicalId": "aptr_1f_rm_001",
+      "name": "機体実習室",
+      "aliases": null,
+      "building": "機体実習室",
+      "floor": "1階",
+      "isPublished": false,
+      "utilization": "available",
+      "kind": "classroom"
+    },
+    {
+      "canonicalId": "aptr_1f_wc_001",
+      "name": "男子トイレ",
+      "aliases": null,
+      "building": "機体実習室",
+      "floor": "1階",
+      "isPublished": false,
+      "utilization": "available",
+      "kind": "facility"
+    },
+    {
+      "canonicalId": "aptr_1f_wc_002",
+      "name": "女子トイレ",
+      "aliases": null,
+      "building": "機体実習室",
+      "floor": "1階",
+      "isPublished": false,
+      "utilization": "available",
+      "kind": "facility"
+    },
+    {
+      "canonicalId": "ar_1f_rm_001",
+      "name": "機械室",
+      "aliases": null,
+      "building": "アリーナ",
+      "floor": "1階",
+      "isPublished": false,
+      "utilization": "available",
+      "kind": "facility"
+    },
+    {
+      "canonicalId": "ar_1f_rm_002",
+      "name": "STAFF ROOM",
+      "aliases": null,
+      "building": "アリーナ",
+      "floor": "1階",
+      "isPublished": false,
+      "utilization": "available",
+      "kind": "facility"
+    },
+    {
+      "canonicalId": "ar_1f_wc_001",
+      "name": "男子トイレ",
+      "aliases": null,
+      "building": "アリーナ",
+      "floor": "1階",
+      "isPublished": false,
+      "utilization": "available",
+      "kind": "facility"
+    },
+    {
+      "canonicalId": "ar_1f_wc_002",
+      "name": "女子トイレ",
+      "aliases": null,
+      "building": "アリーナ",
+      "floor": "1階",
+      "isPublished": false,
+      "utilization": "available",
+      "kind": "facility"
+    },
+    {
+      "canonicalId": "ar_2f_rm_001",
+      "name": "CLUB ROOM",
+      "aliases": null,
+      "building": "アリーナ",
+      "floor": "2階",
+      "isPublished": false,
+      "utilization": "available",
+      "kind": "facility"
+    },
+    {
+      "canonicalId": "ar_2f_rm_002",
+      "name": "ジム",
+      "aliases": null,
+      "building": "アリーナ",
+      "floor": "2階",
+      "isPublished": false,
+      "utilization": "available",
+      "kind": "facility"
+    },
+    {
+      "canonicalId": "ar_2f_rm_003",
+      "name": "シャワールーム",
+      "aliases": null,
+      "building": "アリーナ",
+      "floor": "2階",
+      "isPublished": false,
+      "utilization": "available",
+      "kind": "facility"
+    },
+    {
+      "canonicalId": "ctc2_1f_rm_001",
+      "name": "第4職員室",
+      "aliases": null,
+      "building": "CTC2",
+      "floor": "1階",
+      "isPublished": false,
+      "utilization": "available",
+      "kind": "facility"
+    },
+    {
+      "canonicalId": "ctc2_1f_rm_002",
+      "name": "AKL/BNE",
+      "aliases": null,
+      "building": "CTC2",
+      "floor": "1階",
+      "isPublished": false,
+      "utilization": "available",
+      "kind": "classroom"
+    },
+    {
+      "canonicalId": "ctc2_1f_rm_003",
+      "name": "カフェエリア",
+      "aliases": null,
+      "building": "CTC2",
+      "floor": "1階",
+      "isPublished": false,
+      "utilization": "available",
+      "kind": "facility"
+    },
+    {
+      "canonicalId": "ctc2_1f_rm_004",
+      "name": "HNL/JFK",
+      "aliases": null,
+      "building": "CTC2",
+      "floor": "1階",
+      "isPublished": false,
+      "utilization": "available",
+      "kind": "classroom"
+    },
+    {
+      "canonicalId": "ctc2_1f_rm_005",
+      "name": "ICN/NRT",
+      "aliases": null,
+      "building": "CTC2",
+      "floor": "1階",
+      "isPublished": false,
+      "utilization": "available",
+      "kind": "classroom"
+    },
+    {
+      "canonicalId": "ctc2_1f_rm_006",
+      "name": "保健室",
+      "aliases": null,
+      "building": "CTC2",
+      "floor": "1階",
+      "isPublished": false,
+      "utilization": "available",
+      "kind": "service"
+    },
+    {
+      "canonicalId": "ctc2_1f_rm_007",
+      "name": "PDX/LAX",
+      "aliases": null,
+      "building": "CTC2",
+      "floor": "1階",
+      "isPublished": false,
+      "utilization": "available",
+      "kind": "classroom"
+    },
+    {
+      "canonicalId": "ctc2_1f_wc_001",
+      "name": "男子トイレ",
+      "aliases": null,
+      "building": "CTC2",
+      "floor": "1階",
+      "isPublished": false,
+      "utilization": "available",
+      "kind": "facility"
+    },
+    {
+      "canonicalId": "ctc2_1f_wc_002",
+      "name": "女子トイレ",
+      "aliases": null,
+      "building": "CTC2",
+      "floor": "1階",
+      "isPublished": false,
+      "utilization": "available",
+      "kind": "facility"
+    },
+    {
+      "canonicalId": "dvh_1f_rm_001",
+      "name": "AMS",
+      "aliases": null,
+      "building": "Da Vinci Hall",
+      "floor": "1階",
+      "isPublished": false,
+      "utilization": "available",
+      "kind": "classroom"
+    },
+    {
+      "canonicalId": "dvh_1f_rm_002",
+      "name": "DVL",
+      "aliases": null,
+      "building": "Da Vinci Hall",
+      "floor": "1階",
+      "isPublished": false,
+      "utilization": "available",
+      "kind": "classroom"
+    },
+    {
+      "canonicalId": "dvh_1f_rm_003",
+      "name": "FRA",
+      "aliases": null,
+      "building": "Da Vinci Hall",
+      "floor": "1階",
+      "isPublished": false,
+      "utilization": "available",
+      "kind": "classroom"
+    },
+    {
+      "canonicalId": "dvh_1f_rm_004",
+      "name": "LHR",
+      "aliases": null,
+      "building": "Da Vinci Hall",
+      "floor": "1階",
+      "isPublished": false,
+      "utilization": "available",
+      "kind": "classroom"
+    },
+    {
+      "canonicalId": "dvh_1f_rm_005",
+      "name": "MAD",
+      "aliases": null,
+      "building": "Da Vinci Hall",
+      "floor": "1階",
+      "isPublished": false,
+      "utilization": "available",
+      "kind": "classroom"
+    },
+    {
+      "canonicalId": "mb_1f_cl_001",
+      "name": "電気装備教室",
+      "aliases": null,
+      "building": "教室棟",
+      "floor": "1階",
+      "isPublished": false,
+      "utilization": "available",
+      "kind": "classroom"
+    },
+    {
+      "canonicalId": "mb_1f_rm_001",
+      "name": "電気装備実習室",
+      "aliases": null,
+      "building": "教室棟",
+      "floor": "1階",
+      "isPublished": false,
+      "utilization": "available",
+      "kind": "classroom"
+    },
+    {
+      "canonicalId": "mb_1f_rm_002",
+      "name": "電子実習室",
+      "aliases": null,
+      "building": "教室棟",
+      "floor": "1階",
+      "isPublished": false,
+      "utilization": "available",
+      "kind": "classroom"
+    },
+    {
+      "canonicalId": "mb_1f_rm_003",
+      "name": "計器通信室",
+      "aliases": null,
+      "building": "教室棟",
+      "floor": "1階",
+      "isPublished": false,
+      "utilization": "available",
+      "kind": "classroom"
+    },
+    {
+      "canonicalId": "mb_1f_rm_004",
+      "name": "大型機実習室",
+      "aliases": null,
+      "building": "教室棟",
+      "floor": "1階",
+      "isPublished": false,
+      "utilization": "available",
+      "kind": "classroom"
+    },
+    {
+      "canonicalId": "mb_1f_rm_005",
+      "name": "システム実習室",
+      "aliases": null,
+      "building": "教室棟",
+      "floor": "1階",
+      "isPublished": false,
+      "utilization": "available",
+      "kind": "classroom"
+    },
+    {
+      "canonicalId": "mb_1f_wc_001",
+      "name": "男子トイレ",
+      "aliases": null,
+      "building": "教室棟",
+      "floor": "1階",
+      "isPublished": false,
+      "utilization": "available",
+      "kind": "facility"
+    },
+    {
+      "canonicalId": "mb_1f_wc_002",
+      "name": "女子トイレ",
+      "aliases": null,
+      "building": "教室棟",
+      "floor": "1階",
+      "isPublished": false,
+      "utilization": "available",
+      "kind": "facility"
+    },
+    {
+      "canonicalId": "mb_2f_cl_001",
+      "name": "2A教室",
+      "aliases": [
+        "2A"
+      ],
+      "building": "教室棟",
+      "floor": "2階",
+      "isPublished": false,
+      "utilization": "available",
+      "kind": "classroom"
+    },
+    {
+      "canonicalId": "mb_2f_cl_002",
+      "name": "2B教室",
+      "aliases": [
+        "2B"
+      ],
+      "building": "教室棟",
+      "floor": "2階",
+      "isPublished": false,
+      "utilization": "available",
+      "kind": "classroom"
+    },
+    {
+      "canonicalId": "mb_2f_cl_003",
+      "name": "2C教室",
+      "aliases": [
+        "2C"
+      ],
+      "building": "教室棟",
+      "floor": "2階",
+      "isPublished": false,
+      "utilization": "available",
+      "kind": "classroom"
+    },
+    {
+      "canonicalId": "mb_2f_cl_004",
+      "name": "2D教室",
+      "aliases": [
+        "2D"
+      ],
+      "building": "教室棟",
+      "floor": "2階",
+      "isPublished": false,
+      "utilization": "available",
+      "kind": "classroom"
+    },
+    {
+      "canonicalId": "mb_2f_cl_005",
+      "name": "2E教室",
+      "aliases": [
+        "2E"
+      ],
+      "building": "教室棟",
+      "floor": "2階",
+      "isPublished": false,
+      "utilization": "available",
+      "kind": "classroom"
+    },
+    {
+      "canonicalId": "mb_2f_cl_006",
+      "name": "2F教室",
+      "aliases": [
+        "2F"
+      ],
+      "building": "教室棟",
+      "floor": "2階",
+      "isPublished": false,
+      "utilization": "available",
+      "kind": "classroom"
+    },
+    {
+      "canonicalId": "mb_2f_cl_007",
+      "name": "2G教室",
+      "aliases": [
+        "2G"
+      ],
+      "building": "教室棟",
+      "floor": "2階",
+      "isPublished": false,
+      "utilization": "available",
+      "kind": "classroom"
+    },
+    {
+      "canonicalId": "mb_2f_rm_001",
+      "name": "製図準備室",
+      "aliases": null,
+      "building": "教室棟",
+      "floor": "2階",
+      "isPublished": false,
+      "utilization": "available",
+      "kind": "facility"
+    },
+    {
+      "canonicalId": "mb_2f_rm_002",
+      "name": "製図室",
+      "aliases": null,
+      "building": "教室棟",
+      "floor": "2階",
+      "isPublished": false,
+      "utilization": "available",
+      "kind": "classroom"
+    },
+    {
+      "canonicalId": "mb_2f_rm_003",
+      "name": "PC室",
+      "aliases": null,
+      "building": "教室棟",
+      "floor": "2階",
+      "isPublished": false,
+      "utilization": "available",
+      "kind": "classroom"
+    },
+    {
+      "canonicalId": "mb_2f_rm_004",
+      "name": "学友会室",
+      "aliases": null,
+      "building": "教室棟",
+      "floor": "2階",
+      "isPublished": false,
+      "utilization": "available",
+      "kind": "facility"
+    },
+    {
+      "canonicalId": "mb_2f_wc_001",
+      "name": "男子トイレ",
+      "aliases": null,
+      "building": "教室棟",
+      "floor": "2階",
+      "isPublished": false,
+      "utilization": "available",
+      "kind": "facility"
+    },
+    {
+      "canonicalId": "mb_3f_wc_001",
+      "name": "女子トイレ",
+      "aliases": null,
+      "building": "教室棟",
+      "floor": "3階",
+      "isPublished": false,
+      "utilization": "available",
+      "kind": "facility"
+    },
+    {
+      "canonicalId": "ptb_1f_rm_001",
+      "name": "基本実習室2-1",
+      "aliases": null,
+      "building": "実習棟",
+      "floor": "1階",
+      "isPublished": false,
+      "utilization": "available",
+      "kind": "classroom"
+    },
+    {
+      "canonicalId": "ptb_1f_rm_002",
+      "name": "基本実習室2-2",
+      "aliases": null,
+      "building": "実習棟",
+      "floor": "1階",
+      "isPublished": false,
+      "utilization": "available",
+      "kind": "classroom"
+    },
+    {
+      "canonicalId": "ptb_1f_rm_003",
+      "name": "基本実習室1",
+      "aliases": null,
+      "building": "実習棟",
+      "floor": "1階",
+      "isPublished": false,
+      "utilization": "available",
+      "kind": "classroom"
+    },
+    {
+      "canonicalId": "ptb_1f_rm_004",
+      "name": "発動機実習室",
+      "aliases": null,
+      "building": "実習棟",
+      "floor": "1階",
+      "isPublished": false,
+      "utilization": "available",
+      "kind": "classroom"
+    },
+    {
+      "canonicalId": "ptb_1f_rm_005",
+      "name": "非破壊検査実習室1",
+      "aliases": null,
+      "building": "実習棟",
+      "floor": "1階",
+      "isPublished": false,
+      "utilization": "available",
+      "kind": "classroom"
+    },
+    {
+      "canonicalId": "ptb_1f_rm_006",
+      "name": "非破壊検査実習室2",
+      "aliases": null,
+      "building": "実習棟",
+      "floor": "1階",
+      "isPublished": false,
+      "utilization": "available",
+      "kind": "classroom"
+    },
+    {
+      "canonicalId": "ptb_1f_rm_007",
+      "name": "車両整備実習室1",
+      "aliases": null,
+      "building": "実習棟",
+      "floor": "1階",
+      "isPublished": false,
+      "utilization": "available",
+      "kind": "classroom"
+    },
+    {
+      "canonicalId": "ptb_1f_rm_008",
+      "name": "車両整備実習室2",
+      "aliases": null,
+      "building": "実習棟",
+      "floor": "1階",
+      "isPublished": false,
+      "utilization": "available",
+      "kind": "classroom"
+    },
+    {
+      "canonicalId": "ptb_1f_rm_009",
+      "name": "溶接室1-1",
+      "aliases": null,
+      "building": "実習棟",
+      "floor": "1階",
+      "isPublished": false,
+      "utilization": "available",
+      "kind": "classroom"
+    },
+    {
+      "canonicalId": "ptb_1f_rm_010",
+      "name": "溶接室1-2",
+      "aliases": null,
+      "building": "実習棟",
+      "floor": "1階",
+      "isPublished": false,
+      "utilization": "available",
+      "kind": "classroom"
+    },
+    {
+      "canonicalId": "ptb_1f_wc_001",
+      "name": "男子トイレ",
+      "aliases": null,
+      "building": "実習棟",
+      "floor": "1階",
+      "isPublished": false,
+      "utilization": "available",
+      "kind": "facility"
+    },
+    {
+      "canonicalId": "ptb_1f_wc_002",
+      "name": "女子トイレ",
+      "aliases": null,
+      "building": "実習棟",
+      "floor": "1階",
+      "isPublished": false,
+      "utilization": "available",
+      "kind": "facility"
+    },
+    {
+      "canonicalId": "ptb_2f_wc_001",
+      "name": "男子トイレ",
+      "aliases": null,
+      "building": "実習棟",
+      "floor": "2階",
+      "isPublished": false,
+      "utilization": "available",
+      "kind": "facility"
+    },
+    {
+      "canonicalId": "ptb_2f_wc_002",
+      "name": "女子トイレ",
+      "aliases": null,
+      "building": "実習棟",
+      "floor": "2階",
+      "isPublished": false,
+      "utilization": "available",
+      "kind": "facility"
+    },
+    {
+      "canonicalId": "sab_1f_rm_001",
+      "name": "審査室1",
+      "aliases": null,
+      "building": "技能審査棟",
+      "floor": "1階",
+      "isPublished": false,
+      "utilization": "available",
+      "kind": "facility"
+    },
+    {
+      "canonicalId": "sab_1f_rm_002",
+      "name": "審査室2",
+      "aliases": null,
+      "building": "技能審査棟",
+      "floor": "1階",
+      "isPublished": false,
+      "utilization": "available",
+      "kind": "facility"
+    },
+    {
+      "canonicalId": "sab_1f_rm_003",
+      "name": "審査室3",
+      "aliases": null,
+      "building": "技能審査棟",
+      "floor": "1階",
+      "isPublished": false,
+      "utilization": "available",
+      "kind": "facility"
+    },
+    {
+      "canonicalId": "sab_1f_rm_004",
+      "name": "審査室4",
+      "aliases": null,
+      "building": "技能審査棟",
+      "floor": "1階",
+      "isPublished": false,
+      "utilization": "available",
+      "kind": "facility"
+    },
+    {
+      "canonicalId": "sab_1f_rm_005",
+      "name": "審査室5",
+      "aliases": null,
+      "building": "技能審査棟",
+      "floor": "1階",
+      "isPublished": false,
+      "utilization": "available",
+      "kind": "facility"
+    },
+    {
+      "canonicalId": "sab_1f_rm_006",
+      "name": "応接室",
+      "aliases": null,
+      "building": "技能審査棟",
+      "floor": "1階",
+      "isPublished": false,
+      "utilization": "available",
+      "kind": "facility"
+    },
+    {
+      "canonicalId": "sab_1f_rm_007",
+      "name": "技能審査員控室",
+      "aliases": null,
+      "building": "技能審査棟",
+      "floor": "1階",
+      "isPublished": false,
+      "utilization": "available",
+      "kind": "facility"
+    },
+    {
+      "canonicalId": "sab_1f_wc_001",
+      "name": "男子トイレ",
+      "aliases": null,
+      "building": "技能審査棟",
+      "floor": "1階",
+      "isPublished": false,
+      "utilization": "available",
+      "kind": "facility"
+    },
+    {
+      "canonicalId": "sab_1f_wc_002",
+      "name": "女子トイレ",
+      "aliases": null,
+      "building": "技能審査棟",
+      "floor": "1階",
+      "isPublished": false,
+      "utilization": "available",
+      "kind": "facility"
+    }
+  ]
+}
