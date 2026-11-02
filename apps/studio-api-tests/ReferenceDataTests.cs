@@ -142,6 +142,33 @@ public sealed class ReferenceDataTests : IAsyncLifetime
         Assert.True(draftOnly.Succeeded, string.Join(" ", draftOnly.Messages));
     }
 
+    /// <summary>
+    /// 実データの取り込み元（deploy/reference/spots.json）は、そのまま取り込めて、種別の割り当て表（決定事項34）と一致する。
+    /// 表の名前は資料上の名称なので比べず、Spot にするかと種別だけを比べる。すべて下書きとして取り込む。
+    /// </summary>
+    [Fact]
+    public async Task RealSpotReference_ImportsAsDraftsAndMatchesTheKindAssignment()
+    {
+        var path = Path.Combine(AppContext.BaseDirectory, "Fixtures", "real-spots.json");
+        await using var scope = _factory.Services.CreateAsyncScope();
+        var output = new StringWriter();
+        var error = new StringWriter();
+        var exitCode = await ReferenceCommand.RunAsync(["import", "--file", path], scope.ServiceProvider.GetRequiredService<ReferenceImporter>(), output, error);
+        Assert.True(exitCode == 0, error.ToString());
+
+        var expected = File.ReadLines(Path.Combine(AppContext.BaseDirectory, "Fixtures", "spot-kind-assignment.csv"))
+            .Skip(1)
+            .Select(line => line.Split(','))
+            .Where(columns => columns[6] == "yes")
+            .ToDictionary(columns => columns[0], columns => columns[7], StringComparer.Ordinal);
+        var spots = await scope.ServiceProvider.GetRequiredService<StudioDbContext>().Spots.ToListAsync();
+        Assert.Equal(expected.Keys.Order(StringComparer.Ordinal), spots.Select(s => s.CanonicalId).Order(StringComparer.Ordinal));
+        Assert.All(spots, s => Assert.Equal(expected[s.CanonicalId], s.Kind));
+
+        await using var publishScope = _factory.Services.CreateAsyncScope();
+        Assert.Equal(0, await publishScope.ServiceProvider.GetRequiredService<StudioDbContext>().Publications.CountAsync());
+    }
+
     [Fact]
     public async Task SpotSearch_MatchesNameAliasAndIdAndFiltersByBuilding()
     {

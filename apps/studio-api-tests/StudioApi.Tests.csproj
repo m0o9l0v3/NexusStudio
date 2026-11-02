@@ -32,6 +32,9 @@
     <None Include="../../docs/samples/reference-sample.json" Link="Fixtures/reference-sample.json" CopyToOutputDirectory="PreserveNewest" />
     <!-- 部屋 canonical ID の対応表（決定事項26。nexus-mobile E1-7 の CSV と同じバイト列）。旧 ID が取り込みデータに残っていないことの確認に使う。 -->
     <None Include="../../docs/決定事項/26_部屋canonical_ID対応表_2026-09-22_v01.csv" Link="Fixtures/room-canonical-ids.csv" CopyToOutputDirectory="PreserveNewest" />
+    <!-- 実データの Spot の取り込み元と、種別の割り当て表（決定事項34）。両者が食い違わないことを確かめる。 -->
+    <None Include="../../deploy/reference/spots.json" Link="Fixtures/real-spots.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../docs/決定事項/34_実データSpot種別割り当て表_2026-11-02_v01.csv" Link="Fixtures/spot-kind-assignment.csv" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../studio-api/Database/move-migrations-history-to-studio.sql" Link="Fixtures/move-migrations-history-to-studio.sql" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
