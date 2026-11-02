@@ -606,11 +606,11 @@ public class CandidateValidator(TimeProvider timeProvider, MapDatasetValidator m
         {
             add(FindingSeverity.Info, "spot_no_new_selection", "新規選択停止として公開します。公開中のイベントの会場参照は維持します。", "utilization");
         }
-        // 種別のない Spot は、NexusMobile #84 で候補が承認されるまでは警告にとどめ、承認後に公開阻止へ切り替える
-        // （nexus-mobile E2-5 O-2c C4）。契約上は null 可で、iOS は種別を表示しない。
+        // 種別のない Spot は公開しない（nexus-mobile E2-5 O-2c C4。候補は 2026-11-02 に承認済み、決定事項33）。
+        // 契約上は null 可のままで、iOS は null・未知の値では種別を表示しない。
         if (draft.Kind is null)
         {
-            add(FindingSeverity.Warning, "spot_kind_missing", "種別が未設定です。参加者向けアプリでは種別を表示しません。", "kind");
+            add(FindingSeverity.Blocking, "spot_kind_missing", "種別が未設定です。種別（教室／施設／サービス）を選んでから公開してください。", "kind");
         }
 
         // 説明文は、供給元・確認者などの体制（NexusMobile #49）が決まるまで公開しない取り決め（E2-5 O-2d）。技術的には止めない。

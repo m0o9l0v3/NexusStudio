@@ -289,12 +289,12 @@ function SpotInspector({ initial }: { initial: SpotDetail }) {
         message="説明文の供給体制（NexusMobile #49）が決まるまで公開しない取り決めです。"
         messageTone="secondary"
       />
-      {/* 種別は地図の Feature の型から導出しない（E2-5 O-2 K1）。未設定でも公開できるが警告する（O-2c C4）。 */}
+      {/* 種別は地図の Feature の型から導出しない（E2-5 O-2 K1）。未設定では公開できない（O-2c C4、決定事項33）。 */}
       <SelectField
         label="種別"
         value={draft.kind ?? ''}
         onChange={(event) => editor.update((current) => ({ ...current, kind: event.target.value || null }))}
-        message="未設定のまま公開すると警告が出ます。参加者向けアプリでは種別を表示しません。"
+        message={draft.kind ? '参加者向けアプリの種別の表示に使います。' : '公開には種別が必要です。'}
         messageTone={draft.kind ? 'secondary' : 'warning'}
       >
         <option value="">未設定</option>

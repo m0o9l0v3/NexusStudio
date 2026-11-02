@@ -307,15 +307,15 @@ public sealed class ReferenceEditingTests : IAsyncLifetime
     public async Task Spot_SavesKindAndDescriptionAndNormalizesBlankDescription()
     {
         var detail = await GetJsonAsync("/api/spots/item?id=mb_2f_cl_002");
-        Assert.Null(detail["draft"]!["kind"]);
+        Assert.Equal("classroom", detail["draft"]!["kind"]!.GetValue<string>());
         Assert.Null(detail["draft"]!["description"]);
         var draft = detail["draft"]!.DeepClone();
-        draft["kind"] = "classroom";
+        draft["kind"] = "facility";
         draft["description"] = "  体験授業を行う教室です。 ";
 
         var (response, body) = await SendAsync(HttpMethod.Put, "/api/spots/item?id=mb_2f_cl_002", Save(detail["rowVersion"]!.GetValue<long>(), draft));
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Equal("classroom", body!["draft"]!["kind"]!.GetValue<string>());
+        Assert.Equal("facility", body!["draft"]!["kind"]!.GetValue<string>());
         Assert.Equal("体験授業を行う教室です。", body["draft"]!["description"]!.GetValue<string>());
 
         var cleared = body["draft"]!.DeepClone();

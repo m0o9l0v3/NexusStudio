@@ -235,6 +235,11 @@ public sealed class ReferenceImporter(StudioDbContext db, TimeProvider timeProvi
             {
                 errors.Add($"Spotの種別が不正です（classroom／facility／service、または指定なし）: {spot.CanonicalId}");
             }
+            // 取り込みで公開する Spot も、画面からの公開と同じく種別を必須にする（E2-5 O-2c C4、決定事項33）。
+            else if (spot.IsPublished && spot.Kind is null)
+            {
+                errors.Add($"公開する Spot には種別（classroom／facility／service）が必要です: {spot.CanonicalId}");
+            }
         }
 
         return errors;

@@ -149,19 +149,20 @@ public sealed class PublishingTests : IAsyncLifetime
     /// 説明文は #49 が決まるまで公開しない取り決めのため、入っていれば警告する（O-2d）。
     /// </summary>
     [Fact]
-    public async Task SpotPreview_WarnsAboutMissingKindAndPendingDescription()
+    public async Task SpotPreview_BlocksMissingKindAndWarnsAboutPendingDescription()
     {
         var spot = await GetJsonAsync("/api/spots/item?id=mb_2f_cl_002");
         var draft = spot["draft"]!.DeepClone();
+        draft["kind"] = null;
         draft["description"] = "体験授業を行う教室です。";
         var (saved, savedBody) = await SendAsync(HttpMethod.Put, "/api/spots/item?id=mb_2f_cl_002", new JsonObject { ["operationId"] = Guid.NewGuid().ToString(), ["rowVersion"] = spot["rowVersion"]!.DeepClone(), ["draft"] = draft });
         Assert.Equal(HttpStatusCode.OK, saved.StatusCode);
 
         var preview = await PreviewAsync(Entry("spot", "mb_2f_cl_002", revisionId: savedBody!["revisionId"]!.GetValue<string>()));
 
-        Assert.Contains("spot_kind_missing", Codes(preview, "warning"));
+        // 種別の候補は承認済み（2026-11-02）のため、種別のない Spot は公開しない（E2-5 O-2c C4、決定事項33）。
+        Assert.Contains("spot_kind_missing", Codes(preview));
         Assert.Contains("spot_description_pending_supply", Codes(preview, "warning"));
-        Assert.DoesNotContain("spot_kind_missing", Codes(preview));
 
         var withKind = savedBody["draft"]!.DeepClone();
         withKind["kind"] = "classroom";
@@ -169,7 +170,7 @@ public sealed class PublishingTests : IAsyncLifetime
         var (again, againBody) = await SendAsync(HttpMethod.Put, "/api/spots/item?id=mb_2f_cl_002", new JsonObject { ["operationId"] = Guid.NewGuid().ToString(), ["rowVersion"] = savedBody["rowVersion"]!.DeepClone(), ["draft"] = withKind });
         Assert.Equal(HttpStatusCode.OK, again.StatusCode);
         var clean = await PreviewAsync(Entry("spot", "mb_2f_cl_002", revisionId: againBody!["revisionId"]!.GetValue<string>()));
-        Assert.DoesNotContain("spot_kind_missing", Codes(clean, "warning"));
+        Assert.DoesNotContain("spot_kind_missing", Codes(clean));
         Assert.DoesNotContain("spot_description_pending_supply", Codes(clean, "warning"));
     }
 
