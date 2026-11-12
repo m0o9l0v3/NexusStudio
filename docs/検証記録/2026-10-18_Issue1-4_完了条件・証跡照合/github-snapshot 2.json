@@ -1,0 +1,445 @@
+{
+  "checkedAt": "2026-10-18T22:27:47.052890+09:00",
+  "repository": "m0o9l0v3/NexusStudio",
+  "issues": [
+    {
+      "body": "## 背景\n\n[`docs/決定事項/21`](docs/決定事項/21_NexusStudio_ClaudeCode_Figma理解・不足分析・実装準備プロンプト_2026-09-22_v01.md) でFigma画面の棚卸し・不足分析・実装移行計画の作成を依頼したが、成果物（`22`〜`24`）が未作成のまま残っている。\n\n**Step 1（認証＋App Shell）・Step 2（イベント編集）は、Figmaの現在のノード構造を確認せずに着手しない。**（`CLAUDE.md`参照）\n\n## 対象\n\n`21`のプロンプトに従い、次の3文書を `docs/決定事項/` に作成する。\n\n1. `22_NexusStudio_Figma理解・画面状態棚卸し_YYYY-MM-DD_v01.md`\n2. `23_NexusStudio_Figma不足分析・追加提案_YYYY-MM-DD_v01.md`\n3. `24_NexusStudio_ClaudeCode実装移行計画_YYYY-MM-DD_v01.md`\n\n## 完了条件\n\n- 現在のFigma（https://www.figma.com/design/q6LGxRaRKI7OrOxKbgI8Fe/Nexus-Studio）を根拠に主要画面とフローを説明できる。\n- 不足を具体案へ落とし込み、優先度（実装着手前に必要／該当機能の完成までに必要／将来改善）を付けている。\n- 最初の実装範囲（Step 1・2の対象Node・Component・データ・API対応）を選べる状態になっている。\n\n## 依存\n\nこれを前提に、Issue「Step 1: 個別管理者認証とApp Shellを実装する」「Step 2: イベント1件の編集・下書き保存を実装する」に着手する。\n\n---\n<details><summary>GitLab migration metadata</summary>\n\n- Original: [nexusstudio#1](https://gitlab.com/11h27m/nexusstudio/-/work_items/1)\n- Original author: `11h27m`\n- Original state: `opened`\n- Created: `2026-09-23T04:41:46.990Z`\n- Updated: `2026-09-23T04:41:46.990Z`\n- issue_type: `issue`\n\n</details>\n<!-- gitlab-source:86385901:1 -->\n",
+      "comments": [],
+      "number": 1,
+      "state": "OPEN",
+      "title": "Figma画面棚卸し・不足分析・実装移行計画を作成する",
+      "updatedAt": "2026-10-08T03:10:46Z",
+      "url": "https://github.com/m0o9l0v3/NexusStudio/issues/1"
+    },
+    {
+      "body": "## 背景\n\n[`docs/決定事項/15`](docs/決定事項/15_NexusStudio_実装開始判断・初期実装計画_2026-09-22_v02.md) §8 Step 1。Step 0（基盤整備、[[!1](https://gitlab.com/11h27m/nexusstudio/-/merge_requests/1)](https://gitlab.com/11h27m/nexusstudio/-/merge_requests/1)）は完了済み。\n\n## 対象・完了条件\n\n| # | 対象 | 完了条件 |\n|---|---|---|\n| 1-a | App Shell（Sidebar 216px／Workspace／Inspector） | 18で承認済みの構成。SidebarにOverview／Events／Spots／Open Campus／Map Data／Validation／Releases／Logs | Figma `27:2` と並べたスクリーンショット比較。1440×1024で文字切れ・重なりなし |\n| 1-b | ASP.NET Core Identityによる個別管理者認証＋ログイン画面 | 登録済み管理者がログインでき、未認証では直接URL・直接APIとも管理操作ができない | 未認証でAPIを叩いて401。Cookie失効後の保存が成功と誤表示されない |\n| 1-c | 初期管理者の登録・無効化コマンド | 運用者のみ実行。公開サインアップは作らない | コマンドで追加・無効化できる |\n\n## 前提\n\n- Issue「Figma画面棚卸し・不足分析・実装移行計画を作成する」の完了（Node ID・Component対応が必要）。\n- `nexus-mobile/apps/admin-api` の単一固定資格情報・平文比較（N08）を踏襲しない。\n\n## スコープ外\n\n- イベント編集（Step 2）\n- 地図編集\n\n---\n<details><summary>GitLab migration metadata</summary>\n\n- Original: [nexusstudio#2](https://gitlab.com/11h27m/nexusstudio/-/work_items/2)\n- Original author: `11h27m`\n- Original state: `opened`\n- Created: `2026-09-23T04:41:56.874Z`\n- Updated: `2026-09-23T04:41:56.874Z`\n- issue_type: `issue`\n\n</details>\n<!-- gitlab-source:86385901:2 -->\n",
+      "comments": [],
+      "number": 2,
+      "state": "OPEN",
+      "title": "Step 1: 個別管理者認証とApp Shellを実装する",
+      "updatedAt": "2026-10-05T00:10:11Z",
+      "url": "https://github.com/m0o9l0v3/NexusStudio/issues/2"
+    },
+    {
+      "body": "## 背景\n\n[`docs/決定事項/15`](docs/決定事項/15_NexusStudio_実装開始判断・初期実装計画_2026-09-22_v02.md) §8 Step 2。到達点は「イベント1件を編集 → 複数枠・複数会場を設定 → 下書き保存 → 一覧へ戻る → 再表示して同じ内容が出る」。\n\n## 完了条件（中核5点）\n\n1. 会場0件・カテゴリ未選択・参加案内未選択でも下書き保存できる。\n2. 再表示で枠順・会場順・会場補足・時間方式・参加案内が1つも欠けない。\n3. canonical IDが保存前後で1文字も変わらない（大文字小文字を含む）。\n4. 2タブ同時保存で無断上書きされず409と最新内容が出る。\n5. 通信を落とした保存で失敗が表示され入力が残る。\n\n## 検証方法\n\n- 保存payloadと再取得payloadのJSON正規化バイト比較を自動テストとして持つ（画面で「それらしく見える」ことを完了条件にしない）。\n- canonical IDの保持（大文字小文字を含む）。\n- 07番文書のAC01〜AC08、AC21〜AC26のE2Eシナリオ。\n- 2セッション同時保存での競合検出。\n- キーボード操作のみでの会場追加・順序変更。\n- Figmaのノード（`2:2`／`10:2`／`10:130`／`10:258`／`11:178`／`10:386`）とのスクリーンショット比較（1440×1024）。\n\n## 前提\n\n- Issue「Step 1: 個別管理者認証とApp Shellを実装する」の完了。\n- Issue「Figma画面棚卸し・不足分析・実装移行計画を作成する」の完了。\n\n## スコープ外\n\n- 公開（Release）・検証・履歴・復旧（Step 4）\n- 開催情報・カテゴリ・Spot単体画面の完成（Step 3）\n- iOSとの接続（Step 5）\n\n---\n<details><summary>GitLab migration metadata</summary>\n\n- Original: [nexusstudio#3](https://gitlab.com/11h27m/nexusstudio/-/work_items/3)\n- Original author: `11h27m`\n- Original state: `opened`\n- Created: `2026-09-23T04:42:07.377Z`\n- Updated: `2026-09-23T04:42:07.377Z`\n- issue_type: `issue`\n\n</details>\n<!-- gitlab-source:86385901:3 -->\n",
+      "comments": [],
+      "number": 3,
+      "state": "OPEN",
+      "title": "Step 2: イベント1件の編集・下書き保存を実装する（最初の到達点）",
+      "updatedAt": "2026-10-05T00:10:01Z",
+      "url": "https://github.com/m0o9l0v3/NexusStudio/issues/3"
+    },
+    {
+      "body": "## 背景\n\n[`docs/決定事項/15`](docs/決定事項/15_NexusStudio_実装開始判断・初期実装計画_2026-09-22_v02.md) §9.1。`nexus-mobile`側が`epic::E2`としてMapDatasetのdraft→validation→publish→rollbackを進めており（#17／#18／#19完了、#20でpublish/rollback着手見込み）、一方でD-11によりStudioが地図の編集・公開を担う。**同じ公開・復旧機構を2箇所で作る状態になりかねない。**\n\n## 選択肢\n\n| 案 | 内容 |\n|---|---|\n| **A（推奨）** | 既存側は#19（draft API）までで区切り、publish/rollback/配信はStudioの公開基盤（Release・operationId冪等・復旧）に統合する。#19までの成果はStudioへ移植する |\n| B | 既存側で地図のpublish/rollbackまで作り、Studioはそれを呼ぶ |\n| C | 両方で作る（**採用しない**） |\n\n推奨Aの根拠・トレードオフは15 v02 §9.1を参照。\n\n## 必要な判断\n\n- A案を採る場合、`nexus-mobile`側の#20（publish/rollback着手予定）の計画変更が必要。\n- 判断は利用者（技術的意思決定者）が行う。\n\n## 影響\n\nこの判断が決まるまで、Step 3・4（地図の検証・公開・履歴・復旧）には着手できない。Step 0（validator移植）・Step 2（イベント編集）はこの判断に依存せず進められる（進行済み）。\n\n---\n<details><summary>GitLab migration metadata</summary>\n\n- Original: [nexusstudio#4](https://gitlab.com/11h27m/nexusstudio/-/work_items/4)\n- Original author: `11h27m`\n- Original state: `opened`\n- Created: `2026-09-23T04:42:17.258Z`\n- Updated: `2026-09-23T04:42:17.258Z`\n- issue_type: `issue`\n\n</details>\n<!-- gitlab-source:86385901:4 -->\n",
+      "comments": [],
+      "number": 4,
+      "state": "OPEN",
+      "title": "地図公開機構の二重開発を避ける整理案（A/B/C）を確定する",
+      "updatedAt": "2026-09-27T10:32:07Z",
+      "url": "https://github.com/m0o9l0v3/NexusStudio/issues/4"
+    }
+  ],
+  "pullRequests": [
+    {
+      "mergeCommit": {
+        "oid": "0969fbd1e46c7f4cf3ef0702ccf15f269c1a77f8"
+      },
+      "mergedAt": "2026-10-15T05:16:22Z",
+      "number": 8,
+      "state": "MERGED",
+      "statusCheckRollup": [
+        {
+          "__typename": "CheckRun",
+          "completedAt": "2026-10-15T03:04:14Z",
+          "conclusion": "SUCCESS",
+          "detailsUrl": "https://github.com/m0o9l0v3/NexusStudio/actions/runs/38674243784/job/116224089401",
+          "name": "studio-api-check",
+          "startedAt": "2026-10-15T03:03:23Z",
+          "status": "COMPLETED",
+          "workflowName": "ci"
+        },
+        {
+          "__typename": "CheckRun",
+          "completedAt": "2026-10-15T03:04:13Z",
+          "conclusion": "SUCCESS",
+          "detailsUrl": "https://github.com/m0o9l0v3/NexusStudio/actions/runs/38674238656/job/116224073434",
+          "name": "studio-api-check",
+          "startedAt": "2026-10-15T03:03:19Z",
+          "status": "COMPLETED",
+          "workflowName": "ci"
+        },
+        {
+          "__typename": "CheckRun",
+          "completedAt": "2026-10-15T03:03:56Z",
+          "conclusion": "SUCCESS",
+          "detailsUrl": "https://github.com/m0o9l0v3/NexusStudio/actions/runs/38674243784/job/116224089347",
+          "name": "studio-migration-script",
+          "startedAt": "2026-10-15T03:03:23Z",
+          "status": "COMPLETED",
+          "workflowName": "ci"
+        },
+        {
+          "__typename": "CheckRun",
+          "completedAt": "2026-10-15T03:03:54Z",
+          "conclusion": "SUCCESS",
+          "detailsUrl": "https://github.com/m0o9l0v3/NexusStudio/actions/runs/38674238656/job/116224073643",
+          "name": "studio-migration-script",
+          "startedAt": "2026-10-15T03:03:20Z",
+          "status": "COMPLETED",
+          "workflowName": "ci"
+        },
+        {
+          "__typename": "CheckRun",
+          "completedAt": "2026-10-15T03:03:45Z",
+          "conclusion": "SUCCESS",
+          "detailsUrl": "https://github.com/m0o9l0v3/NexusStudio/actions/runs/38674243784/job/116224089479",
+          "name": "studio-web-check",
+          "startedAt": "2026-10-15T03:03:23Z",
+          "status": "COMPLETED",
+          "workflowName": "ci"
+        },
+        {
+          "__typename": "CheckRun",
+          "completedAt": "2026-10-15T03:03:40Z",
+          "conclusion": "SUCCESS",
+          "detailsUrl": "https://github.com/m0o9l0v3/NexusStudio/actions/runs/38674238656/job/116224073617",
+          "name": "studio-web-check",
+          "startedAt": "2026-10-15T03:03:19Z",
+          "status": "COMPLETED",
+          "workflowName": "ci"
+        },
+        {
+          "__typename": "CheckRun",
+          "completedAt": "2026-10-15T03:03:39Z",
+          "conclusion": "SUCCESS",
+          "detailsUrl": "https://github.com/m0o9l0v3/NexusStudio/actions/runs/38674243784/job/116224089144",
+          "name": "studio-static-caddy-check",
+          "startedAt": "2026-10-15T03:03:23Z",
+          "status": "COMPLETED",
+          "workflowName": "ci"
+        },
+        {
+          "__typename": "CheckRun",
+          "completedAt": "2026-10-15T03:03:25Z",
+          "conclusion": "SUCCESS",
+          "detailsUrl": "https://github.com/m0o9l0v3/NexusStudio/actions/runs/38674238656/job/116224073810",
+          "name": "studio-static-caddy-check",
+          "startedAt": "2026-10-15T03:03:19Z",
+          "status": "COMPLETED",
+          "workflowName": "ci"
+        },
+        {
+          "__typename": "CheckRun",
+          "completedAt": "2026-10-15T03:03:28Z",
+          "conclusion": "SUCCESS",
+          "detailsUrl": "https://github.com/m0o9l0v3/NexusStudio/actions/runs/38674243784/job/116224089413",
+          "name": "studio-role-target-preflight",
+          "startedAt": "2026-10-15T03:03:23Z",
+          "status": "COMPLETED",
+          "workflowName": "ci"
+        },
+        {
+          "__typename": "CheckRun",
+          "completedAt": "2026-10-15T03:03:24Z",
+          "conclusion": "SUCCESS",
+          "detailsUrl": "https://github.com/m0o9l0v3/NexusStudio/actions/runs/38674238656/job/116224073646",
+          "name": "studio-role-target-preflight",
+          "startedAt": "2026-10-15T03:03:19Z",
+          "status": "COMPLETED",
+          "workflowName": "ci"
+        },
+        {
+          "__typename": "CheckRun",
+          "completedAt": "2026-10-15T03:03:38Z",
+          "conclusion": "SUCCESS",
+          "detailsUrl": "https://github.com/m0o9l0v3/NexusStudio/actions/runs/38674243784/job/116224089418",
+          "name": "studio-db-role-pg17-reject",
+          "startedAt": "2026-10-15T03:03:23Z",
+          "status": "COMPLETED",
+          "workflowName": "ci"
+        },
+        {
+          "__typename": "CheckRun",
+          "completedAt": "2026-10-15T03:03:38Z",
+          "conclusion": "SUCCESS",
+          "detailsUrl": "https://github.com/m0o9l0v3/NexusStudio/actions/runs/38674238656/job/116224073635",
+          "name": "studio-db-role-pg17-reject",
+          "startedAt": "2026-10-15T03:03:20Z",
+          "status": "COMPLETED",
+          "workflowName": "ci"
+        },
+        {
+          "__typename": "CheckRun",
+          "completedAt": "2026-10-15T03:03:59Z",
+          "conclusion": "SUCCESS",
+          "detailsUrl": "https://github.com/m0o9l0v3/NexusStudio/actions/runs/38674243784/job/116224089470",
+          "name": "image-build-check",
+          "startedAt": "2026-10-15T03:03:23Z",
+          "status": "COMPLETED",
+          "workflowName": "ci"
+        },
+        {
+          "__typename": "CheckRun",
+          "completedAt": "2026-10-15T03:03:56Z",
+          "conclusion": "SUCCESS",
+          "detailsUrl": "https://github.com/m0o9l0v3/NexusStudio/actions/runs/38674238656/job/116224073734",
+          "name": "image-build-check",
+          "startedAt": "2026-10-15T03:03:20Z",
+          "status": "COMPLETED",
+          "workflowName": "ci"
+        },
+        {
+          "__typename": "CheckRun",
+          "completedAt": "2026-10-15T03:04:12Z",
+          "conclusion": "SUCCESS",
+          "detailsUrl": "https://github.com/m0o9l0v3/NexusStudio/actions/runs/38674243784/job/116224256281",
+          "name": "studio-db-role-check",
+          "startedAt": "2026-10-15T03:03:58Z",
+          "status": "COMPLETED",
+          "workflowName": "ci"
+        },
+        {
+          "__typename": "CheckRun",
+          "completedAt": "2026-10-15T03:04:12Z",
+          "conclusion": "SUCCESS",
+          "detailsUrl": "https://github.com/m0o9l0v3/NexusStudio/actions/runs/38674238656/job/116224246450",
+          "name": "studio-db-role-check",
+          "startedAt": "2026-10-15T03:03:56Z",
+          "status": "COMPLETED",
+          "workflowName": "ci"
+        }
+      ],
+      "title": "Step 1・2 の比較検証（A）と見つかった不具合・差分の修正",
+      "url": "https://github.com/m0o9l0v3/NexusStudio/pull/8"
+    },
+    {
+      "mergeCommit": {
+        "oid": "17dc7e220cc52514b8c2575c4fff30d67e6cbca9"
+      },
+      "mergedAt": "2026-10-18T09:14:50Z",
+      "number": 9,
+      "state": "MERGED",
+      "statusCheckRollup": [
+        {
+          "__typename": "CheckRun",
+          "completedAt": "2026-10-18T08:59:05Z",
+          "conclusion": "SUCCESS",
+          "detailsUrl": "https://github.com/m0o9l0v3/NexusStudio/actions/runs/39113487812/job/117634381536",
+          "name": "studio-api-check",
+          "startedAt": "2026-10-18T08:58:14Z",
+          "status": "COMPLETED",
+          "workflowName": "ci"
+        },
+        {
+          "__typename": "CheckRun",
+          "completedAt": "2026-10-18T08:59:07Z",
+          "conclusion": "SUCCESS",
+          "detailsUrl": "https://github.com/m0o9l0v3/NexusStudio/actions/runs/39113486380/job/117634377476",
+          "name": "studio-api-check",
+          "startedAt": "2026-10-18T08:58:13Z",
+          "status": "COMPLETED",
+          "workflowName": "ci"
+        },
+        {
+          "__typename": "CheckRun",
+          "completedAt": "2026-10-18T08:58:39Z",
+          "conclusion": "SUCCESS",
+          "detailsUrl": "https://github.com/m0o9l0v3/NexusStudio/actions/runs/39113487812/job/117634381482",
+          "name": "studio-migration-script",
+          "startedAt": "2026-10-18T08:58:14Z",
+          "status": "COMPLETED",
+          "workflowName": "ci"
+        },
+        {
+          "__typename": "CheckRun",
+          "completedAt": "2026-10-18T08:58:43Z",
+          "conclusion": "SUCCESS",
+          "detailsUrl": "https://github.com/m0o9l0v3/NexusStudio/actions/runs/39113486380/job/117634377459",
+          "name": "studio-migration-script",
+          "startedAt": "2026-10-18T08:58:13Z",
+          "status": "COMPLETED",
+          "workflowName": "ci"
+        },
+        {
+          "__typename": "CheckRun",
+          "completedAt": "2026-10-18T08:58:36Z",
+          "conclusion": "SUCCESS",
+          "detailsUrl": "https://github.com/m0o9l0v3/NexusStudio/actions/runs/39113487812/job/117634381492",
+          "name": "studio-web-check",
+          "startedAt": "2026-10-18T08:58:14Z",
+          "status": "COMPLETED",
+          "workflowName": "ci"
+        },
+        {
+          "__typename": "CheckRun",
+          "completedAt": "2026-10-18T08:58:38Z",
+          "conclusion": "SUCCESS",
+          "detailsUrl": "https://github.com/m0o9l0v3/NexusStudio/actions/runs/39113486380/job/117634377452",
+          "name": "studio-web-check",
+          "startedAt": "2026-10-18T08:58:13Z",
+          "status": "COMPLETED",
+          "workflowName": "ci"
+        },
+        {
+          "__typename": "CheckRun",
+          "completedAt": "2026-10-18T08:58:24Z",
+          "conclusion": "SUCCESS",
+          "detailsUrl": "https://github.com/m0o9l0v3/NexusStudio/actions/runs/39113487812/job/117634381328",
+          "name": "studio-static-caddy-check",
+          "startedAt": "2026-10-18T08:58:14Z",
+          "status": "COMPLETED",
+          "workflowName": "ci"
+        },
+        {
+          "__typename": "CheckRun",
+          "completedAt": "2026-10-18T08:58:24Z",
+          "conclusion": "SUCCESS",
+          "detailsUrl": "https://github.com/m0o9l0v3/NexusStudio/actions/runs/39113486380/job/117634377488",
+          "name": "studio-static-caddy-check",
+          "startedAt": "2026-10-18T08:58:13Z",
+          "status": "COMPLETED",
+          "workflowName": "ci"
+        },
+        {
+          "__typename": "CheckRun",
+          "completedAt": "2026-10-18T08:58:23Z",
+          "conclusion": "SUCCESS",
+          "detailsUrl": "https://github.com/m0o9l0v3/NexusStudio/actions/runs/39113487812/job/117634381639",
+          "name": "studio-role-target-preflight",
+          "startedAt": "2026-10-18T08:58:15Z",
+          "status": "COMPLETED",
+          "workflowName": "ci"
+        },
+        {
+          "__typename": "CheckRun",
+          "completedAt": "2026-10-18T08:58:19Z",
+          "conclusion": "SUCCESS",
+          "detailsUrl": "https://github.com/m0o9l0v3/NexusStudio/actions/runs/39113486380/job/117634377323",
+          "name": "studio-role-target-preflight",
+          "startedAt": "2026-10-18T08:58:13Z",
+          "status": "COMPLETED",
+          "workflowName": "ci"
+        },
+        {
+          "__typename": "CheckRun",
+          "completedAt": "2026-10-18T08:58:35Z",
+          "conclusion": "SUCCESS",
+          "detailsUrl": "https://github.com/m0o9l0v3/NexusStudio/actions/runs/39113487812/job/117634381542",
+          "name": "studio-db-role-pg17-reject",
+          "startedAt": "2026-10-18T08:58:14Z",
+          "status": "COMPLETED",
+          "workflowName": "ci"
+        },
+        {
+          "__typename": "CheckRun",
+          "completedAt": "2026-10-18T08:58:26Z",
+          "conclusion": "SUCCESS",
+          "detailsUrl": "https://github.com/m0o9l0v3/NexusStudio/actions/runs/39113486380/job/117634377470",
+          "name": "studio-db-role-pg17-reject",
+          "startedAt": "2026-10-18T08:58:13Z",
+          "status": "COMPLETED",
+          "workflowName": "ci"
+        },
+        {
+          "__typename": "CheckRun",
+          "completedAt": "2026-10-18T08:58:52Z",
+          "conclusion": "SUCCESS",
+          "detailsUrl": "https://github.com/m0o9l0v3/NexusStudio/actions/runs/39113487812/job/117634381526",
+          "name": "image-build-check",
+          "startedAt": "2026-10-18T08:58:14Z",
+          "status": "COMPLETED",
+          "workflowName": "ci"
+        },
+        {
+          "__typename": "CheckRun",
+          "completedAt": "2026-10-18T08:58:50Z",
+          "conclusion": "SUCCESS",
+          "detailsUrl": "https://github.com/m0o9l0v3/NexusStudio/actions/runs/39113486380/job/117634377448",
+          "name": "image-build-check",
+          "startedAt": "2026-10-18T08:58:13Z",
+          "status": "COMPLETED",
+          "workflowName": "ci"
+        },
+        {
+          "__typename": "CheckRun",
+          "completedAt": "2026-10-18T08:58:56Z",
+          "conclusion": "SUCCESS",
+          "detailsUrl": "https://github.com/m0o9l0v3/NexusStudio/actions/runs/39113487812/job/117634463918",
+          "name": "studio-db-role-check",
+          "startedAt": "2026-10-18T08:58:41Z",
+          "status": "COMPLETED",
+          "workflowName": "ci"
+        },
+        {
+          "__typename": "CheckRun",
+          "completedAt": "2026-10-18T08:58:59Z",
+          "conclusion": "SUCCESS",
+          "detailsUrl": "https://github.com/m0o9l0v3/NexusStudio/actions/runs/39113486380/job/117634474374",
+          "name": "studio-db-role-check",
+          "startedAt": "2026-10-18T08:58:45Z",
+          "status": "COMPLETED",
+          "workflowName": "ci"
+        }
+      ],
+      "title": "公開の完成検証（C：実PG・障害試験）と L07・中断した公開の対象名の修正",
+      "url": "https://github.com/m0o9l0v3/NexusStudio/pull/9"
+    }
+  ],
+  "develop": {
+    "html_url": "https://github.com/m0o9l0v3/NexusStudio/commit/17dc7e220cc52514b8c2575c4fff30d67e6cbca9",
+    "sha": "17dc7e220cc52514b8c2575c4fff30d67e6cbca9"
+  },
+  "developChecks": [
+    {
+      "conclusion": "success",
+      "html_url": "https://github.com/m0o9l0v3/NexusStudio/actions/runs/39114577421/job/117637736234",
+      "name": "studio-db-role-check"
+    },
+    {
+      "conclusion": "success",
+      "html_url": "https://github.com/m0o9l0v3/NexusStudio/actions/runs/39114577421/job/117637635987",
+      "name": "studio-web-check"
+    },
+    {
+      "conclusion": "success",
+      "html_url": "https://github.com/m0o9l0v3/NexusStudio/actions/runs/39114577421/job/117637635677",
+      "name": "studio-db-role-pg17-reject"
+    },
+    {
+      "conclusion": "success",
+      "html_url": "https://github.com/m0o9l0v3/NexusStudio/actions/runs/39114577421/job/117637635669",
+      "name": "studio-role-target-preflight"
+    },
+    {
+      "conclusion": "success",
+      "html_url": "https://github.com/m0o9l0v3/NexusStudio/actions/runs/39114577421/job/117637635630",
+      "name": "studio-static-caddy-check"
+    },
+    {
+      "conclusion": "success",
+      "html_url": "https://github.com/m0o9l0v3/NexusStudio/actions/runs/39114577421/job/117637635589",
+      "name": "image-build-check"
+    },
+    {
+      "conclusion": "success",
+      "html_url": "https://github.com/m0o9l0v3/NexusStudio/actions/runs/39114577421/job/117637635554",
+      "name": "studio-migration-script"
+    },
+    {
+      "conclusion": "success",
+      "html_url": "https://github.com/m0o9l0v3/NexusStudio/actions/runs/39114577421/job/117637635414",
+      "name": "studio-api-check"
+    }
+  ],
+  "localComparison": {
+    "ahead_by": 1,
+    "behind_by": 0,
+    "files": [],
+    "status": "ahead"
+  },
+  "projectRead": {
+    "result": "unavailable",
+    "cliReason": "missing read:project scope",
+    "browserReason": "signed out; public user project list shows 0; private project membership and Status unknown"
+  }
+}

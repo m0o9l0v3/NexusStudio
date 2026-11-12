@@ -50,10 +50,8 @@ public static class IdEntityKind
     public const string FormalEntrance = "formal_entrance";
     public const string Room = "room";
     public const string Landmark = "landmark";
-    /// <summary>構内の地面（GeoJSON 2.1.0。nexus-mobile E1-4 改訂2）。目的地ではなく、spot と ID を共有しない。</summary>
-    public const string CampusGround = "campus_ground";
 
-    public static readonly string[] All = [Spot, Building, Floor, IndoorNode, OutdoorNode, WalkingPath, FormalEntrance, Room, Landmark, CampusGround];
+    public static readonly string[] All = [Spot, Building, Floor, IndoorNode, OutdoorNode, WalkingPath, FormalEntrance, Room, Landmark];
 
     /// <summary>spot と同じ ID を持てる地図の種別（目的地Feature。E2-5 §5.4）。spot はこれらの Feature を同じ ID で参照する。</summary>
     public static readonly IReadOnlySet<string> Destinations = new HashSet<string>(StringComparer.Ordinal) { Building, FormalEntrance, Room, Landmark };
