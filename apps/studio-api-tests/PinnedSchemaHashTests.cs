@@ -11,7 +11,7 @@ namespace StudioApi.Tests;
 /// </summary>
 public sealed class PinnedSchemaHashTests
 {
-    // nexus-mobile/docs/schemas/map-dataset-geojson-v2.schema.json の SHA-256（2026-11-12、nexus-mobile 2a9d75b（PR #147 のブランチ）でpin。PR #147 のマージ後、マージ後のコミットで再pinする）。
+    // nexus-mobile/docs/schemas/map-dataset-geojson-v2.schema.json の SHA-256（2026-11-12、nexus-mobile fed0fc2（PR #147 のマージ）でpin）。
     private const string ExpectedSha256 = "4d5b9674702929abdfe86ce146fe9118d32ad9874169798a2354b6b4bc72422b";
 
     [Fact]
