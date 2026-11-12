@@ -38,6 +38,8 @@ API はこのファイルを設定キー `MapValidation:ApprovedSettingsFile`（
 
 地図を公開・復旧する確認では、ファイルの SHA-256 を確認結果と結び付ける。確認した後にファイルが変われば（値が同じでも）、公開時に再確認を求める。
 
+`campusBoundary` は、地図の GeoJSON 2.1.0 の構内の地面（`campus_ground`、nexus-mobile E1-4 改訂2）とは別のもの。地面は地図のデータに含め、オーナーが敷地の境界として作図する。地面があれば、すべての建物（`building`）がその中に入らなければ公開を止める（`building_outside_campus_ground`）。地面そのものも Feature なので、`campusBoundary` の中に入らなければ `outside_campus` で止まる。
+
 ## B. 地図の版ごとの根拠（取り込み時に渡す）
 
 | 項目 | 内容 | 上限 |

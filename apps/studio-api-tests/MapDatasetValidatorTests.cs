@@ -303,6 +303,87 @@ public sealed class MapDatasetValidatorTests
         Has(result, "missing_validation_context");
     }
 
+    // 構内の地面（campus_ground、GeoJSON 2.1.0。nexus-mobile E1-4 改訂2）。
+    // 値は Complete() の許容範囲と同じ矩形で、フィクスチャの形を確かめるための値（実測値・承認値ではない）。
+    private static JsonObject Ground(string coordinates = "[[[141.68,42.77],[141.69,42.77],[141.69,42.78],[141.68,42.78],[141.68,42.77]]]")
+        => JsonNode.Parse("""{"type":"Feature","id":"campus_ground","geometry":{"type":"Polygon","coordinates":""" + coordinates
+            + """},"properties":{"feature_type":"campus_ground","scope":"campus"}}""")!.AsObject();
+    private static JsonObject WithGround(JsonObject ground, string version = "2.1.0")
+    {
+        var data = Fixture();
+        data["nexus"]!["schema_version"] = version;
+        Features(data).Add(ground);
+        return data;
+    }
+
+    [Fact]
+    public void CampusGround_CoveringEveryBuilding_CanPublish()
+    {
+        var result = Validate(WithGround(Ground()));
+        Assert.True(result.CanPublish, string.Join("\n", result.Errors));
+    }
+
+    /// <summary>建物の外環と地面の外環が重なっても、建物は地面に入っている（境界上は内側に数える）。</summary>
+    [Fact]
+    public void CampusGround_SharingTheBuildingOutline_CanPublish()
+    {
+        var data = Fixture();
+        var outline = Feature(data, "mb")["geometry"]!["coordinates"]!.ToJsonString();
+        var result = Validate(WithGround(Ground(outline)));
+        Assert.DoesNotContain(result.Errors, e => e.Code == "building_outside_campus_ground");
+    }
+
+    [Fact]
+    public void CampusGround_NotCoveringABuilding_IsRejectedForThatBuilding()
+    {
+        var result = Validate(WithGround(Ground("[[[141.68,42.77],[141.6801,42.77],[141.6801,42.7701],[141.68,42.7701],[141.68,42.77]]]")));
+        Has(result, "building_outside_campus_ground");
+        Assert.Contains(result.Errors, e => e.Code == "building_outside_campus_ground" && e.CanonicalId == "mb");
+    }
+
+    /// <summary>地面の無い地図は、これまでどおり 2.0.0 で、建物の位置の検査を加えない。</summary>
+    [Fact]
+    public void WithoutCampusGround_NoGroundFindingIsReported()
+        => Assert.DoesNotContain(Validate(Fixture()).Errors, e => e.Code == "building_outside_campus_ground");
+
+    [Theory]
+    [InlineData("ground_in_2_0_0")]
+    [InlineData("two_grounds")]
+    [InlineData("ground_with_hole")]
+    [InlineData("ground_other_id")]
+    [InlineData("ground_extra_property")]
+    public void CampusGround_ContractViolations_AreSchemaViolations(string kind)
+    {
+        var data = kind switch
+        {
+            "ground_in_2_0_0" => WithGround(Ground(), "2.0.0"),
+            "two_grounds" => WithGround(Ground()),
+            "ground_with_hole" => WithGround(Ground("[[[141.68,42.77],[141.69,42.77],[141.69,42.78],[141.68,42.78],[141.68,42.77]],[[141.681,42.771],[141.681,42.772],[141.682,42.772],[141.682,42.771],[141.681,42.771]]]")),
+            "ground_other_id" => WithGround(Ground()),
+            "ground_extra_property" => WithGround(Ground()),
+            _ => throw new ArgumentException(kind),
+        };
+        var ground = Feature(data, "campus_ground");
+        if (kind == "two_grounds") Features(data).Add(ground.DeepClone());
+        if (kind == "ground_other_id") ground["id"] = "campus_ground_2";
+        if (kind == "ground_extra_property") ground["properties"]!["name"] = "構内";
+        Has(Validate(data), "schema_violation");
+    }
+
+    /// <summary>"campus_ground" を別の種別で予約済みなら、種別の衝突として止める（spot と ID を共有しない）。</summary>
+    [Theory]
+    [InlineData("spot")]
+    [InlineData("landmark")]
+    public void CampusGround_ReservedAsAnotherKind_IsAKindConflict(string kind)
+        => Has(Validate(WithGround(Ground()), Complete() with { ReservedIds = [new("campus_ground", kind, "active")] }), "reserved_id_kind_conflict");
+
+    [Fact]
+    public void CampusGround_ReservedAsItself_CanPublish()
+    {
+        var result = Validate(WithGround(Ground()), Complete() with { ReservedIds = [new("campus_ground", "campus_ground", "active")] });
+        Assert.True(result.CanPublish, string.Join("\n", result.Errors));
+    }
+
     [Fact]
     public void Cancellation_IsObserved() => Assert.Throws<OperationCanceledException>(() => _validator.Validate(Fixture().ToJsonString(), Complete(), new CancellationToken(true)));
 }

@@ -139,6 +139,24 @@ public sealed class MapPublishingTests : IAsyncLifetime
         Assert.Equal(13, reservations.Count);
     }
 
+    /// <summary>構内の地面（GeoJSON 2.1.0。nexus-mobile E1-4 改訂2）を含む地図も公開でき、地面の ID を専用の種別で予約する。</summary>
+    [Fact]
+    public async Task PublishingMapWithCampusGround_RegistersTheGroundId()
+    {
+        var data = JsonNode.Parse(MapImportTests.FixturePayload)!.AsObject();
+        data["nexus"]!["schema_version"] = "2.1.0";
+        data["features"]!.AsArray().Add(JsonNode.Parse("""
+            {"type":"Feature","id":"campus_ground","geometry":{"type":"Polygon","coordinates":[[[141.68,42.77],[141.69,42.77],[141.69,42.78],[141.68,42.78],[141.68,42.77]]]},"properties":{"feature_type":"campus_ground","scope":"campus"}}
+            """));
+        var dataset = await ImportAsync(data.ToJsonString());
+
+        await PreviewAndPublishAsync(Entry("map", "map", revisionId: dataset.Id));
+
+        var reservations = await WithDbAsync(db => db.IdReservations.AsNoTracking().ToListAsync());
+        Assert.Contains(reservations, r => (r.Id, r.EntityKind, r.State) == ("campus_ground", IdEntityKind.CampusGround, IdReservationState.Active));
+        Assert.Equal(14, reservations.Count);
+    }
+
     [Fact]
     public async Task PublishingMap_IsBlockedWithoutApprovedSettingsOrEvidence()
     {

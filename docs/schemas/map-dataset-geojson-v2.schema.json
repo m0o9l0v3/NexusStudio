@@ -18,19 +18,40 @@
           { "$ref": "#/$defs/indoorNodeFeature" },
           { "$ref": "#/$defs/outdoorNodeFeature" },
           { "$ref": "#/$defs/roomFeature" },
-          { "$ref": "#/$defs/landmarkFeature" }
+          { "$ref": "#/$defs/landmarkFeature" },
+          { "$ref": "#/$defs/campusGroundFeature" }
         ]
       }
     },
     "bbox": { "$ref": "#/$defs/bbox" }
   },
   "additionalProperties": false,
+  "allOf": [
+    {
+      "description": "campus_ground は0個か1個（E1-4 改訂2）",
+      "properties": {
+        "features": { "type": "array", "contains": { "$ref": "#/$defs/isCampusGround" }, "minContains": 0, "maxContains": 1 }
+      }
+    },
+    {
+      "description": "campus_ground を含むなら schema_version は 2.1.0（2.0.0 の読み手は知らない種別として拒否するため）",
+      "if": {
+        "type": "object",
+        "required": ["features"],
+        "properties": { "features": { "type": "array", "contains": { "$ref": "#/$defs/isCampusGround" } } }
+      },
+      "then": {
+        "type": "object",
+        "properties": { "nexus": { "type": "object", "properties": { "schema_version": { "const": "2.1.0" } } } }
+      }
+    }
+  ],
   "$defs": {
     "nexusMetadata": {
       "type": "object",
       "required": ["schema_version", "floors"],
       "properties": {
-        "schema_version": { "const": "2.0.0" },
+        "schema_version": { "enum": ["2.0.0", "2.1.0"] },
         "floors": {
           "type": "array",
           "items": { "$ref": "#/$defs/floor" }
@@ -403,6 +424,43 @@
         "bbox": { "$ref": "#/$defs/bbox" }
       },
       "additionalProperties": false
+    },
+    "campusGroundFeature": {
+      "description": "E1-4 改訂2：構内の地面。iOS はこの範囲を不透明に塗り、構内では背景の地図の建物を見せない。地図に0個か1個で、schema_version 2.1.0 から使える。穴は持たない",
+      "type": "object",
+      "required": ["type", "id", "geometry", "properties"],
+      "properties": {
+        "type": { "const": "Feature" },
+        "id": { "const": "campus_ground" },
+        "geometry": {
+          "allOf": [
+            { "$ref": "#/$defs/polygonGeometry" },
+            { "type": "object", "properties": { "coordinates": { "type": "array", "maxItems": 1 } } }
+          ]
+        },
+        "properties": {
+          "type": "object",
+          "required": ["feature_type", "scope"],
+          "properties": {
+            "feature_type": { "const": "campus_ground" },
+            "scope": { "const": "campus" }
+          },
+          "additionalProperties": false
+        },
+        "bbox": { "$ref": "#/$defs/bbox" }
+      },
+      "additionalProperties": false
+    },
+    "isCampusGround": {
+      "type": "object",
+      "required": ["properties"],
+      "properties": {
+        "properties": {
+          "type": "object",
+          "required": ["feature_type"],
+          "properties": { "feature_type": { "const": "campus_ground" } }
+        }
+      }
     }
   }
 }
