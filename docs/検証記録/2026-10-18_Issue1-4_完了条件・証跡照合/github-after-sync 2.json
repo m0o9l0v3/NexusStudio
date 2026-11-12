@@ -1,0 +1,191 @@
+{
+  "verifiedAt": "2026-10-18T22:40:39.221792+09:00",
+  "projectUrl": "https://github.com/users/m0o9l0v3/projects/1",
+  "projectTotalCount": 12,
+  "issues": [
+    {
+      "body": "<!-- acceptance-evidence-sync-2026-10-18 -->\n## 2026-10-18 現在の確定状況\n\n**完了（Project: Done）**。成果物22〜24を作成し、[PR #8](https://github.com/m0o9l0v3/NexusStudio/pull/8)でdevelopへ統合済みです。下記の当初背景にある「成果物未作成」は解消済みです。完了条件3点の証跡は照合コメントに記録しています。\n\n[進捗を管理するProject](https://github.com/users/m0o9l0v3/projects/1)\n\n---\n\n## 背景\n\n[`docs/決定事項/21`](docs/決定事項/21_NexusStudio_ClaudeCode_Figma理解・不足分析・実装準備プロンプト_2026-09-22_v01.md) でFigma画面の棚卸し・不足分析・実装移行計画の作成を依頼したが、成果物（`22`〜`24`）が未作成のまま残っている。\n\n**Step 1（認証＋App Shell）・Step 2（イベント編集）は、Figmaの現在のノード構造を確認せずに着手しない。**（`CLAUDE.md`参照）\n\n## 対象\n\n`21`のプロンプトに従い、次の3文書を `docs/決定事項/` に作成する。\n\n1. `22_NexusStudio_Figma理解・画面状態棚卸し_YYYY-MM-DD_v01.md`\n2. `23_NexusStudio_Figma不足分析・追加提案_YYYY-MM-DD_v01.md`\n3. `24_NexusStudio_ClaudeCode実装移行計画_YYYY-MM-DD_v01.md`\n\n## 完了条件\n\n- 現在のFigma（https://www.figma.com/design/q6LGxRaRKI7OrOxKbgI8Fe/Nexus-Studio）を根拠に主要画面とフローを説明できる。\n- 不足を具体案へ落とし込み、優先度（実装着手前に必要／該当機能の完成までに必要／将来改善）を付けている。\n- 最初の実装範囲（Step 1・2の対象Node・Component・データ・API対応）を選べる状態になっている。\n\n## 依存\n\nこれを前提に、Issue「Step 1: 個別管理者認証とApp Shellを実装する」「Step 2: イベント1件の編集・下書き保存を実装する」に着手する。\n\n---\n<details><summary>GitLab migration metadata</summary>\n\n- Original: [nexusstudio#1](https://gitlab.com/11h27m/nexusstudio/-/work_items/1)\n- Original author: `11h27m`\n- Original state: `opened`\n- Created: `2026-09-23T04:41:46.990Z`\n- Updated: `2026-09-23T04:41:46.990Z`\n- issue_type: `issue`\n\n</details>\n<!-- gitlab-source:86385901:1 -->\n\n",
+      "comments": [
+        {
+          "id": "IC_kwDOUuLcXc8AAAABdJB03w",
+          "author": {
+            "login": "m0o9l0v3"
+          },
+          "authorAssociation": "OWNER",
+          "body": "<!-- acceptance-evidence-sync-2026-10-18 -->\n## 完了条件と証跡の照合（2026-10-18）\n\n完了条件3点を満たしたため、完了としてクローズし、ProjectをDoneにします。\n\n- 現在のFigmaに基づく主要画面・フロー：[22 画面状態棚卸し](https://github.com/m0o9l0v3/NexusStudio/blob/17dc7e220cc52514b8c2575c4fff30d67e6cbca9/docs/%E6%B1%BA%E5%AE%9A%E4%BA%8B%E9%A0%85/22_NexusStudio_Figma%E7%90%86%E8%A7%A3%E3%83%BB%E7%94%BB%E9%9D%A2%E7%8A%B6%E6%85%8B%E6%A3%9A%E5%8D%B8%E3%81%97_2026-10-08_v01.md) §2〜6（2026-10-08取得。83画面・Component・Node索引・静的フロー）。\n- 不足の具体案・優先度：[23 不足分析・追加提案](https://github.com/m0o9l0v3/NexusStudio/blob/17dc7e220cc52514b8c2575c4fff30d67e6cbca9/docs/%E6%B1%BA%E5%AE%9A%E4%BA%8B%E9%A0%85/23_NexusStudio_Figma%E4%B8%8D%E8%B6%B3%E5%88%86%E6%9E%90%E3%83%BB%E8%BF%BD%E5%8A%A0%E6%8F%90%E6%A1%88_2026-10-08_v01.md) §2（G01〜G18、P0/P1/P2、影響・最小案）。\n- 最初の実装範囲：[24 実装移行計画](https://github.com/m0o9l0v3/NexusStudio/blob/17dc7e220cc52514b8c2575c4fff30d67e6cbca9/docs/%E6%B1%BA%E5%AE%9A%E4%BA%8B%E9%A0%85/24_NexusStudio_ClaudeCode%E5%AE%9F%E8%A3%85%E7%A7%BB%E8%A1%8C%E8%A8%88%E7%94%BB_2026-10-08_v01.md) §1〜3（Step 1・2のNode／Component／データ／API／検証条件）。\n- 統合：[PR #8](https://github.com/m0o9l0v3/NexusStudio/pull/8)はdevelopへマージ済み。[統合先developのCI](https://github.com/m0o9l0v3/NexusStudio/actions/runs/39114577421)も成功。\n\n当初背景の「成果物未作成」は解消済みです。Figmaへの全提案反映や以降の機能実装は別作業です。今回の照合ではFigma再取得・実行試験は行わず、記録の取得日と証拠範囲を区別しています。\n",
+          "createdAt": "2026-10-18T13:39:50Z",
+          "includesCreatedEdit": false,
+          "isMinimized": false,
+          "minimizedReason": "",
+          "reactionGroups": [],
+          "url": "https://github.com/m0o9l0v3/NexusStudio/issues/1#issuecomment-6250591455",
+          "viewerDidAuthor": true
+        }
+      ],
+      "number": 1,
+      "state": "CLOSED",
+      "stateReason": "COMPLETED",
+      "title": "Figma画面棚卸し・不足分析・実装移行計画を作成する",
+      "url": "https://github.com/m0o9l0v3/NexusStudio/issues/1"
+    },
+    {
+      "body": "<!-- acceptance-evidence-sync-2026-10-18 -->\n## 2026-10-18 現在の確定状況\n\n**完了（Project: Done）**。認証・App Shell・管理者CLIの実行検証と修正後再確認を終え、[PR #8](https://github.com/m0o9l0v3/NexusStudio/pull/8)でdevelopへ統合済みです。完了条件別の証跡は照合コメントに記録しています。\n\n[進捗を管理するProject](https://github.com/users/m0o9l0v3/projects/1)\n\n---\n\n## 背景\n\n[`docs/決定事項/15`](docs/決定事項/15_NexusStudio_実装開始判断・初期実装計画_2026-09-22_v02.md) §8 Step 1。Step 0（基盤整備、[[!1](https://gitlab.com/11h27m/nexusstudio/-/merge_requests/1)](https://gitlab.com/11h27m/nexusstudio/-/merge_requests/1)）は完了済み。\n\n## 対象・完了条件\n\n| # | 対象 | 完了条件 |\n|---|---|---|\n| 1-a | App Shell（Sidebar 216px／Workspace／Inspector） | 18で承認済みの構成。SidebarにOverview／Events／Spots／Open Campus／Map Data／Validation／Releases／Logs | Figma `27:2` と並べたスクリーンショット比較。1440×1024で文字切れ・重なりなし |\n| 1-b | ASP.NET Core Identityによる個別管理者認証＋ログイン画面 | 登録済み管理者がログインでき、未認証では直接URL・直接APIとも管理操作ができない | 未認証でAPIを叩いて401。Cookie失効後の保存が成功と誤表示されない |\n| 1-c | 初期管理者の登録・無効化コマンド | 運用者のみ実行。公開サインアップは作らない | コマンドで追加・無効化できる |\n\n## 前提\n\n- Issue「Figma画面棚卸し・不足分析・実装移行計画を作成する」の完了（Node ID・Component対応が必要）。\n- `nexus-mobile/apps/admin-api` の単一固定資格情報・平文比較（N08）を踏襲しない。\n\n## スコープ外\n\n- イベント編集（Step 2）\n- 地図編集\n\n---\n<details><summary>GitLab migration metadata</summary>\n\n- Original: [nexusstudio#2](https://gitlab.com/11h27m/nexusstudio/-/work_items/2)\n- Original author: `11h27m`\n- Original state: `opened`\n- Created: `2026-09-23T04:41:56.874Z`\n- Updated: `2026-09-23T04:41:56.874Z`\n- issue_type: `issue`\n\n</details>\n<!-- gitlab-source:86385901:2 -->\n\n",
+      "comments": [
+        {
+          "id": "IC_kwDOUuLcXc8AAAABdJB7Tg",
+          "author": {
+            "login": "m0o9l0v3"
+          },
+          "authorAssociation": "OWNER",
+          "body": "<!-- acceptance-evidence-sync-2026-10-18 -->\n## 完了条件と証跡の照合（2026-10-18）\n\n完了条件を満たしたため、完了としてクローズし、ProjectをDoneにします。\n\n| 条件 | 証跡 |\n|---|---|\n| App Shell：Sidebar 216px・8領域・Workspace／Inspector | [A-2 認証・Shell・CLI](https://github.com/m0o9l0v3/NexusStudio/blob/17dc7e220cc52514b8c2575c4fff30d67e6cbca9/docs/%E6%A4%9C%E8%A8%BC%E8%A8%98%E9%8C%B2/2026-10-09_A-2_Step1%E3%83%96%E3%83%A9%E3%82%A6%E3%82%B6%E6%A4%9C%E8%A8%BC.md) #11・画像07、[A-5 見た目・操作性](https://github.com/m0o9l0v3/NexusStudio/blob/17dc7e220cc52514b8c2575c4fff30d67e6cbca9/docs/%E6%A4%9C%E8%A8%BC%E8%A8%98%E9%8C%B2/2026-10-15_A-5_%E8%A6%8B%E3%81%9F%E7%9B%AE%E3%83%BB%E6%93%8D%E4%BD%9C%E6%80%A7.md) §1、[A-6 修正後の再確認](https://github.com/m0o9l0v3/NexusStudio/blob/17dc7e220cc52514b8c2575c4fff30d67e6cbca9/docs/%E6%A4%9C%E8%A8%BC%E8%A8%98%E9%8C%B2/2026-10-15_A-6_%E5%B7%AE%E5%88%86%E4%BF%AE%E6%AD%A3.md)。1440×1024のFigma比較と寸法確認 |\n| 個別管理者のログイン・未認証拒否 | A-2 #1・#4〜10・#21。直接URLはログインへ、未認証GET/POSTは401、CSRF不足は400 |\n| Cookie失効後の保存を成功と誤表示しない | A-2 #18・19。入力保持・自動保存なし。別管理者再認証のB1は修正後に入力破棄・Overview遷移を確認 |\n| 運用者用管理者CLI・公開サインアップなし | A-2 #22〜24、A-6 B2、AdminAccountTests。無効化・再設定後の次要求で401を確認 |\n\n修正・再確認は[PR #8](https://github.com/m0o9l0v3/NexusStudio/pull/8)でdevelopへ統合済み。[統合先developのCI](https://github.com/m0o9l0v3/NexusStudio/actions/runs/39114577421)も成功しています。\n\nL03の処理中表示はA-2 #8でコード確認のみ、画面捕捉なしとして残します。Figma差分D1は利用者判断で実装を正とし、D2/D3はA-6で再確認済みです。領域本文の全機能完成や本番配備を本Issueの完了条件へ追加しません。\n",
+          "createdAt": "2026-10-18T13:40:00Z",
+          "includesCreatedEdit": false,
+          "isMinimized": false,
+          "minimizedReason": "",
+          "reactionGroups": [],
+          "url": "https://github.com/m0o9l0v3/NexusStudio/issues/2#issuecomment-6250593102",
+          "viewerDidAuthor": true
+        }
+      ],
+      "number": 2,
+      "state": "CLOSED",
+      "stateReason": "COMPLETED",
+      "title": "Step 1: 個別管理者認証とApp Shellを実装する",
+      "url": "https://github.com/m0o9l0v3/NexusStudio/issues/2"
+    },
+    {
+      "body": "<!-- acceptance-evidence-sync-2026-10-18 -->\n## 2026-10-18 現在の確定状況\n\n**作業中（Project: In Progress）**。中核5条件は実PG・ブラウザで検証済みです。正規化バイト比較の自動テスト、指定AC全件のE2E対応、キーボードのみの会場追加・順序変更の証跡補完が残るため、Openを維持します。残件は照合コメントを参照してください。\n\n[進捗を管理するProject](https://github.com/users/m0o9l0v3/projects/1)\n\n---\n\n## 背景\n\n[`docs/決定事項/15`](docs/決定事項/15_NexusStudio_実装開始判断・初期実装計画_2026-09-22_v02.md) §8 Step 2。到達点は「イベント1件を編集 → 複数枠・複数会場を設定 → 下書き保存 → 一覧へ戻る → 再表示して同じ内容が出る」。\n\n## 完了条件（中核5点）\n\n1. 会場0件・カテゴリ未選択・参加案内未選択でも下書き保存できる。\n2. 再表示で枠順・会場順・会場補足・時間方式・参加案内が1つも欠けない。\n3. canonical IDが保存前後で1文字も変わらない（大文字小文字を含む）。\n4. 2タブ同時保存で無断上書きされず409と最新内容が出る。\n5. 通信を落とした保存で失敗が表示され入力が残る。\n\n## 検証方法\n\n- 保存payloadと再取得payloadのJSON正規化バイト比較を自動テストとして持つ（画面で「それらしく見える」ことを完了条件にしない）。\n- canonical IDの保持（大文字小文字を含む）。\n- 07番文書のAC01〜AC08、AC21〜AC26のE2Eシナリオ。\n- 2セッション同時保存での競合検出。\n- キーボード操作のみでの会場追加・順序変更。\n- Figmaのノード（`2:2`／`10:2`／`10:130`／`10:258`／`11:178`／`10:386`）とのスクリーンショット比較（1440×1024）。\n\n## 前提\n\n- Issue「Step 1: 個別管理者認証とApp Shellを実装する」の完了。\n- Issue「Figma画面棚卸し・不足分析・実装移行計画を作成する」の完了。\n\n## スコープ外\n\n- 公開（Release）・検証・履歴・復旧（Step 4）\n- 開催情報・カテゴリ・Spot単体画面の完成（Step 3）\n- iOSとの接続（Step 5）\n\n---\n<details><summary>GitLab migration metadata</summary>\n\n- Original: [nexusstudio#3](https://gitlab.com/11h27m/nexusstudio/-/work_items/3)\n- Original author: `11h27m`\n- Original state: `opened`\n- Created: `2026-09-23T04:42:07.377Z`\n- Updated: `2026-09-23T04:42:07.377Z`\n- issue_type: `issue`\n\n</details>\n<!-- gitlab-source:86385901:3 -->\n\n",
+      "comments": [
+        {
+          "id": "IC_kwDOUuLcXc8AAAABdJCA3g",
+          "author": {
+            "login": "m0o9l0v3"
+          },
+          "authorAssociation": "OWNER",
+          "body": "<!-- acceptance-evidence-sync-2026-10-18 -->\n## 完了条件と証跡の照合（2026-10-18）\n\n**中核5条件は充足しています。受け入れ証跡の補完が残るためOpenを維持し、ProjectはIn Progressとします。**\n\n| 中核条件 | 証跡 |\n|---|---|\n| 会場0件・カテゴリ／参加案内未選択でも保存 | [A-3 実PGでの保存往復](https://github.com/m0o9l0v3/NexusStudio/blob/17dc7e220cc52514b8c2575c4fff30d67e6cbca9/docs/%E6%A4%9C%E8%A8%BC%E8%A8%98%E9%8C%B2/2026-10-09_A-3_Step2%E4%BF%9D%E5%AD%98%E5%BE%80%E5%BE%A9.md) #13、Create_AcceptsAnIncompleteDraft |\n| 枠順・会場順・補足・時間方式・参加案内の往復保持 | A-3 #1〜6・#12。送信・GET・DBのJSON一致と再表示 |\n| canonical IDの文字・大小文字保持 | A-3 #8。大小文字だけ異なるSpotを区別 |\n| 2タブ保存で409・最新内容・無断上書きなし | [A-4 競合・失敗復帰](https://github.com/m0o9l0v3/NexusStudio/blob/17dc7e220cc52514b8c2575c4fff30d67e6cbca9/docs/%E6%A4%9C%E8%A8%BC%E8%A8%98%E9%8C%B2/2026-10-09_A-4_Step2%E7%AB%B6%E5%90%88%E3%83%BB%E5%A4%B1%E6%95%97%E5%BE%A9%E5%B8%B0.md) §1。Revision数・rowVersion・比較画面を確認 |\n| 通信失敗で成功扱いせず入力保持 | A-4 §2〜3、[A-2 認証・Shell・CLI](https://github.com/m0o9l0v3/NexusStudio/blob/17dc7e220cc52514b8c2575c4fff30d67e6cbca9/docs/%E6%A4%9C%E8%A8%BC%E8%A8%98%E9%8C%B2/2026-10-09_A-2_Step1%E3%83%96%E3%83%A9%E3%82%A6%E3%82%B6%E6%A4%9C%E8%A8%BC.md) #17。応答消失・API停止・401、D6の文言修正後も確認 |\n\n[PR #8](https://github.com/m0o9l0v3/NexusStudio/pull/8)で修正・記録をdevelopへ統合済みです。[統合先developのCI](https://github.com/m0o9l0v3/NexusStudio/actions/runs/39114577421)も成功しています。\n\n### Doneへ移す前に補完する項目\n\n- [ ] JSON正規化バイト比較の自動テストを備える、または現行の意味的JSON比較を許容する判断を明記する。[EventEndpointsTests.cs](https://github.com/m0o9l0v3/NexusStudio/blob/17dc7e220cc52514b8c2575c4fff30d67e6cbca9/apps/studio-api-tests/EventEndpointsTests.cs)のSavedDraft_RoundTripsWithoutLosingOrChangingAnythingはJsonNode.DeepEqualsとID配列比較であり、Issueが指定する正規化バイト比較そのものではありません。\n- [ ] キーボードのみで会場追加→順序変更→保存→再表示まで完遂した手順と前後の配列を記録する。[A-5 見た目・操作性](https://github.com/m0o9l0v3/NexusStudio/blob/17dc7e220cc52514b8c2575c4fff30d67e6cbca9/docs/%E6%A4%9C%E8%A8%BC%E8%A8%98%E9%8C%B2/2026-10-15_A-5_%E8%A6%8B%E3%81%9F%E7%9B%AE%E3%83%BB%E6%93%8D%E4%BD%9C%E6%80%A7.md) §4はTab順・フォーカス、[A-6 修正後の再確認](https://github.com/m0o9l0v3/NexusStudio/blob/17dc7e220cc52514b8c2575c4fff30d67e6cbca9/docs/%E6%A4%9C%E8%A8%BC%E8%A8%98%E9%8C%B2/2026-10-15_A-6_%E5%B7%AE%E5%88%86%E4%BF%AE%E6%AD%A3.md)は候補初期選択等の確認で、全操作完遂の明示記録はありません。\n- [ ] [07 v03 受け入れ条件](https://github.com/m0o9l0v3/NexusStudio/blob/17dc7e220cc52514b8c2575c4fff30d67e6cbca9/docs/%E6%B1%BA%E5%AE%9A%E4%BA%8B%E9%A0%85/07_NexusStudio_v1.0_%E3%82%A4%E3%83%99%E3%83%B3%E3%83%88%E7%AE%A1%E7%90%86%E8%A9%B3%E7%B4%B0%E6%A1%88_2026-09-13_v03.md) §9の指定AC全件について、以下の不足を手動E2E記録で補完する。API単体テストをブラウザE2Eの代わりとして扱わない。\n\n| AC | 証跡の現状／補完対象 |\n|---|---|\n| AC01 | 単日・1枠・1会場でPreview・公開まで進む一連の画面記録が不足 |\n| AC02〜05 | A-3の複製・翌日枠・複数会場／補足・同名候補、A-5のPreviewに対応記録あり |\n| AC06 | 同一Spot重複はAPIテストあり。UIで再追加を防ぐE2E記録を補完 |\n| AC07 | 会場解除後も他枠・Spotを保全することの記録を補完 |\n| AC08 | 空の下書き保存は確認済み。全会場解除→保存→公開阻止・修正先まで補完 |\n| AC21 | fixed/anytimeの保存は確認済み。表示を含む明示対応を補完 |\n| AC22 | 異なる2日の終日終了時刻をPreview・公開内容で確認する記録を補完 |\n| AC23 | 参照時間なしの公開阻止はAPIテストあり。保存→Preview→阻止の画面記録を補完 |\n| AC24 | 開催時間変更と終日枠への影響はAPIテストあり。該当E2Eを補完 |\n| AC25 | 休止を挟む随時参加2枠で、休止時間を表示しない記録を補完 |\n| AC26 | allDay/participation:nullはAPIテストあり。自動選択せず公開時に要求するUI記録を補完 |\n\nこれは未実装・不具合の断定ではなく、要求された経路の証跡不足です。公開側のACはStep 4の証跡と分けて追跡します。自動E2E基盤の導入を必須とはせず、既存方針の手動検証で補完できます。\n\n指定Figmaノードの旧分割構成は、2026-09-24の承認済み統合編集へ読み替え、A-2〜A-6を比較証跡とします。旧構成へ戻しません。今回、完了条件の緩和・製品コードの変更・新規試験は行っていません。\n",
+          "createdAt": "2026-10-18T13:40:09Z",
+          "includesCreatedEdit": false,
+          "isMinimized": false,
+          "minimizedReason": "",
+          "reactionGroups": [],
+          "url": "https://github.com/m0o9l0v3/NexusStudio/issues/3#issuecomment-6250594526",
+          "viewerDidAuthor": true
+        }
+      ],
+      "number": 3,
+      "state": "OPEN",
+      "stateReason": "REOPENED",
+      "title": "Step 2: イベント1件の編集・下書き保存を実装する（最初の到達点）",
+      "url": "https://github.com/m0o9l0v3/NexusStudio/issues/3"
+    },
+    {
+      "body": "<!-- acceptance-evidence-sync-2026-10-18 -->\n## 2026-10-18 現在の確定状況\n\n**完了（Project: Done）**。2026-09-24の利用者決定でA案（地図の公開・復旧をStudioへ一本化）を採用済みです。下記の「判断未確定によるブロック」は解消済みです。参加者向け配信はnexus-mobile public-api、iOS接続はStep 5として扱います。地図機能全体の完成を意味しません。\n\n[進捗を管理するProject](https://github.com/users/m0o9l0v3/projects/1)\n\n---\n\n## 背景\n\n[`docs/決定事項/15`](docs/決定事項/15_NexusStudio_実装開始判断・初期実装計画_2026-09-22_v02.md) §9.1。`nexus-mobile`側が`epic::E2`としてMapDatasetのdraft→validation→publish→rollbackを進めており（#17／#18／#19完了、#20でpublish/rollback着手見込み）、一方でD-11によりStudioが地図の編集・公開を担う。**同じ公開・復旧機構を2箇所で作る状態になりかねない。**\n\n## 選択肢\n\n| 案 | 内容 |\n|---|---|\n| **A（推奨）** | 既存側は#19（draft API）までで区切り、publish/rollback/配信はStudioの公開基盤（Release・operationId冪等・復旧）に統合する。#19までの成果はStudioへ移植する |\n| B | 既存側で地図のpublish/rollbackまで作り、Studioはそれを呼ぶ |\n| C | 両方で作る（**採用しない**） |\n\n推奨Aの根拠・トレードオフは15 v02 §9.1を参照。\n\n## 必要な判断\n\n- A案を採る場合、`nexus-mobile`側の#20（publish/rollback着手予定）の計画変更が必要。\n- 判断は利用者（技術的意思決定者）が行う。\n\n## 影響\n\nこの判断が決まるまで、Step 3・4（地図の検証・公開・履歴・復旧）には着手できない。Step 0（validator移植）・Step 2（イベント編集）はこの判断に依存せず進められる（進行済み）。\n\n---\n<details><summary>GitLab migration metadata</summary>\n\n- Original: [nexusstudio#4](https://gitlab.com/11h27m/nexusstudio/-/work_items/4)\n- Original author: `11h27m`\n- Original state: `opened`\n- Created: `2026-09-23T04:42:17.258Z`\n- Updated: `2026-09-23T04:42:17.258Z`\n- issue_type: `issue`\n\n</details>\n<!-- gitlab-source:86385901:4 -->\n\n",
+      "comments": [
+        {
+          "id": "IC_kwDOUuLcXc8AAAABdJCFHA",
+          "author": {
+            "login": "m0o9l0v3"
+          },
+          "authorAssociation": "OWNER",
+          "body": "<!-- acceptance-evidence-sync-2026-10-18 -->\n## 判断の確定と証跡の照合（2026-10-18）\n\n**A案を採用済みです。判断未確定のブロックは解消しているため、完了としてクローズし、ProjectをDoneにします。**\n\n- 決定：[28 v02 Step 4着手前の判断記録](https://github.com/m0o9l0v3/NexusStudio/blob/17dc7e220cc52514b8c2575c4fff30d67e6cbca9/docs/%E6%B1%BA%E5%AE%9A%E4%BA%8B%E9%A0%85/28_NexusStudio_Step4%E7%9D%80%E6%89%8B%E5%89%8D%E3%81%AE%E5%88%A4%E6%96%AD%E8%A8%98%E9%8C%B2_2026-09-24_v02.md) §1 S4-1。2026-09-24の利用者決定により、地図の公開・復旧はNexus Studioに完全一本化。\n- 関連作業：同§2にnexus-mobile #20等の理由付きCloseと、#17〜19の成果を参照・移植する整理を記録。今回はnexus-mobile各Issueの最新状態を再取得したという意味ではありません。\n- 責務境界：Studioが編集・検証・公開・復旧、参加者向け配信はnexus-mobile public-api、iOS接続・版切り替えはStep 5（同§2・4）。当初A案の「配信もStudioへ統合」は、この後続決定に従って読み替えます。\n- 後続の公開検証は[PR #9](https://github.com/m0o9l0v3/NexusStudio/pull/9)でdevelopへ統合済みです。ただし、本Issueの完了は責務と計画の確定であり、Map Dataの編集・地図公開・iOS・本番配備すべての完成を意味しません。\n\n当初本文の選択肢・移行メタデータは経緯として保持し、冒頭に現行の確定状況を追記しています。\n",
+          "createdAt": "2026-10-18T13:40:15Z",
+          "includesCreatedEdit": false,
+          "isMinimized": false,
+          "minimizedReason": "",
+          "reactionGroups": [],
+          "url": "https://github.com/m0o9l0v3/NexusStudio/issues/4#issuecomment-6250595612",
+          "viewerDidAuthor": true
+        }
+      ],
+      "number": 4,
+      "state": "CLOSED",
+      "stateReason": "COMPLETED",
+      "title": "地図公開機構の二重開発を避ける整理案（A/B/C）を確定する",
+      "url": "https://github.com/m0o9l0v3/NexusStudio/issues/4"
+    }
+  ],
+  "items": [
+    {
+      "content": {
+        "body": "<!-- acceptance-evidence-sync-2026-10-18 -->\n## 2026-10-18 現在の確定状況\n\n**完了（Project: Done）**。成果物22〜24を作成し、[PR #8](https://github.com/m0o9l0v3/NexusStudio/pull/8)でdevelopへ統合済みです。下記の当初背景にある「成果物未作成」は解消済みです。完了条件3点の証跡は照合コメントに記録しています。\n\n[進捗を管理するProject](https://github.com/users/m0o9l0v3/projects/1)\n\n---\n\n## 背景\n\n[`docs/決定事項/21`](docs/決定事項/21_NexusStudio_ClaudeCode_Figma理解・不足分析・実装準備プロンプト_2026-09-22_v01.md) でFigma画面の棚卸し・不足分析・実装移行計画の作成を依頼したが、成果物（`22`〜`24`）が未作成のまま残っている。\n\n**Step 1（認証＋App Shell）・Step 2（イベント編集）は、Figmaの現在のノード構造を確認せずに着手しない。**（`CLAUDE.md`参照）\n\n## 対象\n\n`21`のプロンプトに従い、次の3文書を `docs/決定事項/` に作成する。\n\n1. `22_NexusStudio_Figma理解・画面状態棚卸し_YYYY-MM-DD_v01.md`\n2. `23_NexusStudio_Figma不足分析・追加提案_YYYY-MM-DD_v01.md`\n3. `24_NexusStudio_ClaudeCode実装移行計画_YYYY-MM-DD_v01.md`\n\n## 完了条件\n\n- 現在のFigma（https://www.figma.com/design/q6LGxRaRKI7OrOxKbgI8Fe/Nexus-Studio）を根拠に主要画面とフローを説明できる。\n- 不足を具体案へ落とし込み、優先度（実装着手前に必要／該当機能の完成までに必要／将来改善）を付けている。\n- 最初の実装範囲（Step 1・2の対象Node・Component・データ・API対応）を選べる状態になっている。\n\n## 依存\n\nこれを前提に、Issue「Step 1: 個別管理者認証とApp Shellを実装する」「Step 2: イベント1件の編集・下書き保存を実装する」に着手する。\n\n---\n<details><summary>GitLab migration metadata</summary>\n\n- Original: [nexusstudio#1](https://gitlab.com/11h27m/nexusstudio/-/work_items/1)\n- Original author: `11h27m`\n- Original state: `opened`\n- Created: `2026-09-23T04:41:46.990Z`\n- Updated: `2026-09-23T04:41:46.990Z`\n- issue_type: `issue`\n\n</details>\n<!-- gitlab-source:86385901:1 -->\n\n",
+        "number": 1,
+        "repository": "m0o9l0v3/NexusStudio",
+        "title": "Figma画面棚卸し・不足分析・実装移行計画を作成する",
+        "type": "Issue",
+        "url": "https://github.com/m0o9l0v3/NexusStudio/issues/1"
+      },
+      "id": "PVTI_lAHODuGvDM4BbU8yzhBneTQ",
+      "repository": "https://github.com/m0o9l0v3/NexusStudio",
+      "status": "Done",
+      "title": "Figma画面棚卸し・不足分析・実装移行計画を作成する"
+    },
+    {
+      "content": {
+        "body": "<!-- acceptance-evidence-sync-2026-10-18 -->\n## 2026-10-18 現在の確定状況\n\n**完了（Project: Done）**。認証・App Shell・管理者CLIの実行検証と修正後再確認を終え、[PR #8](https://github.com/m0o9l0v3/NexusStudio/pull/8)でdevelopへ統合済みです。完了条件別の証跡は照合コメントに記録しています。\n\n[進捗を管理するProject](https://github.com/users/m0o9l0v3/projects/1)\n\n---\n\n## 背景\n\n[`docs/決定事項/15`](docs/決定事項/15_NexusStudio_実装開始判断・初期実装計画_2026-09-22_v02.md) §8 Step 1。Step 0（基盤整備、[[!1](https://gitlab.com/11h27m/nexusstudio/-/merge_requests/1)](https://gitlab.com/11h27m/nexusstudio/-/merge_requests/1)）は完了済み。\n\n## 対象・完了条件\n\n| # | 対象 | 完了条件 |\n|---|---|---|\n| 1-a | App Shell（Sidebar 216px／Workspace／Inspector） | 18で承認済みの構成。SidebarにOverview／Events／Spots／Open Campus／Map Data／Validation／Releases／Logs | Figma `27:2` と並べたスクリーンショット比較。1440×1024で文字切れ・重なりなし |\n| 1-b | ASP.NET Core Identityによる個別管理者認証＋ログイン画面 | 登録済み管理者がログインでき、未認証では直接URL・直接APIとも管理操作ができない | 未認証でAPIを叩いて401。Cookie失効後の保存が成功と誤表示されない |\n| 1-c | 初期管理者の登録・無効化コマンド | 運用者のみ実行。公開サインアップは作らない | コマンドで追加・無効化できる |\n\n## 前提\n\n- Issue「Figma画面棚卸し・不足分析・実装移行計画を作成する」の完了（Node ID・Component対応が必要）。\n- `nexus-mobile/apps/admin-api` の単一固定資格情報・平文比較（N08）を踏襲しない。\n\n## スコープ外\n\n- イベント編集（Step 2）\n- 地図編集\n\n---\n<details><summary>GitLab migration metadata</summary>\n\n- Original: [nexusstudio#2](https://gitlab.com/11h27m/nexusstudio/-/work_items/2)\n- Original author: `11h27m`\n- Original state: `opened`\n- Created: `2026-09-23T04:41:56.874Z`\n- Updated: `2026-09-23T04:41:56.874Z`\n- issue_type: `issue`\n\n</details>\n<!-- gitlab-source:86385901:2 -->\n\n",
+        "number": 2,
+        "repository": "m0o9l0v3/NexusStudio",
+        "title": "Step 1: 個別管理者認証とApp Shellを実装する",
+        "type": "Issue",
+        "url": "https://github.com/m0o9l0v3/NexusStudio/issues/2"
+      },
+      "id": "PVTI_lAHODuGvDM4BbU8yzhBneYw",
+      "repository": "https://github.com/m0o9l0v3/NexusStudio",
+      "status": "Done",
+      "title": "Step 1: 個別管理者認証とApp Shellを実装する"
+    },
+    {
+      "content": {
+        "body": "<!-- acceptance-evidence-sync-2026-10-18 -->\n## 2026-10-18 現在の確定状況\n\n**作業中（Project: In Progress）**。中核5条件は実PG・ブラウザで検証済みです。正規化バイト比較の自動テスト、指定AC全件のE2E対応、キーボードのみの会場追加・順序変更の証跡補完が残るため、Openを維持します。残件は照合コメントを参照してください。\n\n[進捗を管理するProject](https://github.com/users/m0o9l0v3/projects/1)\n\n---\n\n## 背景\n\n[`docs/決定事項/15`](docs/決定事項/15_NexusStudio_実装開始判断・初期実装計画_2026-09-22_v02.md) §8 Step 2。到達点は「イベント1件を編集 → 複数枠・複数会場を設定 → 下書き保存 → 一覧へ戻る → 再表示して同じ内容が出る」。\n\n## 完了条件（中核5点）\n\n1. 会場0件・カテゴリ未選択・参加案内未選択でも下書き保存できる。\n2. 再表示で枠順・会場順・会場補足・時間方式・参加案内が1つも欠けない。\n3. canonical IDが保存前後で1文字も変わらない（大文字小文字を含む）。\n4. 2タブ同時保存で無断上書きされず409と最新内容が出る。\n5. 通信を落とした保存で失敗が表示され入力が残る。\n\n## 検証方法\n\n- 保存payloadと再取得payloadのJSON正規化バイト比較を自動テストとして持つ（画面で「それらしく見える」ことを完了条件にしない）。\n- canonical IDの保持（大文字小文字を含む）。\n- 07番文書のAC01〜AC08、AC21〜AC26のE2Eシナリオ。\n- 2セッション同時保存での競合検出。\n- キーボード操作のみでの会場追加・順序変更。\n- Figmaのノード（`2:2`／`10:2`／`10:130`／`10:258`／`11:178`／`10:386`）とのスクリーンショット比較（1440×1024）。\n\n## 前提\n\n- Issue「Step 1: 個別管理者認証とApp Shellを実装する」の完了。\n- Issue「Figma画面棚卸し・不足分析・実装移行計画を作成する」の完了。\n\n## スコープ外\n\n- 公開（Release）・検証・履歴・復旧（Step 4）\n- 開催情報・カテゴリ・Spot単体画面の完成（Step 3）\n- iOSとの接続（Step 5）\n\n---\n<details><summary>GitLab migration metadata</summary>\n\n- Original: [nexusstudio#3](https://gitlab.com/11h27m/nexusstudio/-/work_items/3)\n- Original author: `11h27m`\n- Original state: `opened`\n- Created: `2026-09-23T04:42:07.377Z`\n- Updated: `2026-09-23T04:42:07.377Z`\n- issue_type: `issue`\n\n</details>\n<!-- gitlab-source:86385901:3 -->\n\n",
+        "number": 3,
+        "repository": "m0o9l0v3/NexusStudio",
+        "title": "Step 2: イベント1件の編集・下書き保存を実装する（最初の到達点）",
+        "type": "Issue",
+        "url": "https://github.com/m0o9l0v3/NexusStudio/issues/3"
+      },
+      "id": "PVTI_lAHODuGvDM4BbU8yzhBnedA",
+      "repository": "https://github.com/m0o9l0v3/NexusStudio",
+      "status": "In Progress",
+      "title": "Step 2: イベント1件の編集・下書き保存を実装する（最初の到達点）"
+    },
+    {
+      "content": {
+        "body": "<!-- acceptance-evidence-sync-2026-10-18 -->\n## 2026-10-18 現在の確定状況\n\n**完了（Project: Done）**。2026-09-24の利用者決定でA案（地図の公開・復旧をStudioへ一本化）を採用済みです。下記の「判断未確定によるブロック」は解消済みです。参加者向け配信はnexus-mobile public-api、iOS接続はStep 5として扱います。地図機能全体の完成を意味しません。\n\n[進捗を管理するProject](https://github.com/users/m0o9l0v3/projects/1)\n\n---\n\n## 背景\n\n[`docs/決定事項/15`](docs/決定事項/15_NexusStudio_実装開始判断・初期実装計画_2026-09-22_v02.md) §9.1。`nexus-mobile`側が`epic::E2`としてMapDatasetのdraft→validation→publish→rollbackを進めており（#17／#18／#19完了、#20でpublish/rollback着手見込み）、一方でD-11によりStudioが地図の編集・公開を担う。**同じ公開・復旧機構を2箇所で作る状態になりかねない。**\n\n## 選択肢\n\n| 案 | 内容 |\n|---|---|\n| **A（推奨）** | 既存側は#19（draft API）までで区切り、publish/rollback/配信はStudioの公開基盤（Release・operationId冪等・復旧）に統合する。#19までの成果はStudioへ移植する |\n| B | 既存側で地図のpublish/rollbackまで作り、Studioはそれを呼ぶ |\n| C | 両方で作る（**採用しない**） |\n\n推奨Aの根拠・トレードオフは15 v02 §9.1を参照。\n\n## 必要な判断\n\n- A案を採る場合、`nexus-mobile`側の#20（publish/rollback着手予定）の計画変更が必要。\n- 判断は利用者（技術的意思決定者）が行う。\n\n## 影響\n\nこの判断が決まるまで、Step 3・4（地図の検証・公開・履歴・復旧）には着手できない。Step 0（validator移植）・Step 2（イベント編集）はこの判断に依存せず進められる（進行済み）。\n\n---\n<details><summary>GitLab migration metadata</summary>\n\n- Original: [nexusstudio#4](https://gitlab.com/11h27m/nexusstudio/-/work_items/4)\n- Original author: `11h27m`\n- Original state: `opened`\n- Created: `2026-09-23T04:42:17.258Z`\n- Updated: `2026-09-23T04:42:17.258Z`\n- issue_type: `issue`\n\n</details>\n<!-- gitlab-source:86385901:4 -->\n\n",
+        "number": 4,
+        "repository": "m0o9l0v3/NexusStudio",
+        "title": "地図公開機構の二重開発を避ける整理案（A/B/C）を確定する",
+        "type": "Issue",
+        "url": "https://github.com/m0o9l0v3/NexusStudio/issues/4"
+      },
+      "id": "PVTI_lAHODuGvDM4BbU8yzhBnejI",
+      "repository": "https://github.com/m0o9l0v3/NexusStudio",
+      "status": "Done",
+      "title": "地図公開機構の二重開発を避ける整理案（A/B/C）を確定する"
+    }
+  ],
+  "updates": [
+    {
+      "number": 1,
+      "itemId": "PVTI_lAHODuGvDM4BbU8yzhBneTQ",
+      "commentUrl": "https://github.com/m0o9l0v3/NexusStudio/issues/1#issuecomment-6250591455",
+      "status": "Done"
+    },
+    {
+      "number": 2,
+      "itemId": "PVTI_lAHODuGvDM4BbU8yzhBneYw",
+      "commentUrl": "https://github.com/m0o9l0v3/NexusStudio/issues/2#issuecomment-6250593102",
+      "status": "Done"
+    },
+    {
+      "number": 3,
+      "itemId": "PVTI_lAHODuGvDM4BbU8yzhBnedA",
+      "commentUrl": "https://github.com/m0o9l0v3/NexusStudio/issues/3#issuecomment-6250594526",
+      "status": "In Progress"
+    },
+    {
+      "number": 4,
+      "itemId": "PVTI_lAHODuGvDM4BbU8yzhBnejI",
+      "commentUrl": "https://github.com/m0o9l0v3/NexusStudio/issues/4#issuecomment-6250595612",
+      "status": "Done"
+    }
+  ]
+}

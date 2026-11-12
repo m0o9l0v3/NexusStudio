@@ -341,7 +341,7 @@ namespace StudioApi.Migrations
                         {
                             t.HasCheckConstraint("ck_id_reservations_alias_target", "(state = 'alias') = (canonical_id IS NOT NULL)");
 
-                            t.HasCheckConstraint("ck_id_reservations_entity_kind", "entity_kind IN ('spot', 'building', 'floor', 'indoor_node', 'outdoor_node', 'walking_path', 'formal_entrance', 'room', 'landmark', 'campus_ground')");
+                            t.HasCheckConstraint("ck_id_reservations_entity_kind", "entity_kind IN ('spot', 'building', 'floor', 'indoor_node', 'outdoor_node', 'walking_path', 'formal_entrance', 'room', 'landmark')");
 
                             t.HasCheckConstraint("ck_id_reservations_id", "length(id) > 0");
 

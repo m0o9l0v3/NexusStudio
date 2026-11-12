@@ -146,7 +146,6 @@ public sealed class MapDatasetValidator
             CheckIdentities(ids, features, context, Error);
             CheckReservations(floors.ToDictionary(f => f.Key, f => f.Value.Path, StringComparer.Ordinal), features, context, Error);
             CheckPublication(features, floors.Keys.ToArray(), context, Error);
-            CheckCampusGround(features, Error);
             if (context.ForPublication && !features.Values.Any(f => IsNode(f.Type)))
                 Error("empty_navigation_graph", "/features", "公開用の経路ノードがありません。");
             return Result();
@@ -230,20 +229,6 @@ public sealed class MapDatasetValidator
             else if (visited.Add(id)) queue.Enqueue(id);
         while (queue.TryDequeue(out var current)) foreach (var next in graph[current]) if (visited.Add(next)) queue.Enqueue(next);
         foreach (var id in graph.Keys) if (!visited.Contains(id)) error("unreachable_node", features[id].Path, "指定された出発ノードから到達できません。", id);
-    }
-
-    /// <summary>
-    /// 構内の地面（campus_ground、2.1.0。nexus-mobile E1-4 改訂2 §4.1）があれば、すべての建物がその中に入ること。
-    /// 地面は Apple の地図の建物を覆うために不透明に描くので、地面からはみ出した建物の部分は Apple の地図の上に浮く。
-    /// 地面の個数（0か1）・穴を持たないこと・版は JSON Schema が調べる。
-    /// </summary>
-    private static void CheckCampusGround(Dictionary<string, Feature> features, AddError error)
-    {
-        var ground = features.Values.FirstOrDefault(f => f.Type == "campus_ground");
-        if (ground?.Geometry is not Polygon area || area.IsEmpty || !area.IsValid) return;
-        foreach (var building in features.Values.Where(f => f.Type == "building"))
-            if (building.Geometry is { IsEmpty: false, IsValid: true } shape && !area.Covers(shape))
-                error("building_outside_campus_ground", building.Path + "/geometry", "建物が構内の地面（campus_ground）の外にはみ出しています。", building.Id);
     }
 
     /// <summary>spot の解決元になれる Feature 種別（nexus-mobile E2-5 §5.4、E1-4 改訂1 §4.3）。</summary>
