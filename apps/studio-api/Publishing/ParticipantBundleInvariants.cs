@@ -4,7 +4,7 @@ using StudioApi.Models;
 namespace StudioApi.Publishing;
 
 /// <summary>
-/// 組み立てた bundle が nexus-mobile E2-5 §5.3 の不変条件を満たすかを、出来上がった JSON から確かめる（射影の自己検査）。
+/// 組み立てた bundle が nexus-mobile E2-5 §5.3 の不変条件（改訂1 §2.1 の7〜10を含む）を満たすかを、出来上がった JSON から確かめる（射影の自己検査）。
 /// 射影の手順をなぞらず、bundle と地図の中身だけから判定する。iOS が受信時に行う検査と同じ観点で、配信前に食い違いを見つける。
 /// 条件5（未知の ID を置き換えない）は受け手の規則、条件6（版の単調増加）は配信表の主キーとトリガーが保証する。
 /// </summary>
@@ -131,7 +131,116 @@ public static class ParticipantBundleInvariants
             }
         }
 
+        CheckEvents(root, spotIds, errors);
         return errors;
+    }
+
+    /// <summary>改訂1 §2.1 の条件7〜10（イベント・開催回・カテゴリ）。2.0.0 の形（配列が無い）なら何もしない。</summary>
+    private static void CheckEvents(JsonElement root, HashSet<string> spotIds, List<string> errors)
+    {
+        // 条件9：各 ID は種類ごとに bundle 内で一意。
+        var categoryIds = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var category in Array(root, "categories"))
+        {
+            Unique(categoryIds, category, "categories[].id", errors);
+        }
+
+        var dayIds = new HashSet<string>(StringComparer.Ordinal);
+        // 開催回ごとの開催日（ID → 日付・一般公開時間）。
+        var occurrences = new Dictionary<string, Dictionary<string, JsonElement>>(StringComparer.Ordinal);
+        var occurrenceIds = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var occurrence in Array(root, "occurrences"))
+        {
+            var id = Unique(occurrenceIds, occurrence, "occurrences[].id", errors);
+            var days = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
+            foreach (var day in Array(occurrence, "days"))
+            {
+                if (Unique(dayIds, day, "occurrences[].days[].id", errors) is { } dayId)
+                {
+                    days[dayId] = day;
+                }
+            }
+
+            if (id is not null)
+            {
+                occurrences[id] = days;
+            }
+        }
+
+        var eventIds = new HashSet<string>(StringComparer.Ordinal);
+        var slotIds = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var item in Array(root, "events"))
+        {
+            var eventId = Unique(eventIds, item, "events[].id", errors) ?? "?";
+
+            // 条件8：カテゴリ・開催回・開催日の参照が解決できる。
+            if (Text(item, "category_id") is { } categoryId && !categoryIds.Contains(categoryId))
+            {
+                errors.Add($"event {eventId} の category_id（{categoryId}）が categories にありません。");
+            }
+
+            var occurrenceId = Text(item, "occurrence_id");
+            var days = occurrenceId is not null && occurrences.TryGetValue(occurrenceId, out var found) ? found : null;
+            if (days is null)
+            {
+                errors.Add($"event {eventId} の occurrence_id（{occurrenceId ?? "null"}）が occurrences にありません。");
+            }
+
+            foreach (var slot in Array(item, "slots"))
+            {
+                var slotId = Unique(slotIds, slot, "events[].slots[].id", errors) ?? "?";
+                var dayId = Text(slot, "day_id");
+                JsonElement day = default;
+                if (days is not null && (dayId is null || !days.TryGetValue(dayId, out day)))
+                {
+                    errors.Add($"event {eventId} の枠 {slotId} の day_id（{dayId ?? "null"}）がその開催回の開催日にありません。");
+                }
+                else if (days is not null)
+                {
+                    if (Text(slot, "date") != Text(day, "date"))
+                    {
+                        errors.Add($"event {eventId} の枠 {slotId} の date が開催日の date と一致しません。");
+                    }
+
+                    // 条件10：終日の枠の時刻は開催日の一般公開時間と一致する（S4-3）。
+                    if (Text(slot, "time_mode") == "allDay"
+                        && (Text(slot, "start") is not { } start || Text(slot, "end") is not { } end
+                            || start != Text(day, "public_start") || end != Text(day, "public_end")))
+                    {
+                        errors.Add($"event {eventId} の終日の枠 {slotId} の時刻が開催日の一般公開時間と一致しません。");
+                    }
+                }
+
+                // 条件7：会場は同じ bundle の spot（大文字小文字を区別する）。
+                foreach (var venue in Array(slot, "venues"))
+                {
+                    if (Text(venue, "spot_id") is not { } spotId || !spotIds.Contains(spotId))
+                    {
+                        errors.Add($"event {eventId} の枠 {slotId} の会場 {Text(venue, "spot_id") ?? "null"} が bundle の spot にありません。");
+                    }
+                }
+            }
+        }
+    }
+
+    private static IEnumerable<JsonElement> Array(JsonElement element, string name)
+        => element.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.Array ? value.EnumerateArray() : [];
+
+    /// <returns>要素の id（無ければ null）。重複していれば errors に加える。</returns>
+    private static string? Unique(HashSet<string> seen, JsonElement element, string label, List<string> errors)
+    {
+        if (Text(element, "id") is not { } id)
+        {
+            errors.Add($"{label} がありません。");
+            return null;
+        }
+
+        if (!seen.Add(id))
+        {
+            errors.Add($"{label} が重複しています（{id}）。");
+        }
+
+        return id;
     }
 
     private static void CheckPlacement(string id, JsonElement placement, JsonElement feature, Dictionary<string, string?> floors,

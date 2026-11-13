@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://raw.githubusercontent.com/m0o9l0v3/NexusMobile/develop/docs/schemas/participant-bundle-v2.schema.json",
   "title": "Nexus participant bundle schema v2",
-  "description": "E2-5 §5 の参加者向け bundle（schema_version 2.0.0）。Studio が射影する payload の形を検査する。§5.3 の不変条件のうち配列をまたぐ参照整合は Schema では表せないため、Studio の射影と iOS の受信時の検査で確かめる。",
+  "description": "E2-5 §5 の参加者向け bundle（schema_version 2.0.0、2.1.0）。Studio が射影する payload の形を検査する。2.1.0 は E2-5 改訂1 で categories・occurrences・events を任意項目として加えた。§5.3 の不変条件のうち配列をまたぐ参照整合は Schema では表せないため、Studio の射影と iOS の受信時の検査で確かめる。",
   "type": "object",
   "required": ["nexus_bundle", "spots", "id_aliases", "map"],
   "properties": {
@@ -17,6 +17,21 @@
     },
     "map": {
       "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/map" }]
+    },
+    "categories": {
+      "description": "E2-5 改訂1（2.1.0）。公開中のカテゴリ一覧。配列の順序が表示順。",
+      "type": "array",
+      "items": { "$ref": "#/$defs/category" }
+    },
+    "occurrences": {
+      "description": "E2-5 改訂1（2.1.0）。公開中の開催回。最も早い開催日の順（同じなら id の順）。",
+      "type": "array",
+      "items": { "$ref": "#/$defs/occurrence" }
+    },
+    "events": {
+      "description": "E2-5 改訂1（2.1.0）。公開中のイベント（取り下げたものは含めない）。id の順。",
+      "type": "array",
+      "items": { "$ref": "#/$defs/event" }
     }
   },
   "additionalProperties": false,
@@ -25,7 +40,7 @@
       "type": "object",
       "required": ["schema_version", "bundle_version", "release_id", "published_at"],
       "properties": {
-        "schema_version": { "const": "2.0.0" },
+        "schema_version": { "enum": ["2.0.0", "2.1.0"] },
         "bundle_version": { "type": "integer", "minimum": 1 },
         "release_id": {
           "type": "string",
@@ -144,6 +159,119 @@
       "properties": {
         "alias": { "$ref": "#/$defs/aliasId" },
         "canonical_id": { "$ref": "#/$defs/canonicalId" }
+      },
+      "additionalProperties": false
+    },
+    "uuid": {
+      "type": "string",
+      "pattern": "^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$"
+    },
+    "localDate": {
+      "description": "キャンパス現地（JST）の日付 YYYY-MM-DD。",
+      "type": "string",
+      "pattern": "^[0-9]{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12][0-9]|3[01])$"
+    },
+    "localTime": {
+      "description": "キャンパス現地（JST）の時刻 HH:mm。",
+      "type": "string",
+      "pattern": "^(?:[01][0-9]|2[0-3]):[0-5][0-9]$"
+    },
+    "note": {
+      "description": "任意の補足・中止案内。無いときは null とし、空文字で埋めない。",
+      "oneOf": [{ "type": "null" }, { "type": "string", "minLength": 1 }]
+    },
+    "status": {
+      "description": "normal（通常）／cancelled（中止）。開催日が中止なら、その日の枠はすべて中止として扱う。",
+      "enum": ["normal", "cancelled"]
+    },
+    "category": {
+      "type": "object",
+      "required": ["id", "name"],
+      "properties": {
+        "id": { "$ref": "#/$defs/uuid" },
+        "name": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
+    "occurrence": {
+      "type": "object",
+      "required": ["id", "name", "days"],
+      "properties": {
+        "id": { "$ref": "#/$defs/uuid" },
+        "name": { "type": "string", "minLength": 1 },
+        "days": {
+          "description": "配列の順序が表示順。",
+          "type": "array",
+          "items": { "$ref": "#/$defs/occurrenceDay" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "occurrenceDay": {
+      "type": "object",
+      "required": ["id", "date", "public_start", "public_end", "status", "cancel_note"],
+      "properties": {
+        "id": { "$ref": "#/$defs/uuid" },
+        "date": { "$ref": "#/$defs/localDate" },
+        "public_start": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/localTime" }] },
+        "public_end": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/localTime" }] },
+        "status": { "$ref": "#/$defs/status" },
+        "cancel_note": { "$ref": "#/$defs/note" }
+      },
+      "additionalProperties": false
+    },
+    "event": {
+      "type": "object",
+      "required": ["id", "title", "description", "category_id", "occurrence_id", "slots"],
+      "properties": {
+        "id": { "$ref": "#/$defs/uuid" },
+        "title": { "type": "string", "minLength": 1 },
+        "description": { "$ref": "#/$defs/description" },
+        "category_id": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/uuid" }] },
+        "occurrence_id": { "$ref": "#/$defs/uuid" },
+        "slots": {
+          "description": "配列の順序が表示順。",
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/slot" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "slot": {
+      "type": "object",
+      "required": ["id", "day_id", "date", "time_mode", "start", "end", "participation", "status", "cancel_note", "venues"],
+      "properties": {
+        "id": { "$ref": "#/$defs/uuid" },
+        "day_id": { "$ref": "#/$defs/uuid" },
+        "date": { "$ref": "#/$defs/localDate" },
+        "time_mode": {
+          "description": "fixed（時間を指定）／allDay（終日）。終日の start・end は、射影時に開催日の public_start・public_end を入れる（S4-3）。",
+          "enum": ["fixed", "allDay"]
+        },
+        "start": { "$ref": "#/$defs/localTime" },
+        "end": { "$ref": "#/$defs/localTime" },
+        "participation": {
+          "description": "atStart（開始時刻に参加）／anytime（時間内は随時参加）。",
+          "enum": ["atStart", "anytime"]
+        },
+        "status": { "$ref": "#/$defs/status" },
+        "cancel_note": { "$ref": "#/$defs/note" },
+        "venues": {
+          "description": "配列の順序が表示順。",
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/venue" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "venue": {
+      "type": "object",
+      "required": ["spot_id", "note"],
+      "properties": {
+        "spot_id": { "$ref": "#/$defs/canonicalId" },
+        "note": { "$ref": "#/$defs/note" }
       },
       "additionalProperties": false
     },
