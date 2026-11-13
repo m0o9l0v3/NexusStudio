@@ -145,6 +145,94 @@ public sealed class EventEndpointsTests : IAsyncLifetime
         Assert.Equal(["mb_f2_rm_2b", "mb_f2_rm_2a", "MB_F2_RM_2A"], venues);
     }
 
+    /// <summary>
+    /// JSONの正規化バイト列（15 v02 §「保存payloadと再取得payloadのJSON正規化バイト比較」）。
+    /// オブジェクトのキーだけを序数順に並べ替え、空白なしでUTF-8へ書き出す。配列の順序・文字列・数値・null はそのまま残す。
+    /// </summary>
+    private static byte[] CanonicalBytes(JsonNode? node)
+    {
+        using var stream = new MemoryStream();
+        using (var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = false }))
+        {
+            Write(writer, node);
+        }
+        return stream.ToArray();
+
+        static void Write(Utf8JsonWriter writer, JsonNode? node)
+        {
+            switch (node)
+            {
+                case null:
+                    writer.WriteNullValue();
+                    break;
+                case JsonObject obj:
+                    writer.WriteStartObject();
+                    foreach (var (key, value) in obj.OrderBy(p => p.Key, StringComparer.Ordinal))
+                    {
+                        writer.WritePropertyName(key);
+                        Write(writer, value);
+                    }
+                    writer.WriteEndObject();
+                    break;
+                case JsonArray array:
+                    writer.WriteStartArray();
+                    foreach (var item in array) Write(writer, item);
+                    writer.WriteEndArray();
+                    break;
+                default:
+                    node.WriteTo(writer);
+                    break;
+            }
+        }
+    }
+
+    [Fact]
+    public void CanonicalBytes_KeepsArrayOrderAndCaseButIgnoresKeyOrder()
+    {
+        // 比較が甘くないことの確認：キー順だけの違いは同じ、配列順・大文字小文字・null の有無の違いは別のバイト列になる。
+        Assert.Equal(CanonicalBytes(JsonNode.Parse("""{"b":1,"a":[1,2]}""")), CanonicalBytes(JsonNode.Parse("""{ "a": [1, 2], "b": 1 }""")));
+        Assert.NotEqual(CanonicalBytes(JsonNode.Parse("""{"a":[1,2]}""")), CanonicalBytes(JsonNode.Parse("""{"a":[2,1]}""")));
+        Assert.NotEqual(CanonicalBytes(JsonNode.Parse("""{"id":"mb_f2_rm_2a"}""")), CanonicalBytes(JsonNode.Parse("""{"id":"MB_F2_RM_2A"}""")));
+        Assert.NotEqual(CanonicalBytes(JsonNode.Parse("""{"note":null}""")), CanonicalBytes(JsonNode.Parse("""{}""")));
+    }
+
+    [Fact]
+    public async Task SavedDraft_CanonicalBytesMatchTheSentPayload()
+    {
+        // 保存payloadと、再取得payload・保存したRevisionのJSONを正規化バイト列で比較する（15 v02 Step 2、Issue #3）。
+        var draft = RichDraft();
+        var expected = CanonicalBytes(draft);
+
+        var (_, created) = await CreateAsync(draft);
+        var id = created!["id"]!.GetValue<string>();
+        Assert.Equal(expected, CanonicalBytes((await GetAsync(id))["draft"]));
+
+        // 更新でも同じ。枠の順序と会場の順序を入れ替えた内容が、そのままのバイト列で戻る。
+        var reordered = RichDraft();
+        var slots = reordered["slots"]!.AsArray();
+        var first = slots[0]!.DeepClone();
+        slots.RemoveAt(0);
+        slots.Add(first);
+        var venues = slots[0]!["venues"]!.AsArray();
+        var lastVenue = venues[2]!.DeepClone();
+        venues.RemoveAt(2);
+        venues.Insert(0, lastVenue);
+        var reorderedBytes = CanonicalBytes(reordered);
+        Assert.NotEqual(expected, reorderedBytes);
+
+        var (response, _) = await UpdateAsync(id, 1, reordered);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(reorderedBytes, CanonicalBytes((await GetAsync(id))["draft"]));
+
+        await using var scope = _factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<StudioDbContext>();
+        var stored = await db.EventRevisions.Where(r => r.EventId == Guid.Parse(id)).ToListAsync();
+        Assert.Equal(2, stored.Count);
+        var storedBytes = stored.Select(r => CanonicalBytes(JsonNode.Parse(r.Payload))).ToList();
+        Assert.Contains(storedBytes, b => b.AsSpan().SequenceEqual(expected));
+        Assert.Contains(storedBytes, b => b.AsSpan().SequenceEqual(reorderedBytes));
+    }
+
     [Fact]
     public async Task Update_CreatesANewRevisionAndAdvancesTheHead()
     {
