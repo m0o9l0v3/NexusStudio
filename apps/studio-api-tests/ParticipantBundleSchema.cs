@@ -10,7 +10,7 @@ namespace StudioApi.Tests;
 /// </summary>
 public sealed class ParticipantBundleSchema
 {
-    // nexus-mobile/docs/schemas/participant-bundle-v2.schema.json の SHA-256（2026-11-13、E2-5 改訂1 の 2.1.0。nexus-mobile feature/bundle-2-1-events でpin）。
+    // nexus-mobile/docs/schemas/participant-bundle-v2.schema.json の SHA-256（2026-11-13、E2-5 改訂1 の 2.1.0。m0o9l0v3/NexusMobile#159 でpin）。
     private const string ExpectedSha256 = "d1f57b7f5605ac370e8febb874f79245a677d4b556ed64abdcbf244bb115c46a";
 
     private static readonly Lazy<JsonSchema> Schema = new(() =>
