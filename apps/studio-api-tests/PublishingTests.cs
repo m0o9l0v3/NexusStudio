@@ -413,8 +413,91 @@ public sealed class PublishingTests : IAsyncLifetime
         var (id, revision) = await CreateEventAsync();
         await PreviewAndPublishAsync(Entry("event", id, revisionId: revision));
 
-        // spot・地図を含まない公開では参加者向け bundle を作らない（E2-5 §3.1）。
-        Assert.Equal(0, await WithDbAsync(db => db.ParticipantBundles.CountAsync()));
+        // 公開したイベントだけが bundle に入り、無関係な不完全な下書きは入らない（E2-5 改訂1 §2）。
+        var events = (await CurrentBundleAsync())["events"]!.AsArray();
+        Assert.Equal(id, Assert.Single(events)!["id"]!.GetValue<string>());
+    }
+
+    /// <summary>いま配信している bundle（delivery.current_bundle が指す版）。Schema に合うことも確かめる。</summary>
+    private async Task<JsonNode> CurrentBundleAsync()
+    {
+        var payload = await WithDbAsync(async db =>
+        {
+            var pointer = await db.CurrentBundle.AsNoTracking().SingleAsync();
+            return (await db.ParticipantBundles.AsNoTracking().SingleAsync(b => b.BundleVersion == pointer.BundleVersion)).Payload;
+        });
+        ParticipantBundleSchema.AssertValid(payload);
+        return JsonNode.Parse(payload)!;
+    }
+
+    /// <summary>
+    /// イベント・開催回・カテゴリ一覧の公開で bundle の新しい版を作り、終日の枠には開催日の一般公開時間を入れる（E2-5 改訂1 §2・§2.2、S4-3）。
+    /// </summary>
+    [Fact]
+    public async Task EventPublishing_ProjectsEventsOccurrencesAndCategoriesIntoTheBundle()
+    {
+        await PublishReferencesAsync();
+        var afterReferences = await CurrentBundleAsync();
+        Assert.Equal("2.1.0", afterReferences["nexus_bundle"]!["schema_version"]!.GetValue<string>());
+        Assert.Contains(afterReferences["occurrences"]!.AsArray(), o => o!["id"]!.GetValue<string>() == Occurrence);
+        Assert.Contains(afterReferences["categories"]!.AsArray(), c => c!["id"]!.GetValue<string>() == Category);
+        Assert.Empty(afterReferences["events"]!.AsArray());
+        // 新規選択停止は Studio 内部の扱いなので配信しない。
+        Assert.All(afterReferences["categories"]!.AsArray(), c => Assert.Null(c!["selectable"]));
+
+        var (id, revision) = await CreateEventAsync();
+        await PreviewAndPublishAsync(Entry("event", id, revisionId: revision));
+        var item = Assert.Single((await CurrentBundleAsync())["events"]!.AsArray())!;
+        Assert.Equal("ロボット操作体験", item["title"]!.GetValue<string>());
+        Assert.Equal(Category, item["category_id"]!.GetValue<string>());
+        var slot = Assert.Single(item["slots"]!.AsArray())!;
+        Assert.Equal(Day0920, slot["day_id"]!.GetValue<string>());
+        Assert.Equal("2026-09-20", slot["date"]!.GetValue<string>());
+        Assert.Equal("allDay", slot["time_mode"]!.GetValue<string>());
+        Assert.Equal("10:00", slot["start"]!.GetValue<string>());
+        Assert.Equal("16:00", slot["end"]!.GetValue<string>());
+        Assert.Equal("mb_2f_cl_001", slot["venues"]![0]!["spot_id"]!.GetValue<string>());
+    }
+
+    /// <summary>中止の枠は除かずに中止案内とともに届け、取り下げたイベントは含めない（E2-5 改訂1 §2）。</summary>
+    [Fact]
+    public async Task CancelledSlotsStay_AndWithdrawnEventsLeaveTheBundle()
+    {
+        await PublishReferencesAsync();
+        var (id, _) = await CreateEventAsync();
+        var revision = await SaveEventAsync(id, draft =>
+        {
+            draft["slots"]![0]!["status"] = "cancelled";
+            draft["slots"]![0]!["cancelNote"] = "雨天のため中止します";
+        });
+        await PreviewAndPublishAsync(Entry("event", id, revisionId: revision));
+        var slot = Assert.Single((await CurrentBundleAsync())["events"]!.AsArray())!["slots"]![0]!;
+        Assert.Equal("cancelled", slot["status"]!.GetValue<string>());
+        Assert.Equal("雨天のため中止します", slot["cancel_note"]!.GetValue<string>());
+
+        await PreviewAndPublishAsync(Entry("event", id, "withdraw"));
+        Assert.Empty((await CurrentBundleAsync())["events"]!.AsArray());
+    }
+
+    /// <summary>
+    /// 公開中のイベントの会場を取り下げ済みにすると bundle の会場の参照が切れるため、公開しない（E2-5 改訂1 §2.1 条件7、EV-O2）。
+    /// 取り下げ済み（withdrawn）は移行元の値で画面からは新たに設定できないため、取り込み済みの状態を DB で作る。
+    /// </summary>
+    [Fact]
+    public async Task SpotUsedByAPublishedEvent_CannotBePublishedAsWithdrawn()
+    {
+        await SeedPublishedMapAsync(_root, "mb_2f_cl_001");
+        await PublishReferencesAsync();
+        var (id, revision) = await CreateEventAsync();
+        await PreviewAndPublishAsync(Entry("event", id, revisionId: revision));
+        await WithDbAsync(db => db.Spots.Where(s => s.CanonicalId == "mb_2f_cl_001").ExecuteUpdateAsync(u => u.SetProperty(s => s.Utilization, SpotUtilization.Withdrawn)));
+
+        var spot = await GetJsonAsync("/api/spots/item?id=mb_2f_cl_001");
+        var draft = spot["draft"]!.DeepClone();
+        draft["utilization"] = "withdrawn";
+        var (saved, body) = await SendAsync(HttpMethod.Put, "/api/spots/item?id=mb_2f_cl_001", new JsonObject { ["operationId"] = Guid.NewGuid().ToString(), ["rowVersion"] = spot["rowVersion"]!.DeepClone(), ["draft"] = draft });
+        Assert.Equal(HttpStatusCode.OK, saved.StatusCode);
+        Assert.Contains("spot_withdrawn_in_use", Codes(await PreviewAsync(Entry("spot", "mb_2f_cl_001", revisionId: body!["revisionId"]!.GetValue<string>()))));
     }
 
     /// <summary>公開中の地図の GeoJSON を、建物の任意の項目で水増しする（bundle の大きさの検査用）。</summary>

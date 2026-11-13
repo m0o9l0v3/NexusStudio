@@ -124,11 +124,12 @@ public class CandidateValidator(TimeProvider timeProvider, MapDatasetValidator m
 
     /// <summary>
     /// 参加者向け bundle の大きさ（E2-5 §3.4）と不変条件（§5.3）。ほかに公開阻止が無いとき、公開後の内容で bundle を組み立てて確かめる。
-    /// 所見は spot・地図の最初の対象に付ける。版番号と Release ID はまだ決まっていないため、桁の最も多い値で代用する（実際より小さく測らない）。
+    /// 所見は bundle に入る最初の対象に付ける（E2-5 改訂1 でイベント・開催回・カテゴリ一覧も bundle に入る）。
+    /// 版番号と Release ID はまだ決まっていないため、桁の最も多い値で代用する（実際より小さく測らない）。
     /// </summary>
     private void ValidateBundle(PublishCandidate candidate, List<ValidationFinding> findings)
     {
-        var item = candidate.Items.FirstOrDefault(i => i.Entry.TargetKind is PublishTargetKind.Spot or PublishTargetKind.Map);
+        var item = ParticipantBundleProjection.Affects(candidate) ? candidate.Items[0] : null;
         // ほかの理由で公開できない候補は bundle を作らないため測らない（予約表と衝突する ID などは組み立てられない）。
         if (item is null || findings.Any(f => f.Severity == FindingSeverity.Blocking))
         {
@@ -142,7 +143,7 @@ public class CandidateValidator(TimeProvider timeProvider, MapDatasetValidator m
         if (violations.Count > 0)
         {
             // 個々の検証を通っても、組み合わせた結果が配信契約を破る場合（射影の不具合を含む）は公開しない。
-            add(FindingSeverity.Blocking, "bundle_invariant_violated", $"参加者向けの配信データが配信契約（E2-5 §5.3）を満たしません：{string.Join(" ", violations.Take(5))}", null);
+            add(FindingSeverity.Blocking, "bundle_invariant_violated", $"参加者向けの配信データが配信契約（E2-5 §5.3・改訂1 §2.1）を満たしません：{string.Join(" ", violations.Take(5))}", null);
         }
 
         if (length > ParticipantBundleProjection.HardLimitBytes)
@@ -597,7 +598,12 @@ public class CandidateValidator(TimeProvider timeProvider, MapDatasetValidator m
         var users = candidate.After.Events.Values
             .Where(e => e.Draft.Slots.Any(s => s.Venues.Any(v => string.Equals(v.CanonicalSpotId, canonicalId, StringComparison.Ordinal))))
             .Select(e => PublishCandidate.EventLabel(e.Draft.Title)).ToList();
-        if (users.Count > 0)
+        if (users.Count > 0 && draft.Utilization == SpotUtilization.Withdrawn)
+        {
+            // 取り下げ済みの Spot は bundle に入らず、会場の参照が切れる（E2-5 改訂1 §2.1 条件7、EV-O2）。
+            add(FindingSeverity.Blocking, "spot_withdrawn_in_use", $"公開中のイベント（{Summarize(users)}）がこのSpotを会場にしています。取り下げ済みにする前に、イベントの会場を変更して公開してください。", "utilization");
+        }
+        else if (users.Count > 0)
         {
             add(FindingSeverity.Info, "spot_used_by_published_events", $"公開中のイベント（{Summarize(users)}）の会場表示にも反映されます。", null);
         }

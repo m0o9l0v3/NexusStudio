@@ -5,13 +5,13 @@ using Json.Schema;
 namespace StudioApi.Tests;
 
 /// <summary>
-/// docs/schemas/participant-bundle-v2.schema.json は nexus-mobile からpinしたコピー（E2-5 §5、schema_version 2.0.0）。
+/// docs/schemas/participant-bundle-v2.schema.json は nexus-mobile からpinしたコピー（E2-5 §5・改訂1、schema_version 2.0.0・2.1.0）。
 /// 射影した bundle をこの Schema で検査する。nexus-mobile 側で更新された場合は、コピーと hash の両方を意図的に更新する。
 /// </summary>
 public sealed class ParticipantBundleSchema
 {
-    // nexus-mobile/docs/schemas/participant-bundle-v2.schema.json の SHA-256（2026-11-01、nexus-mobile f079f7d でpin）。
-    private const string ExpectedSha256 = "9cb1dc9b3f707a7fe2d472ee51b6102d419b7f4ff9cfe933b4ca3d365dad30c3";
+    // nexus-mobile/docs/schemas/participant-bundle-v2.schema.json の SHA-256（2026-11-13、E2-5 改訂1 の 2.1.0。nexus-mobile feature/bundle-2-1-events でpin）。
+    private const string ExpectedSha256 = "d1f57b7f5605ac370e8febb874f79245a677d4b556ed64abdcbf244bb115c46a";
 
     private static readonly Lazy<JsonSchema> Schema = new(() =>
     {
