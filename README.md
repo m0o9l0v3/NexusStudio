@@ -98,6 +98,20 @@ npm run typecheck
 npm run build
 ```
 
+#### iPhone のベゼル画像（Events の iOS Preview）
+
+Events 編集画面の iOS Preview は、Apple の製品ベゼル画像（[Apple Design Resources](https://developer.apple.com/design/resources/) の Product Bezels、`iPhone 17 - Black - Portrait.png`）の中に内容を表示します。**この画像はリポジトリに入れません。** Apple の条件（[App Store Marketing Guidelines](https://developer.apple.com/app-store/marketing/guidelines/) の Marketing Artwork License）は、App Store で配信中のアプリの宣伝のための、譲渡できない利用を認めるもので、画像は「as is」で使うことを求めています。このリポジトリは公開のため、ここに置くと再配布になります（2026-11-16 オーナー判断）。
+
+手元で使うときは、ダウンロードした Product Bezels を展開して次を実行し、開発サーバーを起動し直します。画像はそのまま `public/local-bezels/`（`.gitignore` 済み）にコピーされ、ブラウザで縮小して表示するだけです。
+
+```bash
+cd apps/studio-web
+npm run bezel:link   # 既定の置き場所はリポジトリの1つ上の iPhone17-product-bezels/PNG
+STUDIO_IPHONE_BEZEL_DIR=<PNGフォルダ> npm run bezel:link   # 置き場所が違うとき
+```
+
+画像が無いとき（CI・Docker イメージ・ほかの開発機）は、同じ寸法（画面 402×874pt、角丸・Dynamic Island の位置は画像から実測した値）の簡易フレームを表示します。ベゼルの写った画面写真は、iOS アプリが App Store で配信されるまで GitHub など公開の場所に載せないでください。
+
 ### 参照データ（開催回・開催日・カテゴリ・Spot）
 
 画面（Open Campus・カテゴリ管理・Spots）で編集できるほか、取り込みコマンドでもまとめて登録できます。起動時には取り込みません。IDで突き合わせて追加・更新し、ファイルに無い行は削除しません。1件でも不正な行があれば何も書き込みません。
