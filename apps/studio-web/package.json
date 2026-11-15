@@ -9,7 +9,8 @@
     "typecheck": "tsc -b --noEmit",
     "lint": "oxlint",
     "preview": "vite preview",
-    "gen:api": "openapi-typescript openapi/studio-api.json -o src/api/schema.d.ts"
+    "gen:api": "openapi-typescript openapi/studio-api.json -o src/api/schema.d.ts",
+    "bezel:link": "node scripts/link-iphone-bezel.mjs"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.23",

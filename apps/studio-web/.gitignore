@@ -22,3 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Apple の製品ベゼル画像（利用条件によりコミットしない。README「iPhone のベゼル画像」）
+public/local-bezels/

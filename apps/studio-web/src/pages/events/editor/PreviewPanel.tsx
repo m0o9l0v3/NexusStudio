@@ -1,6 +1,7 @@
 import type { EventDraft } from '../../../api/events'
 import type { SpotItem } from '../../../api/reference'
 import { cancellationOf, previewLines, type ReferenceIndex } from '../../../events/model'
+import { IPHONE_LOGICAL_VIEWPORT, IPhoneFrame } from '../../../ui/IPhoneFrame'
 import { StatusBadge } from '../../../ui/StatusBadge'
 
 /**
@@ -23,31 +24,29 @@ export function PreviewPanel({ draft, index, spots, saved }: { draft: EventDraft
         <StatusBadge tone="info">{saved ? '保存済み下書き' : '編集中'}</StatusBadge>
         <StatusBadge>近似表示</StatusBadge>
       </div>
-      <div className="flex h-[692px] w-[328px] shrink-0 flex-col rounded-[38px] bg-[#1f2126] px-2.5 py-3.5">
-        <div className="flex h-full flex-col gap-3 overflow-auto rounded-[29px] bg-surface px-4 pt-5 pb-[18px]">
-          {empty ? (
-            <p className="text-[12px] leading-5 text-text-secondary">イベントを入力すると、ここに近似Previewを表示します。</p>
-          ) : (
-            <>
-              <p className="text-[19px] leading-[27px] font-bold break-words text-text-primary">{draft.title?.trim() || '無題のイベント'}</p>
-              {category && <StatusBadge className="self-start">{category}</StatusBadge>}
-              {draft.description?.trim() && <p className="text-[12px] leading-5 whitespace-pre-line text-text-secondary">{draft.description}</p>}
-              {lines.map((line, position) => (
-                <div key={position} className="flex flex-col gap-3">
-                  <p className="text-[11px] leading-[19px] font-medium whitespace-pre-wrap text-text-primary">{line.heading}</p>
-                  <p className="pl-1 text-[11px] leading-[19px] text-text-secondary">{line.detail}</p>
-                </div>
-              ))}
-              {hasCancelled ? (
-                <p className="text-[10px] leading-[18px] text-danger">中止枠の案内を確認してください</p>
-              ) : (
-                lines.length > 0 && allVenuesShown && <p className="text-[10px] leading-[18px] text-success">すべての会場を表示しています</p>
-              )}
-            </>
-          )}
-        </div>
-      </div>
-      <p className="text-[10px] leading-[18px] text-text-secondary">Generic iPhone Frame / 論理Viewport 393×852を縮小表示</p>
+      <IPhoneFrame className="max-w-[340px] self-center">
+        {empty ? (
+          <p className="text-[12px] leading-5 text-text-secondary">イベントを入力すると、ここに近似Previewを表示します。</p>
+        ) : (
+          <>
+            <p className="text-[19px] leading-[27px] font-bold break-words text-text-primary">{draft.title?.trim() || '無題のイベント'}</p>
+            {category && <StatusBadge className="self-start">{category}</StatusBadge>}
+            {draft.description?.trim() && <p className="text-[12px] leading-5 whitespace-pre-line text-text-secondary">{draft.description}</p>}
+            {lines.map((line, position) => (
+              <div key={position} className="flex flex-col gap-3">
+                <p className="text-[11px] leading-[19px] font-medium whitespace-pre-wrap text-text-primary">{line.heading}</p>
+                <p className="pl-1 text-[11px] leading-[19px] text-text-secondary">{line.detail}</p>
+              </div>
+            ))}
+            {hasCancelled ? (
+              <p className="text-[10px] leading-[18px] text-danger">中止枠の案内を確認してください</p>
+            ) : (
+              lines.length > 0 && allVenuesShown && <p className="text-[10px] leading-[18px] text-success">すべての会場を表示しています</p>
+            )}
+          </>
+        )}
+      </IPhoneFrame>
+      <p className="text-[10px] leading-[18px] text-text-secondary">iPhone 17 / 論理Viewport {IPHONE_LOGICAL_VIEWPORT}を縮小表示</p>
     </aside>
   )
 }

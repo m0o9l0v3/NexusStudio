@@ -5,3 +5,5 @@
 **/bin
 **/obj
 **/dist
+# Apple の製品ベゼル画像はイメージにも入れない（README「iPhone のベゼル画像」）
+**/public/local-bezels
