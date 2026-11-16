@@ -2,7 +2,7 @@
 
 CIの`studio-api-image`と`studio-web-image`は同一repoのMRまたは既定ブランチからGitLab Registryへcommit SHAタグでpushし、`image-digests/*.txt`に不変digestを記録する。infra側はdigestを照合して採用する。APIイメージは`/health`をlocalhostで確認する。WebイメージはViteでビルドした静的ファイルをCaddyで8080番に配信し、SPAの直接URLを`index.html`へ戻す。`/api/*`は外側のCaddyがStudio APIへ中継し、Vite開発サーバーを使わない。
 
-ProductionのStudio APIには`ReverseProxy__TrustedNetwork`で、CaddyとStudio APIが共有するedge networkのプライベートIPv4 /24～/28を必ず渡す。APIはその限定ネットワークからの`X-Forwarded-Proto`だけを受け入れ、HTTPS終端後のCookie/CSRF処理へ元のschemeを伝える。infra Composeの`NEXUS_EDGE_SUBNET`と同じ値にし、未設定・不正ならAPI起動を拒否する。Caddy経由の`/api/auth/csrf`で200応答とSecure Cookieを確認する。
+ProductionのStudio APIには`ReverseProxy__TrustedNetwork`で、CaddyとStudio APIが共有するedge networkのプライベートIPv4 /24～/28を必ず渡す。APIはその限定ネットワークからの`X-Forwarded-Proto`だけを受け入れ、HTTPS終端後のCookie/CSRF処理へ元のschemeを伝える。infra Composeの`NEXUS_EDGE_SUBNET`（PG17 edgeでは`PG17_STUDIO_SUBNET`。Caddyと Studioだけが入る`studio` network）と同じ値にし、未設定・不正ならAPI起動を拒否する。Caddy経由の`/api/auth/csrf`で200応答とSecure Cookieを確認する。
 
 ProductionのStudio APIには`DataProtection__KeysDirectory=/var/lib/nexus-studio/dataprotection-keys`を渡し、そこへ専用のnamed volumeを載せる（NexusInfra #8、2026-11-01利用者判断）。認証Cookie・CSRFトークンを保護する鍵がここに残り、再起動でログインが切れない。ディレクトリは絶対パス・既存・グループと他者に権限なし（0700）でなければAPIは起動を拒否する。イメージはこのディレクトリを実行UID所有の0700で作るため、新しいnamed volumeはそれを引き継ぐ。鍵は平文のXMLなので、volumeを他のコンテナと共有せず、バックアップに含める場合も暗号化する。鍵を失っても全員の再ログインが必要になるだけで、データは失われない。`admin`・`reference`コマンドはこの設定を要求しない。
 
@@ -10,6 +10,10 @@ ProductionのStudio APIには`DataProtection__KeysDirectory=/var/lib/nexus-studi
 
 本番の接続文字列は`ConnectionStrings__StudioDatabaseFile=/run/secrets/studio_connection`から読む。接続先は`nexus-mobile`のPostgreSQLインスタンス内で、第1段階（現行PG17）は`nexus` DB、PG18移行後は`nexus_admin` DB。どちらもStudio専用の`studio` schemaを使う。Studio専用ロールと権限、DBメジャー版、既存volumeは人間が照合する。APIは起動時にmigration・seed・管理者作成を行わない。EF移行SQLと適用前バックアップ、Macコピーから別volumeへの復元をレビューした後、人間が別のメンテナンス手順で適用する。
 
+
+## 本番での常設（`studio.nexus-app.jp`、NexusInfra #9）
+
+PG17 edgeの同じCaddyに`studio.nexus-app.jp`を足し、`/api/*`をstudio-apiへ、それ以外をstudio-webへ中継する。設計・承認・手順・確認・切り戻しの正本はNexusInfraの[`docs/studio-hosting.md`](https://github.com/m0o9l0v3/NexusInfra/blob/main/docs/studio-hosting.md)。studio-apiとstudio-webは公開系のedge networkには入らず、Studio専用のinternal network（`PG17_STUDIO_SUBNET`）に入り、`ReverseProxy__TrustedNetwork`はそのsubnetにする。管理者の追加・無効化は`admin`コマンドで行う（同文書8節）。
 
 ## 最初の参加者bundleの公開（Studioの常設前）
 
