@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using StudioApi.Auth;
 using StudioApi.Data;
 using StudioApi.Events;
+using StudioApi.Models;
 
 namespace StudioApi.Tests;
 
@@ -104,6 +105,8 @@ public sealed class EventEndpointsTests : IAsyncLifetime
     {
         var anonymous = _factory.CreateBrowserClient();
         Assert.Equal(HttpStatusCode.Unauthorized, (await anonymous.GetAsync("/api/events")).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await anonymous.PostAsJsonAsync(
+            $"/api/events/{Guid.NewGuid()}/revert-to-published", new RevertEventRequest(Guid.NewGuid(), 1))).StatusCode);
         Assert.Equal(HttpStatusCode.Unauthorized, (await anonymous.GetAsync("/api/reference")).StatusCode);
         Assert.Equal(HttpStatusCode.Unauthorized, (await anonymous.GetAsync("/api/spots")).StatusCode);
     }
@@ -363,6 +366,18 @@ public sealed class EventEndpointsTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task RevertToPublished_RejectsEmptyOperationIdAndUnknownEvent()
+    {
+        var path = $"/api/events/{Guid.NewGuid()}/revert-to-published";
+        var (invalid, problem) = await SendAsync(HttpMethod.Post, path, new RevertEventRequest(Guid.Empty, 1));
+        Assert.Equal(HttpStatusCode.BadRequest, invalid.StatusCode);
+        Assert.Equal("invalid_operation_id", problem!["code"]!.GetValue<string>());
+
+        var (missing, _) = await SendAsync(HttpMethod.Post, path, new RevertEventRequest(Guid.NewGuid(), 1));
+        Assert.Equal(HttpStatusCode.NotFound, missing.StatusCode);
+    }
+
+    [Fact]
     public async Task List_SummarizesSlotsVenuesAndDatesAndFilters()
     {
         await ReferenceDataTests.ImportSampleAsync(_factory);
@@ -376,6 +391,9 @@ public sealed class EventEndpointsTests : IAsyncLifetime
         var item = all.Single(i => i.Id == Guid.Parse(rich!["id"]!.GetValue<string>()));
         Assert.Equal(3, item.SlotCount);
         Assert.Equal(3, item.VenueCount); // mb_f2_rm_2a・mb_f2_rm_2b・MB_F2_RM_2A は別の会場
+        var withoutVenues = all.Single(i => i.Id != item.Id);
+        Assert.Equal(0, withoutVenues.VenueCount);
+        Assert.Null(withoutVenues.PrimaryVenueName);
         Assert.Equal([new DateOnly(2026, 9, 20), new DateOnly(2026, 9, 20), new DateOnly(2026, 9, 21)], item.Slots.Select(s => s.Date!.Value));
         Assert.Equal("unpublished", item.Publication);
 
@@ -388,5 +406,47 @@ public sealed class EventEndpointsTests : IAsyncLifetime
         // 開催日時順では、日時が未入力のイベント（other）を末尾に置く。
         var bySchedule = await _client.GetFromJsonAsync<List<EventListItem>>("/api/events?sort=schedule", Json);
         Assert.Equal([item.Id, all.Single(i => i.Id != item.Id).Id], bySchedule!.Select(i => i.Id));
+    }
+
+    [Theory]
+    [InlineData("mb_2f_cl_001", "2A教室")]
+    [InlineData("MB_2F_CL_001", "MB_2F_CL_001")]
+    [InlineData("unnamed_spot", "unnamed_spot")]
+    public async Task List_UsesTheExactSpotNameOrFallsBackToItsCanonicalId(string canonicalId, string expectedName)
+    {
+        await ReferenceDataTests.ImportSampleAsync(_factory);
+        await using var scope = _factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<StudioDbContext>();
+        db.Spots.Add(new Spot { CanonicalId = "unnamed_spot", Name = "" });
+        await db.SaveChangesAsync();
+
+        var draft = RichDraft();
+        var slot = draft["slots"]![0]!.DeepClone();
+        slot["venues"]![0]!["canonicalSpotId"] = canonicalId;
+        draft["slots"] = new JsonArray(slot);
+        Assert.Equal(HttpStatusCode.Created, (await CreateAsync(draft)).Response.StatusCode);
+
+        var item = Assert.Single((await _client.GetFromJsonAsync<List<EventListItem>>("/api/events", Json))!);
+        Assert.Equal(1, item.VenueCount);
+        Assert.Equal(expectedName, item.PrimaryVenueName);
+    }
+
+    [Fact]
+    public async Task List_UsesTheFirstVenueInScheduleOrder()
+    {
+        await ReferenceDataTests.ImportSampleAsync(_factory);
+        var draft = RichDraft();
+        var slots = draft["slots"]!.AsArray();
+        var laterDate = slots[2]!.DeepClone();
+        laterDate["venues"] = new JsonArray(new JsonObject { ["canonicalSpotId"] = "sample_lobby_1f" });
+        var earlierTime = slots[0]!.DeepClone();
+        earlierTime["venues"]![0]!["canonicalSpotId"] = "mb_2f_cl_002";
+        earlierTime["venues"]!.AsArray().Add(new JsonObject { ["canonicalSpotId"] = "mb_2f_cl_001" });
+        draft["slots"] = new JsonArray(laterDate, slots[1]!.DeepClone(), earlierTime);
+        Assert.Equal(HttpStatusCode.Created, (await CreateAsync(draft)).Response.StatusCode);
+
+        var item = Assert.Single((await _client.GetFromJsonAsync<List<EventListItem>>("/api/events", Json))!);
+        Assert.Equal("10:00", item.Slots[0].Start);
+        Assert.Equal("2B教室", item.PrimaryVenueName);
     }
 }

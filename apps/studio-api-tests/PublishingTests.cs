@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using StudioApi.Auth;
 using StudioApi.Data;
+using StudioApi.Events;
 using StudioApi.Models;
 using StudioApi.Publishing;
 using MapDatasetValidator = StudioApi.Services.MapValidation.MapDatasetValidator;
@@ -341,6 +342,100 @@ public sealed class PublishingTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.OK, saved.StatusCode);
         var list = await _client.GetFromJsonAsync<JsonArray>("/api/events", Json);
         Assert.Equal("publishedWithChanges", list!.Single()!["publication"]!.GetValue<string>());
+    }
+
+    [Fact]
+    public async Task RevertToPublished_RestoresThePublishedDraftAndRecordsOneSaveAcrossRetries()
+    {
+        await PublishReferencesAsync();
+        var (id, publishedRevisionId) = await CreateEventAsync();
+        await PreviewAndPublishAsync(Entry("event", id, revisionId: publishedRevisionId));
+        var published = await GetJsonAsync($"/api/events/{id}");
+        var unpublishedRevisionId = await SaveEventAsync(id, draft => draft["title"] = "公開していない下書き");
+        var before = await GetJsonAsync($"/api/events/{id}");
+        var rowVersion = before["rowVersion"]!.GetValue<long>();
+        Assert.Equal("publishedWithChanges", before["publication"]!["state"]!.GetValue<string>());
+
+        var path = $"/api/events/{id}/revert-to-published";
+        var (conflict, latest) = await SendAsync(HttpMethod.Post, path, new RevertEventRequest(Guid.NewGuid(), rowVersion - 1));
+        Assert.Equal(HttpStatusCode.Conflict, conflict.StatusCode);
+        Assert.True(JsonNode.DeepEquals(before, latest!["latest"]));
+
+        _time.Now = _time.Now.AddMinutes(1);
+        var request = new RevertEventRequest(Guid.NewGuid(), rowVersion);
+        var (response, reverted) = await SendAsync(HttpMethod.Post, path, request);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.True(JsonNode.DeepEquals(published["draft"], reverted!["draft"]));
+        Assert.Equal("published", reverted["publication"]!["state"]!.GetValue<string>());
+        Assert.Equal(publishedRevisionId, reverted["revisionId"]!.GetValue<string>());
+        Assert.Equal(publishedRevisionId, reverted["publication"]!["publishedRevisionId"]!.GetValue<string>());
+        Assert.Equal(rowVersion + 1, reverted["rowVersion"]!.GetValue<long>());
+        Assert.Equal(_time.Now, reverted["updatedAt"]!.GetValue<DateTimeOffset>());
+
+        var (retry, replayed) = await SendAsync(HttpMethod.Post, path, request);
+        Assert.Equal(HttpStatusCode.OK, retry.StatusCode);
+        Assert.True(JsonNode.DeepEquals(reverted, replayed));
+
+        var eventId = Guid.Parse(id);
+        var revisions = await WithDbAsync(db => db.EventRevisions.Where(r => r.EventId == eventId).ToListAsync());
+        Assert.Equal(2, revisions.Count);
+        var retained = Assert.Single(revisions, r => r.RevisionId == Guid.Parse(unpublishedRevisionId));
+        Assert.Equal("公開していない下書き", JsonNode.Parse(retained.Payload)!["title"]!.GetValue<string>());
+
+        var logs = await GetJsonAsync("/api/logs?action=save&targetKind=event");
+        var log = Assert.Single(logs["items"]!.AsArray(), l => l!["operationId"]!.GetValue<Guid>() == request.OperationId)!;
+        Assert.Equal("save", log["action"]!.GetValue<string>());
+        Assert.Equal("下書きを公開中の内容に戻しました。", log["detail"]!.GetValue<string>());
+        Assert.Equal(publishedRevisionId, log["revisionId"]!.GetValue<string>());
+
+        var overview = await GetJsonAsync("/api/overview");
+        var eventArea = Assert.Single(overview["unpublishedChanges"]!.AsArray(), a => a!["targetKind"]!.GetValue<string>() == "event")!;
+        Assert.Equal(0, eventArea["draftCount"]!.GetValue<int>());
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task RevertToPublished_RejectsAnUnpublishedOrWithdrawnEvent(bool withdraw)
+    {
+        var (id, revisionId) = await CreateEventAsync();
+        if (withdraw)
+        {
+            await PublishReferencesAsync();
+            await PreviewAndPublishAsync(Entry("event", id, revisionId: revisionId));
+            await PreviewAndPublishAsync(Entry("event", id, "withdraw"));
+        }
+
+        var before = await GetJsonAsync($"/api/events/{id}");
+        Assert.Equal(withdraw ? "withdrawn" : "unpublished", before["publication"]!["state"]!.GetValue<string>());
+        var request = new RevertEventRequest(Guid.NewGuid(), before["rowVersion"]!.GetValue<long>());
+        var (response, problem) = await SendAsync(HttpMethod.Post, $"/api/events/{id}/revert-to-published", request);
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal("not_published", problem!["code"]!.GetValue<string>());
+        Assert.True(JsonNode.DeepEquals(before, await GetJsonAsync($"/api/events/{id}")));
+        Assert.False(await WithDbAsync(db => db.OperationLogs.AnyAsync(l => l.OperationId == request.OperationId)));
+    }
+
+    [Fact]
+    public async Task RevertToPublished_LeavesAnUnchangedPublishedDraftAndLogIntact()
+    {
+        await PublishReferencesAsync();
+        var (id, revisionId) = await CreateEventAsync();
+        var release = await PreviewAndPublishAsync(Entry("event", id, revisionId: revisionId));
+        var before = await GetJsonAsync($"/api/events/{id}");
+        var rowVersion = before["rowVersion"]!.GetValue<long>();
+        var path = $"/api/events/{id}/revert-to-published";
+
+        var (collision, problem) = await SendAsync(HttpMethod.Post, path, new RevertEventRequest(release["operationId"]!.GetValue<Guid>(), rowVersion));
+        Assert.Equal(HttpStatusCode.BadRequest, collision.StatusCode);
+        Assert.Equal("invalid_operation_id", problem!["code"]!.GetValue<string>());
+
+        var request = new RevertEventRequest(Guid.NewGuid(), rowVersion);
+        var (response, after) = await SendAsync(HttpMethod.Post, path, request);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("published", after!["publication"]!["state"]!.GetValue<string>());
+        Assert.True(JsonNode.DeepEquals(before, after));
+        Assert.False(await WithDbAsync(db => db.OperationLogs.AnyAsync(l => l.OperationId == request.OperationId)));
     }
 
     [Fact]

@@ -928,6 +928,72 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/events/{id}/revert-to-published": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["RevertEventRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["EventDetail"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DraftValidationProblem"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["EventConflict"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/releases/preview": {
         parameters: {
             query?: never;
@@ -1409,6 +1475,7 @@ export interface components {
             slotCount: number;
             /** Format: int32 */
             venueCount: number;
+            primaryVenueName: null | string;
             slots: components["schemas"]["EventSlotSummary"][];
             publication: string;
             /** Format: date-time */
@@ -1797,6 +1864,12 @@ export interface components {
             source: string;
             message: null | string;
             entries: components["schemas"]["ReleaseEntrySummary"][];
+        };
+        RevertEventRequest: {
+            /** Format: uuid */
+            operationId: string;
+            /** Format: int64 */
+            rowVersion: number;
         };
         SaveCategoriesRequest: {
             /** Format: uuid */
