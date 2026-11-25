@@ -7,7 +7,7 @@ namespace StudioApi.Publishing;
 public static class OperationLogs
 {
     /// <summary>下書きの保存。保存と同じ SaveChanges で書き、保存が失敗すれば記録も残らない。</summary>
-    public static void AddSave(StudioDbContext db, Guid operationId, Guid adminId, DateTimeOffset now, string kind, string targetId, string label, Guid revisionId)
+    public static void AddSave(StudioDbContext db, Guid operationId, Guid adminId, DateTimeOffset now, string kind, string targetId, string label, Guid revisionId, string? detail = null)
         => db.OperationLogs.Add(new OperationLog
         {
             Id = Guid.CreateVersion7(),
@@ -22,6 +22,7 @@ public static class OperationLogs
             TargetLabel = Truncate(label),
             Status = OperationStatus.Succeeded,
             RevisionId = revisionId,
+            Detail = detail is { Length: > 2000 } ? detail[..2000] : detail,
         });
 
     public static void Add(StudioDbContext db, DateTimeOffset now, string action, Guid? actorId, string status, string? detail = null, Guid? releaseId = null)
