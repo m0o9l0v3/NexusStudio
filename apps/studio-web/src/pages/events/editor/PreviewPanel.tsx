@@ -105,12 +105,17 @@ export function PreviewPanel({
                         {label}
                       </span>
                       {cancelled ? (
-                        <span className="text-[10px] leading-3.5 font-medium text-danger">
+                        <span
+                          className={cn(
+                            'text-[10px] leading-3.5 font-medium text-danger',
+                            selected && 'self-start rounded bg-surface px-1.5 py-0.5',
+                          )}
+                        >
                           中止{cancelReason && cancelReason !== '中止' ? `・${cancelReason}` : ''}
                         </span>
                       ) : (
                         slot.participation === 'anytime' && (
-                          <span className={cn('text-[10px] leading-3.5', selected ? 'text-brand/90' : 'text-text-secondary')}>
+                          <span className={cn('text-[10px] leading-3.5', selected ? 'text-brand' : 'text-text-secondary')}>
                             随時参加可
                           </span>
                         )

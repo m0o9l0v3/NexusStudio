@@ -170,6 +170,7 @@ function EventEditor({ initial }: { initial: EventDetail | null }) {
   const pendingOperation = useRef<{ id: string; key: string } | null>(null)
   const pendingRevertOperation = useRef<{ id: string; eventId: string; rowVersion: number } | null>(null)
   const addSlotButton = useRef<HTMLButtonElement>(null)
+  const failureRef = useRef<HTMLDivElement>(null)
 
   const [confirmDiscard, setConfirmDiscard] = useState(false)
   const [confirmRevert, setConfirmRevert] = useState(false)
@@ -197,6 +198,10 @@ function EventEditor({ initial }: { initial: EventDetail | null }) {
       target.focus({ preventScroll: true })
     }
   }, [jumpTarget])
+
+  useEffect(() => {
+    if (failure) failureRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+  }, [failure])
 
   const spotIds = useMemo(() => {
     const ids = new Set<string>()
@@ -557,7 +562,11 @@ function EventEditor({ initial }: { initial: EventDetail | null }) {
       <PageSheet className="flex-row">
         <main className="min-w-0 flex-1 overflow-y-auto px-4 py-5 sm:px-6 xl:px-7">
           <div className="flex max-w-[820px] flex-col gap-6 pb-8">
-            {failure && <NoticeBanner tone="blocking">{failure}</NoticeBanner>}
+            {failure && (
+              <div ref={failureRef}>
+                <NoticeBanner tone="blocking">{failure}</NoticeBanner>
+              </div>
+            )}
             {conflictOpen && conflict && (
               <ConflictNotice
                 latestById={conflict.latest.updatedBy.id}

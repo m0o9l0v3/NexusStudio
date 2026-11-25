@@ -1,6 +1,6 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, CircleDashed, Copy, MapPin, OctagonX, Plus, Search, Trash2, TriangleAlert } from 'lucide-react'
-import { useDeferredValue, useEffect, useId, useRef, useState, type KeyboardEvent, type RefObject } from 'react'
+import { useDeferredValue, useEffect, useId, useRef, useState, type KeyboardEvent } from 'react'
 import type { EventSlot, Participation, SlotVenue, TimeMode } from '../../../api/events'
 import { searchSpots, type OccurrenceItem, type SpotItem } from '../../../api/reference'
 import {
@@ -104,6 +104,7 @@ export function SlotCard({
 }: SlotCardProps) {
   const headerButtonRef = useRef<HTMLButtonElement>(null)
   const addButtonRef = useRef<HTMLButtonElement>(null)
+  const restoreAddFocus = useRef(false)
   const [pickerOpen, setPickerOpen] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
 
@@ -111,6 +112,14 @@ export function SlotCard({
     // 追加・複製で開いたときだけ見出しボタンへフォーカスを移す（07 §4.4、検証記録 A-3 D4）。
     if (expanded && focusOnOpen) headerButtonRef.current?.focus()
   }, [expanded, focusOnOpen])
+
+  useEffect(() => {
+    // インライン会場追加を閉じて［会場を追加］ボタンが再マウントされた後にフォーカスを戻す（07 AC19）。
+    if (!pickerOpen && restoreAddFocus.current) {
+      restoreAddFocus.current = false
+      addButtonRef.current?.focus()
+    }
+  }, [pickerOpen])
 
   const heading = formatSlotHeading(slot, index)
   const blocking = issues.filter((issue) => issue.level === 'blocking')
@@ -359,12 +368,15 @@ export function SlotCard({
               <InlineVenuePicker
                 inputId={`${slotPrefix}-add-venue`}
                 addedIds={slot.venues.map((venue) => venue.canonicalSpotId)}
-                returnFocusTo={addButtonRef}
                 onSelect={(spot) => {
+                  restoreAddFocus.current = true
                   updateVenues([...slot.venues, { canonicalSpotId: spot.canonicalId, note: null }])
                   setPickerOpen(false)
                 }}
-                onClose={() => setPickerOpen(false)}
+                onClose={() => {
+                  restoreAddFocus.current = true
+                  setPickerOpen(false)
+                }}
               />
             ) : (
               <Button
@@ -541,7 +553,6 @@ type InlineVenuePickerProps = {
   inputId: string
   /** この日時に追加済みのcanonical ID。再選択させない（07 AC06）。 */
   addedIds: string[]
-  returnFocusTo: RefObject<HTMLButtonElement | null>
   onSelect: (spot: SpotItem) => void
   onClose: () => void
 }
@@ -550,7 +561,7 @@ type InlineVenuePickerProps = {
  * インライン会場追加（Figma v2 E03 `77:1042`、決定事項36 V2-6）。
  * ↑↓で候補を移動、Enterで追加、Escまたは［やめる］で閉じて［会場を追加］へフォーカスを戻す（07 AC19）。
  */
-function InlineVenuePicker({ inputId, addedIds, returnFocusTo, onSelect, onClose }: InlineVenuePickerProps) {
+function InlineVenuePicker({ inputId, addedIds, onSelect, onClose }: InlineVenuePickerProps) {
   const [q, setQ] = useState('')
   const deferredQ = useDeferredValue(q)
   const listId = useId()
@@ -585,21 +596,16 @@ function InlineVenuePicker({ inputId, addedIds, returnFocusTo, onSelect, onClose
     listRef.current?.querySelector(`[data-index="${active}"]`)?.scrollIntoView({ block: 'nearest' })
   }, [active])
 
-  function closeAndReturnFocus() {
-    onClose()
-    queueMicrotask(() => returnFocusTo.current?.focus())
-  }
-
   function choose(spot: SpotItem | undefined) {
     if (!spot || availabilityOf(spot, added) !== 'available') return
     onSelect(spot)
-    queueMicrotask(() => returnFocusTo.current?.focus())
   }
 
   function handleKeyDown(event: KeyboardEvent) {
+    if (event.nativeEvent.isComposing) return
     if (event.key === 'Escape') {
       event.preventDefault()
-      closeAndReturnFocus()
+      onClose()
       return
     }
     if (items.length === 0) return
@@ -640,7 +646,7 @@ function InlineVenuePicker({ inputId, addedIds, returnFocusTo, onSelect, onClose
             className="h-8 w-full rounded-md border border-border-input bg-surface pr-2.5 pl-8 text-sm leading-[19px] text-text-primary placeholder:text-text-secondary focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand"
           />
         </div>
-        <Button variant="secondary" size="sm" onClick={closeAndReturnFocus}>
+        <Button variant="secondary" size="sm" onClick={onClose}>
           やめる
         </Button>
       </div>
@@ -660,6 +666,10 @@ function InlineVenuePicker({ inputId, addedIds, returnFocusTo, onSelect, onClose
             再試行
           </Button>
         </NoticeBanner>
+      ) : result.isPlaceholderData && items.length === 0 ? (
+        <p role="status" className="rounded-lg border border-border bg-surface-subtle px-3 py-2.5 text-[12px] leading-5 text-text-secondary">
+          会場候補を検索しています…
+        </p>
       ) : items.length === 0 ? (
         q.trim() ? (
           <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-surface-subtle px-3 py-2.5 text-[12px] leading-5 text-text-secondary">
