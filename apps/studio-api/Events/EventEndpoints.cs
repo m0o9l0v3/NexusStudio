@@ -13,6 +13,8 @@ public sealed record CreateEventRequest(Guid OperationId, EventDraft? Draft);
 
 public sealed record UpdateEventRequest(Guid OperationId, long RowVersion, EventDraft? Draft);
 
+public sealed record RevertEventRequest(Guid OperationId, long RowVersion);
+
 public sealed record AdminRef(Guid Id, string DisplayName);
 
 public sealed record EventDetail(
@@ -36,6 +38,7 @@ public sealed record EventListItem(
     Guid? OccurrenceId,
     int SlotCount,
     int VenueCount,
+    string? PrimaryVenueName,
     IReadOnlyList<EventSlotSummary> Slots,
     string Publication,
     DateTimeOffset UpdatedAt,
@@ -54,6 +57,7 @@ public static class EventEndpoints
         group.MapGet("/{id:guid}", GetAsync);
         group.MapPost("/", CreateAsync);
         group.MapPut("/{id:guid}", UpdateAsync);
+        group.MapPost("/{id:guid}/revert-to-published", RevertToPublishedAsync);
         return group;
     }
 
@@ -72,24 +76,33 @@ public static class EventEndpoints
 
         var days = await db.OcDays.AsNoTracking().ToDictionaryAsync(d => d.Id, d => new { d.Date, d.Status });
         var publications = await PublicationIndex.LoadAsync(db, PublishTargetKind.Event);
+        var spotNames = await db.Spots.AsNoTracking()
+            .Select(s => new { s.CanonicalId, s.Name })
+            .ToDictionaryAsync(s => s.CanonicalId, s => s.Name, StringComparer.Ordinal);
 
         var items = rows.Select(row =>
         {
             var draft = Deserialize(row.Payload);
+            var slots = draft.Slots
+                .Select(slot =>
+                {
+                    var day = slot.OcDayId is { } dayId ? days.GetValueOrDefault(dayId) : null;
+                    var summary = new EventSlotSummary(day?.Date, slot.TimeMode, slot.Fixed?.Start, slot.Fixed?.End, slot.Status, day?.Status == OcDayStatus.Cancelled);
+                    return (Summary: summary, slot.Venues);
+                })
+                .OrderBy(s => s.Summary.Date is null).ThenBy(s => s.Summary.Date).ThenBy(s => s.Summary.Start, StringComparer.Ordinal)
+                .ToList();
+            var venueIds = slots.SelectMany(s => s.Venues).Select(v => v.CanonicalSpotId).ToList();
+            var primaryVenueId = venueIds.FirstOrDefault();
+            var primaryVenueName = primaryVenueId is null ? null : spotNames.GetValueOrDefault(primaryVenueId);
             return new EventListItem(
                 row.head.EventId,
                 draft.Title,
                 draft.OccurrenceId,
                 draft.Slots.Count,
-                draft.Slots.SelectMany(s => s.Venues).Select(v => v.CanonicalSpotId).Distinct(StringComparer.Ordinal).Count(),
-                draft.Slots
-                    .Select(s =>
-                    {
-                        var day = s.OcDayId is { } dayId ? days.GetValueOrDefault(dayId) : null;
-                        return new EventSlotSummary(day?.Date, s.TimeMode, s.Fixed?.Start, s.Fixed?.End, s.Status, day?.Status == OcDayStatus.Cancelled);
-                    })
-                    .OrderBy(s => s.Date is null).ThenBy(s => s.Date).ThenBy(s => s.Start, StringComparer.Ordinal)
-                    .ToList(),
+                venueIds.Distinct(StringComparer.Ordinal).Count(),
+                string.IsNullOrWhiteSpace(primaryVenueName) ? primaryVenueId : primaryVenueName,
+                slots.Select(s => s.Summary).ToList(),
                 PublicationState.Of(publications.Find(PublishTargetKind.Event, row.head.EventId.ToString()), row.head.CurrentRevisionId),
                 row.head.UpdatedAt,
                 new AdminRef(row.head.UpdatedBy, row.DisplayName));
@@ -244,6 +257,100 @@ public static class EventEndpoints
 
         return TypedResults.Ok((await LoadDetailAsync(db, id))!);
     }
+
+    private static async Task<Results<Ok<EventDetail>, NotFound, BadRequest<DraftValidationProblem>, Conflict<EventConflict>>> RevertToPublishedAsync(
+        Guid id,
+        RevertEventRequest request,
+        StudioDbContext db,
+        ClaimsPrincipal principal,
+        UserManager<StudioAdmin> userManager,
+        TimeProvider timeProvider)
+    {
+        if (request.OperationId == Guid.Empty)
+        {
+            return TypedResults.BadRequest(InvalidOperationId());
+        }
+
+        var targetId = id.ToString();
+        if (await FindOperationLogAsync(db, request.OperationId) is { } replay)
+        {
+            return IsEventSave(replay, targetId)
+                ? TypedResults.Ok((await LoadDetailAsync(db, id))!)
+                : TypedResults.BadRequest(InvalidOperationId());
+        }
+
+        var head = await db.EventHeads.SingleOrDefaultAsync(h => h.EventId == id);
+        if (head is null)
+        {
+            return TypedResults.NotFound();
+        }
+
+        if (head.RowVersion != request.RowVersion)
+        {
+            return TypedResults.Conflict(await ConflictAsync(db, id));
+        }
+
+        var publication = await db.Publications.AsNoTracking()
+            .SingleOrDefaultAsync(p => p.TargetKind == PublishTargetKind.Event && p.TargetId == targetId);
+        if (publication is not { State: PublicationRowState.Published })
+        {
+            return TypedResults.BadRequest(new DraftValidationProblem("not_published", "公開中の内容がないため戻せません。", []));
+        }
+
+        if (head.CurrentRevisionId == publication.RevisionId)
+        {
+            return TypedResults.Ok((await LoadDetailAsync(db, id))!);
+        }
+
+        var publishedRevision = await db.EventRevisions.AsNoTracking()
+            .SingleOrDefaultAsync(r => r.RevisionId == publication.RevisionId && r.EventId == id)
+            ?? throw new InvalidOperationException("イベントの公開版が見つかりません。");
+        var adminId = CurrentAdminId(principal, userManager);
+        var now = timeProvider.GetUtcNow();
+        var label = PublishCandidate.EventLabel(Deserialize(publishedRevision.Payload).Title);
+
+        // 既存の下書き版は残し、参照先を公開版に合わせる。PublicationState.Of が版の一致から
+        // published を算出するため、Overview と Validation でもすぐに公開中・変更なしとして扱われる。
+        head.CurrentRevisionId = publication.RevisionId;
+        head.UpdatedAt = now;
+        head.UpdatedBy = adminId;
+        head.RowVersion++;
+        OperationLogs.AddSave(db, request.OperationId, adminId, now, PublishTargetKind.Event, targetId, label, publishedRevision.RevisionId,
+            detail: "下書きを公開中の内容に戻しました。");
+
+        try
+        {
+            await db.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            db.ChangeTracker.Clear();
+            return TypedResults.Conflict(await ConflictAsync(db, id));
+        }
+        catch (DbUpdateException)
+        {
+            // operationId の一意制約で先に保存された操作を確認する。
+            db.ChangeTracker.Clear();
+            var concurrentOperation = await FindOperationLogAsync(db, request.OperationId);
+            if (concurrentOperation is null)
+            {
+                throw;
+            }
+
+            if (!IsEventSave(concurrentOperation, targetId))
+            {
+                return TypedResults.BadRequest(InvalidOperationId());
+            }
+        }
+
+        return TypedResults.Ok((await LoadDetailAsync(db, id))!);
+    }
+
+    private static Task<OperationLog?> FindOperationLogAsync(StudioDbContext db, Guid operationId)
+        => db.OperationLogs.AsNoTracking().SingleOrDefaultAsync(l => l.OperationId == operationId);
+
+    private static bool IsEventSave(OperationLog log, string targetId)
+        => log.Action == OperationAction.Save && log.TargetKind == PublishTargetKind.Event && log.TargetId == targetId;
 
     private static async Task<EventDetail?> LoadDetailAsync(StudioDbContext db, Guid id)
     {

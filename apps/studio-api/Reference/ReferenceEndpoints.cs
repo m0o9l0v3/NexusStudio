@@ -56,22 +56,14 @@ public static class ReferenceEndpoints
     }
 
     /// <summary>
-    /// 名称・別名・canonical IDの部分一致で検索する（07 §4.3）。検索では大文字小文字を区別しないが、
-    /// 保存・参照するIDは返した文字列のまま扱う。
+    /// 会場を名称・別名・建物名・階名・canonical IDで検索する（36 V2-6）。
     /// </summary>
     private static async Task<Ok<SpotSearchResult>> SearchSpotsAsync(StudioDbContext db, string? q, string? building, string? floor)
     {
         var spots = await db.Spots.AsNoTracking().Include(s => s.NameAliases).ToListAsync();
         var publications = await PublicationIndex.LoadAsync(db, PublishTargetKind.Spot);
-        IEnumerable<Spot> matches = spots;
-        if (!string.IsNullOrWhiteSpace(q))
-        {
-            var keyword = q.Trim();
-            matches = matches.Where(s =>
-                s.Name.Contains(keyword, StringComparison.CurrentCultureIgnoreCase)
-                || s.CanonicalId.Contains(keyword, StringComparison.OrdinalIgnoreCase)
-                || s.NameAliases.Any(a => a.Alias.Contains(keyword, StringComparison.CurrentCultureIgnoreCase)));
-        }
+        var keywords = SplitSpotKeywords(q);
+        var matches = spots.Where(s => MatchesSpotKeywords(s, keywords));
 
         if (!string.IsNullOrEmpty(building))
         {
@@ -96,6 +88,18 @@ public static class ReferenceEndpoints
             spots.Select(s => s.BuildingName).OfType<string>().Distinct().Order(StringComparer.CurrentCulture).ToList(),
             spots.Select(s => s.FloorName).OfType<string>().Distinct().Order(StringComparer.CurrentCulture).ToList()));
     }
+
+    internal static string[] SplitSpotKeywords(string? query)
+        => query?.Split([' ', '　'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries) ?? [];
+
+    // 検索では大文字小文字を区別しない。保存・参照するcanonical IDは返した文字列のまま扱う。
+    internal static bool MatchesSpotKeywords(Spot spot, string[] keywords)
+        => keywords.All(keyword =>
+            spot.Name.Contains(keyword, StringComparison.CurrentCultureIgnoreCase)
+            || spot.BuildingName?.Contains(keyword, StringComparison.CurrentCultureIgnoreCase) == true
+            || spot.FloorName?.Contains(keyword, StringComparison.CurrentCultureIgnoreCase) == true
+            || spot.CanonicalId.Contains(keyword, StringComparison.OrdinalIgnoreCase)
+            || spot.NameAliases.Any(a => a.Alias.Contains(keyword, StringComparison.CurrentCultureIgnoreCase)));
 
     /// <summary>
     /// 保存済みの会場を表示するため、canonical IDの厳密一致で引く。見つからないIDは結果に含めない

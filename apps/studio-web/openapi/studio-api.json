@@ -796,6 +796,69 @@
         }
       }
     },
+    "/api/events/{id}/revert-to-published": {
+      "post": {
+        "tags": [
+          "Events"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RevertEventRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventDetail"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DraftValidationProblem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventConflict"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/releases/preview": {
       "post": {
         "tags": [
@@ -1590,6 +1653,7 @@
           "occurrenceId",
           "slotCount",
           "venueCount",
+          "primaryVenueName",
           "slots",
           "publication",
           "updatedAt",
@@ -1621,6 +1685,12 @@
           "venueCount": {
             "type": "integer",
             "format": "int32"
+          },
+          "primaryVenueName": {
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "slots": {
             "type": "array",
@@ -3375,6 +3445,23 @@
             "items": {
               "$ref": "#/components/schemas/ReleaseEntrySummary"
             }
+          }
+        }
+      },
+      "RevertEventRequest": {
+        "required": [
+          "operationId",
+          "rowVersion"
+        ],
+        "type": "object",
+        "properties": {
+          "operationId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "rowVersion": {
+            "type": "integer",
+            "format": "int64"
           }
         }
       },

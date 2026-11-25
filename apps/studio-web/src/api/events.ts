@@ -44,3 +44,7 @@ export function createEvent(operationId: string, draft: EventDraft): Promise<Eve
 export function updateEvent(id: string, operationId: string, rowVersion: number, draft: EventDraft): Promise<EventDetail> {
   return apiJson<EventDetail>('PUT', `/api/events/${encodeURIComponent(id)}`, { operationId, rowVersion, draft })
 }
+
+export function revertEventToPublished(id: string, operationId: string, rowVersion: number): Promise<EventDetail> {
+  return apiJson<EventDetail>('POST', `/api/events/${encodeURIComponent(id)}/revert-to-published`, { operationId, rowVersion })
+}

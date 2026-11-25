@@ -189,6 +189,27 @@ public sealed class ReferenceDataTests : IAsyncLifetime
         Assert.Equal(["別棟", "本館"], byBuilding.Buildings.Order(StringComparer.Ordinal));
     }
 
+    [Theory]
+    [InlineData("/api/spots")]
+    [InlineData("/api/spots/directory")]
+    public async Task SpotSearch_RequiresEveryTermToMatchNameAliasBuildingFloorOrId(string path)
+    {
+        await ImportSampleAsync(_factory);
+
+        async Task<string[]> SearchIdsAsync(string query)
+        {
+            var result = await _client.GetFromJsonAsync<SpotSearchResult>($"{path}?q={Uri.EscapeDataString(query)}", Json);
+            return result!.Items.Select(s => s.CanonicalId).Order(StringComparer.Ordinal).ToArray();
+        }
+
+        Assert.Equal(["mb_2f_cl_001", "mb_2f_cl_002", "sample_lobby_1f"], await SearchIdsAsync("本館"));
+        Assert.Equal(["sample_lobby_1f"], await SearchIdsAsync("1階"));
+        Assert.Equal(["mb_2f_cl_001", "mb_2f_cl_002"], await SearchIdsAsync("本館 2階"));
+        Assert.Equal(["sample_lobby_1f"], await SearchIdsAsync("本館　エントランス"));
+        Assert.Equal(["sample_lobby_1f"], await SearchIdsAsync("受付 　LOBBY"));
+        Assert.Empty(await SearchIdsAsync("別棟 1階"));
+    }
+
     [Fact]
     public async Task Command_RejectsBadArguments()
     {

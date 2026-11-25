@@ -56,15 +56,8 @@ public static class SpotEndpoints
     {
         var spots = await db.Spots.AsNoTracking().Include(s => s.NameAliases).ToListAsync();
         var publications = await PublicationIndex.LoadAsync(db, PublishTargetKind.Spot);
-        IEnumerable<Spot> matches = spots;
-        if (!string.IsNullOrWhiteSpace(q))
-        {
-            var keyword = q.Trim();
-            matches = matches.Where(s =>
-                s.Name.Contains(keyword, StringComparison.CurrentCultureIgnoreCase)
-                || s.CanonicalId.Contains(keyword, StringComparison.OrdinalIgnoreCase)
-                || s.NameAliases.Any(a => a.Alias.Contains(keyword, StringComparison.CurrentCultureIgnoreCase)));
-        }
+        var keywords = ReferenceEndpoints.SplitSpotKeywords(q);
+        var matches = spots.Where(s => ReferenceEndpoints.MatchesSpotKeywords(s, keywords));
 
         if (!string.IsNullOrEmpty(building))
         {

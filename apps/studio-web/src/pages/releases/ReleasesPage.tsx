@@ -33,11 +33,12 @@ export function ReleasesPage() {
   const [params, setParams] = useSearchParams()
   const selectedId = params.get('id')
   const targetKind = params.get('targetKind') ?? ''
+  const targetId = params.get('targetId') ?? ''
   const action = params.get('action') ?? ''
 
   const releases = useInfiniteQuery({
-    queryKey: ['releases', { targetKind, action }],
-    queryFn: ({ pageParam }) => listReleases({ targetKind, action, before: pageParam }),
+    queryKey: ['releases', { targetKind, targetId, action }],
+    queryFn: ({ pageParam }) => listReleases({ targetKind, targetId, action, before: pageParam }),
     initialPageParam: null as number | null,
     getNextPageParam: (page) => page.nextBefore ?? undefined,
   })
@@ -73,6 +74,15 @@ export function ReleasesPage() {
             </FilterChip>
           </div>
 
+          {targetId && (
+            <NoticeBanner>
+              指定された対象の公開履歴を表示しています。
+              <Button variant="secondary" className="ml-3" onClick={() => update('targetId', '')}>
+                対象絞り込みを解除
+              </Button>
+            </NoticeBanner>
+          )}
+
           {releases.isPending ? (
             <p role="status" className="text-[12px] leading-5 text-text-secondary">
               公開履歴を読み込んでいます
@@ -85,7 +95,7 @@ export function ReleasesPage() {
               </Button>
             </NoticeBanner>
           ) : items.length === 0 ? (
-            <NoticeBanner>{targetKind || action ? '条件に一致する公開履歴はありません。' : '公開履歴は正式に0件です。'}</NoticeBanner>
+            <NoticeBanner>{targetKind || targetId || action ? '条件に一致する公開履歴はありません。' : '公開履歴は正式に0件です。'}</NoticeBanner>
           ) : (
             <ul className="flex flex-col gap-2">
               {items.map((release) => {
