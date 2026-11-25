@@ -30,7 +30,7 @@ const minusIcon = <Minus size={16} strokeWidth={1.5} />
 const calendarXIcon = <CalendarX size={16} strokeWidth={1.5} />
 
 const rowGridClass =
-  'xl:grid xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1.25fr)_minmax(0,0.9fr)_minmax(180px,1.25fr)_88px_96px] xl:items-center xl:gap-x-3'
+  'xl:grid xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1.25fr)_minmax(0,0.9fr)_minmax(180px,1.25fr)_92px_108px] xl:items-center xl:gap-x-3'
 
 function parseIsoDate(date: string): { year: number; month: number; day: number } {
   const [year, month, day] = date.split('-').map(Number)
@@ -99,6 +99,9 @@ export function EventListPage() {
   const reference = useQuery({ queryKey: ['reference'], queryFn: getReference })
   const occurrences = useMemo(() => indexReference(reference.data).occurrences, [reference.data])
   const filtered = Boolean(q || occurrenceId || publication)
+  const failed = events.isError && (!events.data || events.isPlaceholderData)
+  const staleRetained = events.isError && Boolean(events.data) && !events.isPlaceholderData
+  const rows = failed ? [] : (events.data ?? [])
 
   function update(key: string, value: string) {
     const next = new URLSearchParams(params)
@@ -180,7 +183,7 @@ export function EventListPage() {
             </div>
 
             <div aria-busy={events.isFetching || undefined}>
-              {events.isError && events.data && (
+              {staleRetained && (
                 <NoticeBanner tone="warning" className="mt-4">
                   <span className="inline-flex flex-wrap items-center gap-x-3 gap-y-2">
                     <span>最新のイベント一覧を取得できませんでした。以前取得した一覧を表示しています。</span>
@@ -193,7 +196,7 @@ export function EventListPage() {
 
               {events.isPending ? (
                 <LoadingRows />
-              ) : events.isError && !events.data ? (
+              ) : failed ? (
                 <NoticeBanner tone="blocking" className="mt-4">
                   <span className="inline-flex flex-wrap items-center gap-x-3 gap-y-2">
                     <span>イベント一覧を取得できませんでした。0件とは扱わず、再試行してください。</span>
@@ -202,7 +205,9 @@ export function EventListPage() {
                     </Button>
                   </span>
                 </NoticeBanner>
-              ) : events.data.length === 0 ? (
+              ) : events.isPlaceholderData && rows.length === 0 ? (
+                <LoadingRows />
+              ) : rows.length === 0 ? (
                 filtered ? (
                   <NoticeBanner className="mt-4">
                     <span className="inline-flex flex-wrap items-center gap-x-3 gap-y-2">
@@ -232,7 +237,7 @@ export function EventListPage() {
                     <span />
                   </div>
                   <ul className="divide-y divide-border" aria-label="イベント一覧">
-                    {events.data.map((item) => (
+                    {rows.map((item) => (
                       <EventRow key={item.id} item={item} />
                     ))}
                   </ul>
@@ -362,7 +367,7 @@ function EventRow({ item }: { item: EventListItem }) {
           <span className="sr-only">（{item.updatedBy.displayName}）</span>
         </span>
         <span className="ml-auto flex shrink-0 items-center justify-end gap-2 xl:ml-0">
-          <span className="inline-flex h-7 items-center rounded-md bg-brand-subtle px-2.5 text-[12px] font-medium text-brand group-hover:bg-brand-subtle/75">
+          <span className="inline-flex h-7 items-center rounded-md bg-brand-subtle px-2.5 text-[12px] font-medium whitespace-nowrap text-brand group-hover:bg-brand-subtle/75">
             編集する
           </span>
           <ChevronRight aria-hidden size={16} strokeWidth={1.5} className="text-text-secondary" />
