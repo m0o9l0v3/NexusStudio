@@ -25,7 +25,7 @@ export type NavGroup = {
 export const navGroups: NavGroup[] = [
   {
     label: null,
-    areas: [{ path: '/overview', label: 'ホーム', subtitle: '現在の公開状態と次の作業', plannedStep: 'PR 2（決定事項36 V2-8）', icon: LayoutDashboard }],
+    areas: [{ path: '/overview', label: 'ホーム', subtitle: '現在の公開状態と次の作業', plannedStep: 'PR 3（決定事項36 V2-8）', icon: LayoutDashboard }],
   },
   {
     label: 'コンテンツ',

@@ -20,7 +20,7 @@ export function Sidebar() {
           <span className="font-bold">Nexus</span> <span className="font-normal">Studio</span>
         </p>
         {session?.environmentLabel && (
-          <Badge tone="neutral">
+          <Badge tone="info">
             {session.environmentLabel}
           </Badge>
         )}
