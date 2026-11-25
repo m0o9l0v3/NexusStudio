@@ -145,6 +145,28 @@
         }
       }
     },
+    "/api/overview": {
+      "get": {
+        "tags": [
+          "Overview"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OverviewResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
     "/api/auth/csrf": {
       "get": {
         "tags": [
@@ -2311,6 +2333,312 @@
           }
         }
       },
+      "OverviewAreaCount": {
+        "required": [
+          "targetKind",
+          "count"
+        ],
+        "type": "object",
+        "properties": {
+          "targetKind": {
+            "type": "string"
+          },
+          "count": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "OverviewAreaStatus": {
+        "required": [
+          "targetKind",
+          "draftCount",
+          "uncheckedCount",
+          "blockingCount",
+          "warningCount",
+          "latestMapRevisionId"
+        ],
+        "type": "object",
+        "properties": {
+          "targetKind": {
+            "type": "string"
+          },
+          "draftCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "uncheckedCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "blockingCount": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "warningCount": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "latestMapRevisionId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          }
+        }
+      },
+      "OverviewDataHealth": {
+        "required": [
+          "hasPublishedRelease",
+          "diagnosisStatus",
+          "lastCheckedAt",
+          "totalBlockingCount",
+          "totalWarningCount",
+          "includesMap",
+          "uncheckedDraftCount",
+          "uncheckedByArea"
+        ],
+        "type": "object",
+        "properties": {
+          "hasPublishedRelease": {
+            "type": "boolean"
+          },
+          "diagnosisStatus": {
+            "type": "string"
+          },
+          "lastCheckedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "totalBlockingCount": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "totalWarningCount": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "includesMap": {
+            "type": "boolean"
+          },
+          "uncheckedDraftCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "uncheckedByArea": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OverviewAreaCount"
+            }
+          }
+        }
+      },
+      "OverviewOccurrence": {
+        "required": [
+          "id",
+          "name",
+          "days"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "days": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OverviewOccurrenceDay"
+            }
+          }
+        }
+      },
+      "OverviewOccurrenceDay": {
+        "required": [
+          "id",
+          "date",
+          "publicStart",
+          "publicEnd",
+          "status",
+          "cancelNote"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "publicStart": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "publicEnd": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "status": {
+            "type": "string"
+          },
+          "cancelNote": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "OverviewRelease": {
+        "required": [
+          "releaseId",
+          "sequence",
+          "publishedAt",
+          "source",
+          "publishedBy",
+          "previousSequence",
+          "entrySummary"
+        ],
+        "type": "object",
+        "properties": {
+          "releaseId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sequence": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "publishedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "source": {
+            "type": "string"
+          },
+          "publishedBy": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/EditorRef"
+              }
+            ]
+          },
+          "previousSequence": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int64"
+          },
+          "entrySummary": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OverviewReleaseKindCount"
+            }
+          }
+        }
+      },
+      "OverviewReleaseKindCount": {
+        "required": [
+          "targetKind",
+          "action",
+          "count"
+        ],
+        "type": "object",
+        "properties": {
+          "targetKind": {
+            "type": "string"
+          },
+          "action": {
+            "type": "string"
+          },
+          "count": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "OverviewResponse": {
+        "required": [
+          "generatedAt",
+          "campusToday",
+          "latestRelease",
+          "publishedOccurrences",
+          "dataHealth",
+          "unpublishedChanges",
+          "recentLogs"
+        ],
+        "type": "object",
+        "properties": {
+          "generatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "campusToday": {
+            "type": "string",
+            "format": "date"
+          },
+          "latestRelease": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/OverviewRelease"
+              }
+            ]
+          },
+          "publishedOccurrences": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OverviewOccurrence"
+            }
+          },
+          "dataHealth": {
+            "$ref": "#/components/schemas/OverviewDataHealth"
+          },
+          "unpublishedChanges": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OverviewAreaStatus"
+            }
+          },
+          "recentLogs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LogItem"
+            }
+          }
+        }
+      },
       "PayloadSides": {
         "required": [
           "event",
@@ -3618,6 +3946,9 @@
     },
     {
       "name": "Releases"
+    },
+    {
+      "name": "Overview"
     },
     {
       "name": "Auth"

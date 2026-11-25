@@ -192,6 +192,48 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["OverviewResponse"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/auth/csrf": {
         parameters: {
             query?: never;
@@ -1522,6 +1564,84 @@ export interface components {
             startedAt: string;
             release: null | components["schemas"]["ReleaseSummary"];
             detail: null | string;
+        };
+        OverviewAreaCount: {
+            targetKind: string;
+            /** Format: int32 */
+            count: number;
+        };
+        OverviewAreaStatus: {
+            targetKind: string;
+            /** Format: int32 */
+            draftCount: number;
+            /** Format: int32 */
+            uncheckedCount: number;
+            /** Format: int32 */
+            blockingCount: null | number;
+            /** Format: int32 */
+            warningCount: null | number;
+            /** Format: uuid */
+            latestMapRevisionId: null | string;
+        };
+        OverviewDataHealth: {
+            hasPublishedRelease: boolean;
+            diagnosisStatus: string;
+            /** Format: date-time */
+            lastCheckedAt: null | string;
+            /** Format: int32 */
+            totalBlockingCount: null | number;
+            /** Format: int32 */
+            totalWarningCount: null | number;
+            includesMap: boolean;
+            /** Format: int32 */
+            uncheckedDraftCount: number;
+            uncheckedByArea: components["schemas"]["OverviewAreaCount"][];
+        };
+        OverviewOccurrence: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            days: components["schemas"]["OverviewOccurrenceDay"][];
+        };
+        OverviewOccurrenceDay: {
+            /** Format: uuid */
+            id: string;
+            /** Format: date */
+            date: string;
+            publicStart: null | string;
+            publicEnd: null | string;
+            status: string;
+            cancelNote: null | string;
+        };
+        OverviewRelease: {
+            /** Format: uuid */
+            releaseId: string;
+            /** Format: int64 */
+            sequence: number;
+            /** Format: date-time */
+            publishedAt: string;
+            source: string;
+            publishedBy: null | components["schemas"]["EditorRef"];
+            /** Format: int64 */
+            previousSequence: null | number;
+            entrySummary: components["schemas"]["OverviewReleaseKindCount"][];
+        };
+        OverviewReleaseKindCount: {
+            targetKind: string;
+            action: string;
+            /** Format: int32 */
+            count: number;
+        };
+        OverviewResponse: {
+            /** Format: date-time */
+            generatedAt: string;
+            /** Format: date */
+            campusToday: string;
+            latestRelease: null | components["schemas"]["OverviewRelease"];
+            publishedOccurrences: components["schemas"]["OverviewOccurrence"][];
+            dataHealth: components["schemas"]["OverviewDataHealth"];
+            unpublishedChanges: components["schemas"]["OverviewAreaStatus"][];
+            recentLogs: components["schemas"]["LogItem"][];
         };
         PayloadSides: {
             event: null | components["schemas"]["EventSides"];

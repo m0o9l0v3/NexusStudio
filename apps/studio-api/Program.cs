@@ -101,6 +101,7 @@ app.MapEventEndpoints();
 app.MapReleaseEndpoints();
 app.MapLogEndpoints();
 app.MapDraftDiagnosisEndpoints();
+app.MapOverviewEndpoints();
 
 await app.RunAsync();
 return 0;
