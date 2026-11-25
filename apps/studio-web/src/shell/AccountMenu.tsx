@@ -1,5 +1,6 @@
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
 import { useQueryClient } from '@tanstack/react-query'
+import { CircleUser, LogOut } from 'lucide-react'
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import { logout, type Session } from '../api/auth'
@@ -9,7 +10,8 @@ import { Dialog, DialogActions } from '../ui/Dialog'
 import { useUnsavedChangesRegistry } from './unsavedChanges'
 
 /**
- * Figma E31「管理者メニュー」（94:1648、Component `Account Menu` 94:1644）。
+ * Figma v2 Sidebar（18:4）下部の「アカウント」。メニューに表示名・メールアドレス・ログアウトを出す（決定事項36 V2-3）。
+ * v1 の E31「管理者メニュー」（94:1648）の役割を引き継ぐ。
  * 未保存の変更がある場合は、ログアウトの前に確認する（E32 `94:1782`）。
  */
 export function AccountMenu({ session }: { session: Session }) {
@@ -37,23 +39,25 @@ export function AccountMenu({ session }: { session: Session }) {
       <DropdownMenu.Root>
         <DropdownMenu.Trigger
           className={cn(
-            'rounded text-[11px] leading-[19px] whitespace-pre text-text-secondary hover:text-text-primary',
-            'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand data-[state=open]:text-text-primary',
+            'flex h-8 w-full shrink-0 items-center gap-2 rounded-lg px-2.5 text-[13px] leading-[21px] text-text-primary/85 hover:bg-black/5',
+            'focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand data-[state=open]:bg-black/5 data-[state=open]:text-text-primary',
           )}
         >
-          {`管理者  ${session.displayName}`}
+          <CircleUser aria-hidden size={16} strokeWidth={1.5} className="shrink-0" />
+          アカウント
         </DropdownMenu.Trigger>
         <DropdownMenu.Portal>
           <DropdownMenu.Content
             side="top"
             align="start"
-            sideOffset={8}
-            className="z-30 flex w-[184px] flex-col items-start gap-2.5 rounded-lg border border-border bg-surface p-2.5 shadow-menu"
+            sideOffset={6}
+            className="z-30 flex w-[232px] flex-col gap-1 rounded-xl border border-border bg-surface p-1.5 shadow-menu"
           >
-            <DropdownMenu.Label className="text-[12px] leading-5 font-medium text-text-secondary">
-              {`管理者 ${session.displayName}`}
-              <span className="block text-[11px] leading-[19px] font-normal break-all">{session.email}</span>
+            <DropdownMenu.Label className="flex flex-col px-2.5 py-2">
+              <span className="text-[13px] leading-5 font-medium break-all text-text-primary">{session.displayName}</span>
+              <span className="text-[11px] leading-[19px] break-all text-text-secondary">{session.email}</span>
             </DropdownMenu.Label>
+            <DropdownMenu.Separator className="mx-1 h-px bg-border-subtle" />
             <DropdownMenu.Item
               disabled={loggingOut}
               onSelect={() => {
@@ -61,10 +65,11 @@ export function AccountMenu({ session }: { session: Session }) {
                 else void handleLogout()
               }}
               className={cn(
-                'flex h-10 w-[120px] cursor-pointer items-center justify-center rounded-lg border border-border bg-surface text-[14px] leading-[22px] font-medium text-text-primary outline-none',
-                'data-[highlighted]:bg-surface-subtle data-[highlighted]:outline-2 data-[highlighted]:outline-brand data-[disabled]:opacity-45',
+                'flex h-8 cursor-pointer items-center gap-2 rounded-lg px-2.5 text-[13px] leading-[21px] text-text-primary outline-none',
+                'data-[highlighted]:bg-surface-subtle data-[highlighted]:outline-2 data-[highlighted]:outline-brand data-[disabled]:cursor-not-allowed data-[disabled]:opacity-45',
               )}
             >
+              <LogOut aria-hidden size={16} strokeWidth={1.75} className="shrink-0 text-text-secondary" />
               {loggingOut ? 'ログアウト中…' : 'ログアウト'}
             </DropdownMenu.Item>
           </DropdownMenu.Content>

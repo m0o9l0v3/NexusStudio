@@ -1,11 +1,12 @@
+import { ChevronDown } from 'lucide-react'
 import { forwardRef, useId, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react'
 import { cn } from './cn'
 
-// Figma `Field`（69:248）：ラベル12px＋40px高の枠。Text／Select／Time の3種。
+// Figma v2 入力欄（60:379）。ラベルは枠の上に配置する。
 
 const boxClass = (invalid?: boolean) =>
   cn(
-    'h-10 w-full rounded-[7px] border bg-surface px-3 text-[13px] leading-[21px] text-text-primary placeholder:text-text-secondary',
+    'w-full rounded-md border bg-surface px-2.5 text-sm leading-[19px] text-text-primary placeholder:text-text-secondary',
     'focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand disabled:cursor-not-allowed disabled:opacity-55',
     invalid ? 'border-danger' : 'border-border-input',
   )
@@ -63,7 +64,7 @@ export const InputField = forwardRef<HTMLInputElement, CommonProps & InputHTMLAt
         id={inputId}
         aria-invalid={invalid || undefined}
         aria-describedby={message ? `${inputId}-message` : undefined}
-        className={boxClass(invalid)}
+        className={cn(boxClass(invalid), 'h-8')}
         {...props}
       />
     </FieldFrame>
@@ -79,7 +80,7 @@ export function TextAreaField({ label, invalid, message, messageTone, className,
         id={inputId}
         aria-invalid={invalid || undefined}
         aria-describedby={message ? `${inputId}-message` : undefined}
-        className={cn(boxClass(invalid), 'h-auto min-h-10 resize-y py-[9px]')}
+        className={cn(boxClass(invalid), 'min-h-10 resize-y py-2')}
         {...props}
       />
     </FieldFrame>
@@ -97,14 +98,12 @@ export function SelectField({ label, invalid, message, messageTone, className, i
           id={inputId}
           aria-invalid={invalid || undefined}
           aria-describedby={message ? `${inputId}-message` : undefined}
-          className={cn(boxClass(invalid), 'appearance-none pr-8')}
+          className={cn(boxClass(invalid), 'h-8 appearance-none pr-8')}
           {...props}
         >
           {children}
         </select>
-        <span aria-hidden className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-[14px] leading-[22px] font-medium text-text-secondary">
-          ▾
-        </span>
+        <ChevronDown aria-hidden size={16} strokeWidth={1.5} className="pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 text-text-secondary" />
       </div>
     </FieldFrame>
   )

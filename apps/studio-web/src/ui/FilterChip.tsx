@@ -1,3 +1,4 @@
+import { ChevronDown } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { cn } from './cn'
 
@@ -10,20 +11,28 @@ type FilterChipProps = {
   children: ReactNode
 }
 
-/** 一覧の絞り込み・並べ替え（Figma E01 `11:2`・SP01 `42:2` の丸いバッジ型）。一覧はブラウザ標準のSelectを使う。 */
+/** 一覧の絞り込み・並べ替え（Figma E01 `11:2`・SP01 `42:2` の丸いバッジ型、v2 トーン）。一覧はブラウザ標準のSelectを使う。 */
 export function FilterChip({ label, value, active, onChange, children }: FilterChipProps) {
+  const selected = active ?? Boolean(value)
   return (
-    <select
-      aria-label={label}
-      value={value}
-      onChange={(event) => onChange(event.target.value)}
-      className={cn(
-        'field-sizing-content h-[25px] max-w-[280px] cursor-pointer appearance-none truncate rounded-full px-2.5 text-[11px] leading-[19px] font-medium',
-        'focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand',
-        (active ?? Boolean(value)) ? 'bg-brand-subtle text-brand' : 'bg-surface-subtle text-text-secondary',
-      )}
-    >
-      {children}
-    </select>
+    <span className="relative inline-flex max-w-[280px] shrink-0">
+      <select
+        aria-label={label}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className={cn(
+          'field-sizing-content h-7 max-w-[280px] cursor-pointer appearance-none truncate rounded-full border pr-7 pl-3 text-[12px] leading-5 font-medium',
+          'focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand',
+          selected ? 'border-brand bg-brand-subtle text-brand' : 'border-border-input bg-surface text-text-secondary hover:bg-surface-subtle',
+        )}
+      >
+        {children}
+      </select>
+      <ChevronDown
+        aria-hidden
+        size={14}
+        className={cn('pointer-events-none absolute top-1/2 right-2.5 -translate-y-1/2', selected ? 'text-brand' : 'text-text-secondary')}
+      />
+    </span>
   )
 }

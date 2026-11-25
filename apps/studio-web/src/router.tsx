@@ -1,7 +1,7 @@
 import { createBrowserRouter, Navigate } from 'react-router'
+import type { TargetKind } from './api/releases'
 import { RequireAuth } from './auth/RequireAuth'
 import { CategoriesPage } from './pages/events/CategoriesPage'
-import { EventEditorPage } from './pages/events/editor/EventEditorPage'
 import { EventListPage } from './pages/events/EventListPage'
 import { LoginPage } from './pages/LoginPage'
 import { LogsPage } from './pages/logs/LogsPage'
@@ -10,18 +10,31 @@ import { OpenCampusListPage } from './pages/openCampus/OpenCampusListPage'
 import { PlaceholderPage } from './pages/PlaceholderPage'
 import { ReleasesPage } from './pages/releases/ReleasesPage'
 import { ValidationPage } from './pages/validation/ValidationPage'
-import { PublishReviewPage } from './publishing/PublishReviewPage'
 import { SpotsPage } from './pages/spots/SpotsPage'
 import { AppShell } from './shell/AppShell'
 import { navAreas } from './shell/navigation'
+import { FullPageStatus } from './ui/FullPageStatus'
 
 /** 専用の画面がある領域。それ以外は準備中の表示にする。 */
 const implemented = new Set(['/events', '/open-campus', '/spots', '/validation', '/releases', '/logs'])
+
+async function loadEventEditor() {
+  const { EventEditorPage } = await import('./pages/events/editor/EventEditorPage')
+  return { Component: EventEditorPage }
+}
+
+function loadPublishReview(kind: TargetKind) {
+  return async () => {
+    const { PublishReviewPage } = await import('./publishing/PublishReviewPage')
+    return { element: <PublishReviewPage kind={kind} /> }
+  }
+}
 
 export const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
   {
     element: <RequireAuth />,
+    hydrateFallbackElement: <FullPageStatus title="読み込んでいます" message="画面を準備しています。" busy />,
     children: [
       {
         element: <AppShell />,
@@ -30,19 +43,19 @@ export const router = createBrowserRouter([
           { index: true, element: <Navigate to="/overview" replace /> },
           // 1280px未満にも対応した画面（handle.responsive）。他の画面は対応するまで最小幅1280pxのまま（検証記録 A-5 D9）。
           { path: '/events', element: <EventListPage />, handle: { responsive: true } },
-          { path: '/events/new', element: <EventEditorPage />, handle: { responsive: true } },
+          { path: '/events/new', lazy: loadEventEditor, handle: { responsive: true } },
           { path: '/events/categories', element: <CategoriesPage /> },
-          { path: '/events/categories/publish', element: <PublishReviewPage kind="categories" /> },
-          { path: '/events/:id', element: <EventEditorPage />, handle: { responsive: true } },
-          { path: '/events/:id/publish', element: <PublishReviewPage kind="event" /> },
+          { path: '/events/categories/publish', lazy: loadPublishReview('categories') },
+          { path: '/events/:id', lazy: loadEventEditor, handle: { responsive: true } },
+          { path: '/events/:id/publish', lazy: loadPublishReview('event') },
           { path: '/open-campus', element: <OpenCampusListPage /> },
           { path: '/open-campus/new', element: <OccurrenceEditorPage /> },
           { path: '/open-campus/:id', element: <OccurrenceEditorPage /> },
-          { path: '/open-campus/:id/publish', element: <PublishReviewPage kind="occurrence" /> },
+          { path: '/open-campus/:id/publish', lazy: loadPublishReview('occurrence') },
           { path: '/spots', element: <SpotsPage /> },
-          { path: '/spots/publish', element: <PublishReviewPage kind="spot" /> },
+          { path: '/spots/publish', lazy: loadPublishReview('spot') },
           // 地図の公開確認だけを置く。Map Data 画面（一覧・差分表示）は構成の確定後に作る（UI補完記録）。
-          { path: '/map-data/publish', element: <PublishReviewPage kind="map" /> },
+          { path: '/map-data/publish', lazy: loadPublishReview('map') },
           { path: '/validation', element: <ValidationPage /> },
           { path: '/releases', element: <ReleasesPage /> },
           { path: '/logs', element: <LogsPage /> },

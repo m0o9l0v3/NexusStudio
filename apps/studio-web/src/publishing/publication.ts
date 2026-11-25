@@ -7,9 +7,9 @@ export function publicationBadge(state: string): { label: string; tone: StatusTo
     case 'published':
       return { label: '公開中', tone: 'success' }
     case 'publishedWithChanges':
-      return { label: '公開中・未公開変更あり', tone: 'warning' }
+      return { label: '公開中・変更あり', tone: 'warning' }
     case 'withdrawn':
-      return { label: '取り下げ済み', tone: 'neutral' }
+      return { label: '公開停止', tone: 'neutral' }
     default:
       return { label: '未公開', tone: 'neutral' }
   }
@@ -24,15 +24,16 @@ export const kindNouns: Record<TargetKind, string> = {
   event: 'イベント',
   occurrence: '開催回',
   categories: 'カテゴリ一覧',
-  spot: 'Spot',
+  spot: '地点',
   map: '地図',
 }
 
-export const actionVerbs: Record<PublishAction, string> = { publish: '公開', withdraw: '取り下げ', restore: '復旧' }
+export const actionVerbs: Record<PublishAction, string> = { publish: '公開', withdraw: '公開をやめる', restore: '復旧' }
 
 /** 最終ボタンの文言。実際の操作と対象を示す（11 §5）。 */
 export function actionLabel(kind: TargetKind, action: PublishAction): string {
   const target = kind === 'categories' ? 'カテゴリ一覧' : `この${kindNouns[kind]}`
+  if (action === 'withdraw') return `${target}の${actionVerbs[action]}`
   if (action === 'restore') return `${target}をこの版に戻して公開`
   return `${target}を${actionVerbs[action]}`
 }
@@ -76,12 +77,12 @@ export function reviewPath(kind: TargetKind, id: string, action: PublishAction =
   }
 }
 
-/** slots[1].venues[0] → 開催枠2・会場1 */
+/** slots[1].venues[0] → 日時2・会場1 */
 export function describePath(path: string): string {
   const slot = /slots\[(\d+)\]/.exec(path)
   const venue = /venues\[(\d+)\]/.exec(path)
   const day = /days\[(\d+)\]/.exec(path)
-  if (slot) return `開催枠${Number(slot[1]) + 1}${venue ? `・会場${Number(venue[1]) + 1}` : ''}`
+  if (slot) return `日時${Number(slot[1]) + 1}${venue ? `・会場${Number(venue[1]) + 1}` : ''}`
   if (day) return `開催日${Number(day[1]) + 1}`
   const labels: Record<string, string> = { title: 'タイトル', description: '説明', categoryId: 'カテゴリ', occurrenceId: '開催回', name: '名称', utilization: '利用状態', kind: '種別', items: 'カテゴリ', days: '開催日' }
   return labels[path] ?? path
