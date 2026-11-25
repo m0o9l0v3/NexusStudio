@@ -405,6 +405,16 @@ function UnpublishedChanges({ changes }: { changes: OverviewAreaStatus[] }) {
 
 const logActions: Record<string, string> = { publish: '公開', save: '下書きを保存', import: '取り込み' }
 
+function describeLogAction(log: LogItem) {
+  if (log.action === 'publish' && log.status === 'succeeded' && log.detail) {
+    return log.detail
+      .split('・')
+      .map((part) => (part === '取り下げ' ? actionVerbs.withdraw : part))
+      .join('・')
+  }
+  return logActions[log.action] ?? 'その他の操作'
+}
+
 function LogStatus({ log }: { log: LogItem }) {
   switch (log.status) {
     case 'failed':
@@ -444,7 +454,7 @@ function RecentLogs({ logs, campusToday }: { logs: OverviewResponse['recentLogs'
                   className="grid min-h-11 grid-cols-1 items-center gap-x-3 gap-y-1 px-3 py-2 hover:bg-black/[0.03] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand active:bg-black/[0.06] min-[501px]:grid-cols-[minmax(0,1fr)_auto] md:grid-cols-[80px_112px_minmax(0,1fr)_auto]"
                 >
                   <time dateTime={log.startedAt} className={noteClass}>{formatRelativeTime(log.startedAt, campusToday)}</time>
-                  <span>{logActions[log.action] ?? 'その他の操作'}</span>
+                  <span>{describeLogAction(log)}</span>
                   <span className="wrap-anywhere">{target}{version}</span>
                   <span className="justify-self-end"><LogStatus log={log} /></span>
                 </Link>
