@@ -15,6 +15,15 @@ export default defineConfig({
   define: {
     __IPHONE_BEZEL_URL__: JSON.stringify(bezelUrl),
   },
+  build: {
+    rolldownOptions: {
+      output: {
+        codeSplitting: {
+          groups: [{ name: 'vendor', test: /[\\/]node_modules[\\/]/ }],
+        },
+      },
+    },
+  },
   server: {
     // 本番と同じくWebとAPIを同一オリジンに置くため、開発時はAPIへプロキシする（15 v01 §3）。
     // 接続先は apps/studio-api の launchSettings.json（http プロファイル）。
