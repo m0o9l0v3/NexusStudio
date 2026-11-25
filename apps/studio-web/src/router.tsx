@@ -16,7 +16,12 @@ import { navAreas } from './shell/navigation'
 import { FullPageStatus } from './ui/FullPageStatus'
 
 /** 専用の画面がある領域。それ以外は準備中の表示にする。 */
-const implemented = new Set(['/events', '/open-campus', '/spots', '/validation', '/releases', '/logs'])
+const implemented = new Set(['/overview', '/events', '/open-campus', '/spots', '/validation', '/releases', '/logs'])
+
+async function loadOverview() {
+  const { OverviewPage } = await import('./pages/overview/OverviewPage')
+  return { Component: OverviewPage }
+}
 
 async function loadEventEditor() {
   const { EventEditorPage } = await import('./pages/events/editor/EventEditorPage')
@@ -42,6 +47,7 @@ export const router = createBrowserRouter([
           // ログイン後はOverviewへ直接入る（12 §1、16 §2）。
           { index: true, element: <Navigate to="/overview" replace /> },
           // 1280px未満にも対応した画面（handle.responsive）。他の画面は対応するまで最小幅1280pxのまま（検証記録 A-5 D9）。
+          { path: '/overview', lazy: loadOverview, handle: { responsive: true } },
           { path: '/events', element: <EventListPage />, handle: { responsive: true } },
           { path: '/events/new', lazy: loadEventEditor, handle: { responsive: true } },
           { path: '/events/categories', element: <CategoriesPage /> },
