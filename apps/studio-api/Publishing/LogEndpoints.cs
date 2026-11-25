@@ -99,12 +99,13 @@ public static class LogEndpoints
         return TypedResults.Ok((await ToItemsAsync(db, timeProvider, [row], admins))[0]);
     }
 
-    private static async Task<List<LogItem>> ToItemsAsync(StudioDbContext db, TimeProvider timeProvider, List<OperationLog> rows, List<EditorRef> admins)
+    internal static async Task<List<LogItem>> ToItemsAsync(
+        StudioDbContext db, TimeProvider timeProvider, List<OperationLog> rows, List<EditorRef> admins, DateTimeOffset? snapshotAt = null)
     {
         var releaseIds = rows.Select(r => r.ReleaseId).OfType<Guid>().Distinct().ToList();
         var sequences = await db.Releases.AsNoTracking().Where(r => releaseIds.Contains(r.ReleaseId)).ToDictionaryAsync(r => r.ReleaseId, r => r.Sequence);
         var names = admins.ToDictionary(a => a.Id);
-        var now = timeProvider.GetUtcNow();
+        var now = snapshotAt ?? timeProvider.GetUtcNow();
 
         return rows.Select(row =>
         {

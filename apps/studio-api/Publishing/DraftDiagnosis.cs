@@ -2,6 +2,7 @@ using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -36,6 +37,14 @@ public sealed record DraftDiagnosisResult(
 /// </summary>
 public static class DraftDiagnosis
 {
+    // 保存済みの Entries に地図の設定の状態を残し、他領域の変更と区別する。従来の Entries では null。
+    internal sealed record DraftEntry(
+        string TargetKind,
+        string TargetId,
+        string Action,
+        Guid? RevisionId,
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? MapSettingsFingerprint = null);
+
     public static IEndpointRouteBuilder MapDraftDiagnosisEndpoints(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup("/api/validation/draft").WithTags("Validation");
@@ -56,7 +65,8 @@ public static class DraftDiagnosis
             var shared = await PublishCandidate.LoadBaseAsync(db);
             foreach (var entry in targets)
             {
-                findings.AddRange(validator.Validate(await PublishCandidate.BuildAsync(db, [entry], shared)));
+                var publishEntry = new PublishEntry(entry.TargetKind, entry.TargetId, entry.Action, entry.RevisionId);
+                findings.AddRange(validator.Validate(await PublishCandidate.BuildAsync(db, [publishEntry], shared)));
             }
         }
         catch (Exception exception)
@@ -85,8 +95,7 @@ public static class DraftDiagnosis
     /// <summary>最後の診断結果。まだ一度も診断していなければ 204（未検証）。</summary>
     private static async Task<Results<Ok<DraftDiagnosisResult>, NoContent>> LatestAsync(StudioDbContext db, ApprovedMapSettingsSource mapSettings)
     {
-        // Id は時刻順に並ぶ UUID v7。
-        var run = await db.ValidationRuns.AsNoTracking().Where(r => r.Kind == ValidationRunKind.Draft).OrderByDescending(r => r.Id).FirstOrDefaultAsync();
+        var run = await LoadLatestRunAsync(db);
         if (run is null)
         {
             return TypedResults.NoContent();
@@ -96,10 +105,20 @@ public static class DraftDiagnosis
         return TypedResults.Ok(await ToResultAsync(db, run, fingerprint));
     }
 
+    internal static Task<ValidationRun?> LoadLatestRunAsync(StudioDbContext db)
+        // Id は時刻順に並ぶ UUID v7。
+        => db.ValidationRuns.AsNoTracking().Where(r => r.Kind == ValidationRunKind.Draft).OrderByDescending(r => r.Id).FirstOrDefaultAsync();
+
+    internal static List<DraftEntry>? ReadEntries(ValidationRun run)
+        => JsonSerializer.Deserialize<List<DraftEntry>>(run.Entries, EventDraftRules.JsonOptions);
+
+    internal static List<ValidationFinding>? ReadFindings(ValidationRun run)
+        => JsonSerializer.Deserialize<List<ValidationFinding>>(run.Findings, EventDraftRules.JsonOptions);
+
     private static async Task<DraftDiagnosisResult> ToResultAsync(StudioDbContext db, ValidationRun run, string currentFingerprint)
     {
-        var targets = JsonSerializer.Deserialize<List<PublishEntry>>(run.Entries, EventDraftRules.JsonOptions) ?? [];
-        var findings = JsonSerializer.Deserialize<List<ValidationFinding>>(run.Findings, EventDraftRules.JsonOptions) ?? [];
+        var targets = ReadEntries(run) ?? [];
+        var findings = ReadFindings(run) ?? [];
         var names = await ReferenceSaving.DisplayNamesAsync(db, [run.CreatedBy]);
         var areas = PublishTargetKind.All
             .Select(kind => new DiagnosisArea(
@@ -123,7 +142,7 @@ public static class DraftDiagnosis
     /// 診断する下書き（公開中と同じ内容ではないもの）と、下書き・公開の状態から作る値（結果が古いかの判定に使う）。
     /// 地図を診断するときは、承認済み設定のファイルの状態も含める（設定が変われば地図の所見も変わるため。決定事項31 D3）。
     /// </summary>
-    private static async Task<(List<PublishEntry> Targets, string Fingerprint)> LoadTargetsAsync(StudioDbContext db, ApprovedMapSettingsSource mapSettings)
+    internal static async Task<(List<DraftEntry> Targets, string Fingerprint)> LoadTargetsAsync(StudioDbContext db, ApprovedMapSettingsSource mapSettings)
     {
         var publications = await PublicationIndex.LoadAsync(db);
         var current = new List<(string Kind, string Id, Guid? Revision)>();
@@ -140,20 +159,23 @@ public static class DraftDiagnosis
         }
 
         var builder = new StringBuilder();
-        var targets = new List<PublishEntry>();
+        var targets = new List<DraftEntry>();
         foreach (var (kind, id, revision) in current.OrderBy(c => c.Kind, StringComparer.Ordinal).ThenBy(c => c.Id, StringComparer.Ordinal))
         {
             var row = publications.Find(kind, id);
             builder.Append($"{kind}|{id}|{revision}|{row?.State}|{row?.RevisionId}\n");
             if (revision is { } revisionId && PublicationState.Of(row, revisionId) != PublicationState.Published)
             {
-                targets.Add(new PublishEntry(kind, id, ReleaseAction.Publish, revisionId));
+                targets.Add(new DraftEntry(kind, id, ReleaseAction.Publish, revisionId));
             }
         }
 
-        if (targets.Any(t => t.TargetKind == PublishTargetKind.Map))
+        var mapIndex = targets.FindIndex(t => t.TargetKind == PublishTargetKind.Map);
+        if (mapIndex >= 0)
         {
-            builder.Append($"map-settings|{mapSettings.Fingerprint()}\n");
+            var settingsFingerprint = mapSettings.Fingerprint();
+            targets[mapIndex] = targets[mapIndex] with { MapSettingsFingerprint = settingsFingerprint };
+            builder.Append($"map-settings|{settingsFingerprint}\n");
         }
 
         return (targets, Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(builder.ToString()))));
