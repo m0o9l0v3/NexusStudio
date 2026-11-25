@@ -47,7 +47,7 @@ nexusstudio/
 
 | Area | Stack |
 |---|---|
-| Studio Web | React 18 + TypeScript + Vite、Tailwind CSS v4（Figma Variablesを `src/index.css` の `@theme` に定義）、React Router 7（v8はReact 19必須のため）、TanStack Query、Radix（Dialog・DropdownMenu）、openapi-typescript（APIの型生成。TypeScript 6 は `overrides` で指定）。**MUIは持ち込まない** |
+| Studio Web | React 18 + TypeScript + Vite、Tailwind CSS v4（Figma v2 のトークンを `src/index.css` の `@theme` に定義）、React Router 7（v8はReact 19必須のため）、TanStack Query、Radix（Dialog・DropdownMenu）、lucide-react（アイコン）、openapi-typescript（APIの型生成。TypeScript 6 は `overrides` で指定）。**MUIは持ち込まない** |
 | Studio API | ASP.NET Core 8→**.NET 10 LTS**、EF Core 10 + Npgsql、PostgreSQLの`studio` schemaを所有 |
 | DB | PostgreSQL。`nexus-mobile`と同一インスタンス内の別schema（`studio`）を想定。本リポジトリの検証環境は専用のDocker Compose PostgreSQL |
 
@@ -128,14 +128,17 @@ docker compose up -d postgres   # ホスト側は5433番ポート（nexus-mobile
 | `docs/決定事項/29_...M1地点表示の判断記録.md`（最新版） | M1（Issue #11）の判断：Spot の種別・説明の画面、取り下げは ID の廃止ではない、`delivery` の DDL、地図に無い公開 Spot、地図の公開単位（2026-10-24 利用者決定） |
 | `docs/決定事項/30_...PG17対応DB・認証の判断記録.md`（最新版） | 現行PG17での Studio の role・schema・適用順（`deploy/database/pg17/`）、認証方式・セッション・CSRF・初期管理者・DataProtection 鍵の永続化、本番で最初に有効化する機能（NexusInfra#8、2026-11-01 利用者決定） |
 | `docs/決定事項/31_...地図公開の入口と検証設定の判断記録.md`（最新版） | 地図は管理コマンドで取り込む、地図が無いと Spot を公開しない、公開判定の承認済み設定（`deploy/map-validation/`）と版ごとの根拠の分け方（Issue #11、2026-11-01 利用者決定） |
+| [`docs/決定事項/36_NexusStudio_v2UI刷新の判断記録_2026-11-25_v01.md`](docs/決定事項/36_NexusStudio_v2UI刷新の判断記録_2026-11-25_v01.md) | v2 の見た目の正本、共通部品と表示文言、ホーム・イベントの仕様、段階実装の順序（2026-11-25 利用者決定） |
 | `nexus-mobile/docs/decisions/E0-7-studio-scope-split.md` | nexus-mobile側からみたStudio分離の決定記録 |
 
 ## UI実装とFigmaの関係
 
-Figma（`https://www.figma.com/design/q6LGxRaRKI7OrOxKbgI8Fe/Nexus-Studio`）は**見た目の基準**、`docs/決定事項/` は**動きの基準**とする。
+**見た目の正本**は Figma の Nexus Studio v2 とし、**動きの基準**は `docs/決定事項/` とする。[Figma v2](https://www.figma.com/design/1Ab1nf758rRwlDEAj1YTtP/Nexus-Studio-v2?node-id=9-2)
+
+v2 に描かれていない既存画面は、順次 v2 の共通部品と表示文言にそろえる。画面固有の構成には v1 のモックアップを参考にする。[Figma v1](https://www.figma.com/design/q6LGxRaRKI7OrOxKbgI8Fe/Nexus-Studio)
 
 - **Figmaを正とするもの：** 情報配置・余白・文字・色・階層・Component・文言。実装する画面は、その都度Figmaの現在のノードを取得して確認する（記憶やNode IDの控えだけで実装しない）。
-- **Figmaを正としないもの：** Prototypeのリンク・遷移。遷移・状態・検証・保存/公開の挙動は `07`〜`12`（最新版）と `15` の機能ID・受け入れ条件に従う。Figma内のイベント名・日時・ID・座標・件数は設計用サンプルであり、データやAPI仕様の根拠にしない。
+- **Figmaを正としないもの：** Prototypeのリンク・遷移。遷移・状態・検証・保存/公開の挙動は `07`〜`12`（最新版）、`15`、`36` の機能ID・受け入れ条件と決定事項に従う。Figma内のイベント名・日時・ID・座標・件数は設計用サンプルであり、データやAPI仕様の根拠にしない。
 
 ### エージェントが補完してよいもの
 

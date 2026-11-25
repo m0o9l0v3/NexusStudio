@@ -1,34 +1,53 @@
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap');
 @import 'tailwindcss';
 
-/* Figma Local Variables（Nexus Studio `27:2` ほか）に対応する。値を直接書かず、このトークンを使う。 */
+/*
+ * Figma v2（Nexus Studio v2 `9:2`）の画面実測値に対応する。値を直接書かず、このトークンを使う。
+ * Figma Variables の数値共有があれば後追いで反映する（決定事項36 V2-9）。
+ * 文字色は背景との組み合わせで WCAG AA（4.5:1）を確保する。部品の識別に必要な境界は 3:1（WCAG 1.4.11）。
+ */
 @theme {
   --font-sans: 'Noto Sans JP', system-ui, sans-serif;
 
-  --color-canvas: #f6f8fb;
+  /* 面 */
+  --color-sidebar: #e9e9ee;
+  --color-canvas: #f5f5f7;
   --color-surface: #ffffff;
-  --color-surface-subtle: #f1f4f8;
-  --color-border: #d1d8e3;
-  /* 入力欄の枠。#d1d8e3 は白に対して 1.43:1 で、部品の境界に必要な 3:1（WCAG 1.4.11）に届かないため入力欄だけに使う。
-     白 3.48:1／canvas 3.27:1／surface-subtle 3.16:1。Figmaでは未変数化（2026-10-15 利用者判断、検証記録 A-5 D10。Figma要反映）。 */
+  --color-surface-subtle: #f1f2f6;
+
+  /* 枠線。シート・カードの区切りは v2 の淡い線を使う。 */
+  --color-border: #d8d8dc;
+  --color-border-subtle: #e5e5ea;
+  /* 入力欄の枠。#d8d8dc は白に対して 3:1 に届かないため、入力欄・セレクトだけこの色を使う（WCAG 1.4.11）。
+     白 3.48:1／canvas 3.20:1／surface-subtle 3.11:1（2026-10-15 利用者判断、検証記録 A-5 D10、決定事項36 V2-9。Figma要反映）。 */
   --color-border-input: #7f8a9e;
-  --color-text-primary: #131a27;
-  --color-text-secondary: #525d6f;
-  --color-brand: #2355d6;
-  --color-brand-subtle: #e3ecff;
-  --color-success: #137d4f;
-  --color-warning: #c7730a;
-  --color-danger: #c7262e;
-  /* Figmaでは変数化されていない値（L04の接続エラー背景、ダイアログ背後の暗幕）。 */
+
+  /* 文字 */
+  --color-text-primary: #1c1c1e;
+  --color-text-secondary: #5c5c66;
+
+  /* ブランド・状態 */
+  --color-brand: #0c5ed7;
+  --color-brand-subtle: #e1ebfa;
+  /* Sidebar の選択中の背景と文字色。文字は brand を暗くして AA（4.5:1）を満たす。 */
+  --color-brand-nav: #ced8eb;
+  --color-brand-nav-text: color-mix(in srgb, var(--color-brand) 80%, var(--color-text-primary));
+  --color-success: #1e7e3e;
+  --color-warning: #af5914;
   --color-warning-subtle: #fff4dd;
+  --color-danger: #dc2030;
+  /* danger-subtle の上の danger 文字は 4.16:1。小さい文字を載せない（文字は白地に置く）。 */
+  --color-danger-subtle: #fce8ea;
+  /* ダイアログ背後の暗幕。 */
   --color-overlay: rgb(18 26 38 / 0.38);
 
-  --shadow-floating: 0 3px 10px 0 rgb(26 43 74 / 0.05), 0 20px 48px 0 rgb(26 43 74 / 0.12);
-  --shadow-menu: 0 8px 10px rgb(20 31 51 / 0.12);
+  --shadow-floating: 0 2px 8px 0 rgb(28 28 30 / 0.05), 0 18px 44px 0 rgb(28 28 30 / 0.12);
+  --shadow-menu: 0 8px 24px rgb(28 28 30 / 0.12), 0 1px 3px rgb(28 28 30 / 0.08);
 }
 
 body {
   margin: 0;
+  font-family: var(--font-sans);
   background: var(--color-canvas);
   color: var(--color-text-primary);
 }

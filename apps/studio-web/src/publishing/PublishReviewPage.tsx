@@ -147,7 +147,8 @@ function PublishFlow({ target }: { target: Target }) {
   })
   const reference = useQuery({ queryKey: ['reference'], queryFn: getReference })
   const back = editorPath(target.kind, target.id)
-  const verb = actionVerbs[target.action]
+  // ボタンは「公開をやめる」、結果や処理状況では「公開停止」を使う。
+  const verb = target.action === 'withdraw' ? publicationBadge('withdrawn').label : actionVerbs[target.action]
 
   function settle(result: OperationResult) {
     // 公開状態は各画面で算出して表示している。成功・失敗にかかわらず取り直す。
@@ -250,7 +251,9 @@ function PublishFlow({ target }: { target: Target }) {
                 <h2 className="text-[24px] leading-8 font-bold text-text-primary">
                   {target.action === 'restore'
                     ? `${kindNouns[target.kind]}を過去の版に戻す内容を確認`
-                    : `${kindNouns[target.kind]}${target.kind === 'categories' ? '' : '1件'}の${verb}内容を確認`}
+                    : target.action === 'withdraw'
+                      ? `${actionLabel(target.kind, target.action)}前に確認`
+                      : `${kindNouns[target.kind]}${target.kind === 'categories' ? '' : '1件'}の公開内容を確認`}
                 </h2>
                 <StatusBadge tone="success">保存済み下書き</StatusBadge>
               </div>
@@ -313,7 +316,7 @@ function ReviewContent({ preview, occurrenceNames }: { preview: PublishPreview; 
         </NoticeBanner>
       )}
       <section className="flex flex-col gap-2 rounded-lg border border-border bg-surface px-4 py-4">
-        <p className="text-[11px] leading-[19px] text-text-secondary">{item.action === 'withdraw' ? '取り下げ対象' : item.action === 'restore' ? '復旧対象' : '公開対象'}</p>
+        <p className="text-[11px] leading-[19px] text-text-secondary">{item.action === 'withdraw' ? '公開をやめる対象' : item.action === 'restore' ? '復旧対象' : '公開対象'}</p>
         <p className="text-[16px] leading-6 font-bold break-words text-text-primary">{item.label}</p>
         <div className="flex flex-wrap gap-2">
           <StatusBadge>{item.targetKind === 'event' ? 'イベント1件' : kindNouns[item.targetKind as TargetKind]}</StatusBadge>

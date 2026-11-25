@@ -51,7 +51,7 @@ export function SidePanel({ id, label, open, onClose, returnFocusTo, children }:
       role="region"
       aria-label={label}
       tabIndex={-1}
-      className="fixed top-16 right-0 bottom-0 z-20 flex max-w-[calc(100vw-216px)] shadow-floating focus:outline-none"
+      className="fixed top-14 right-0 bottom-0 z-20 flex max-w-[calc(100vw-216px)] overflow-hidden rounded-tl-xl shadow-floating focus:outline-none"
     >
       {children}
       <button

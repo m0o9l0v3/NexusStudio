@@ -102,11 +102,10 @@ export function EventListPage() {
               ))}
             </FilterChip>
             <FilterChip label="公開状態" value={publication} onChange={(value) => update('publication', value)}>
-              <option value="">公開状態：すべて（取り下げ済みを除く）</option>
-              <option value="unpublished">公開状態：未公開</option>
-              <option value="published">公開状態：公開中</option>
-              <option value="publishedWithChanges">公開状態：公開中・未公開変更あり</option>
-              <option value="withdrawn">公開状態：取り下げ済み</option>
+              <option value="">公開状態：すべて（公開停止を除く）</option>
+              {['unpublished', 'published', 'publishedWithChanges', 'withdrawn'].map((state) => (
+                <option key={state} value={state}>公開状態：{publicationBadge(state).label}</option>
+              ))}
             </FilterChip>
             <FilterChip label="並べ替え" value={sort} active={sort !== 'updated'} onChange={(value) => update('sort', value === 'updated' ? '' : value)}>
               <option value="updated">更新日時順</option>
