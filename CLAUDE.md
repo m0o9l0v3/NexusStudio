@@ -47,7 +47,7 @@ nexusstudio/
 
 | Area | Stack |
 |---|---|
-| Studio Web | React 18 + TypeScript + Vite、Tailwind CSS v4（Figma v2 のトークンを `src/index.css` の `@theme` に定義）、React Router 7（v8はReact 19必須のため）、TanStack Query、Radix（Dialog・DropdownMenu）、lucide-react（アイコン）、openapi-typescript（APIの型生成。TypeScript 6 は `overrides` で指定）。**MUIは持ち込まない** |
+| Studio Web | React 18 + TypeScript + Vite、Tailwind CSS v4（Figma v2 のトークンを `src/index.css` の `@theme` に定義）、セルフホストフォント（`@fontsource/geist`・`@fontsource/geist-mono`・`@fontsource/line-seed-jp`）、React Router 7（v8はReact 19必須のため）、TanStack Query、Radix（Dialog・DropdownMenu）、lucide-react（アイコン）、openapi-typescript（APIの型生成。TypeScript 6 は `overrides` で指定）。**MUIは持ち込まない** |
 | Studio API | ASP.NET Core 8→**.NET 10 LTS**、EF Core 10 + Npgsql、PostgreSQLの`studio` schemaを所有 |
 | DB | PostgreSQL。`nexus-mobile`と同一インスタンス内の別schema（`studio`）を想定。本リポジトリの検証環境は専用のDocker Compose PostgreSQL |
 
@@ -128,7 +128,7 @@ docker compose up -d postgres   # ホスト側は5433番ポート（nexus-mobile
 | `docs/決定事項/29_...M1地点表示の判断記録.md`（最新版） | M1（Issue #11）の判断：Spot の種別・説明の画面、取り下げは ID の廃止ではない、`delivery` の DDL、地図に無い公開 Spot、地図の公開単位（2026-10-24 利用者決定） |
 | `docs/決定事項/30_...PG17対応DB・認証の判断記録.md`（最新版） | 現行PG17での Studio の role・schema・適用順（`deploy/database/pg17/`）、認証方式・セッション・CSRF・初期管理者・DataProtection 鍵の永続化、本番で最初に有効化する機能（NexusInfra#8、2026-11-01 利用者決定） |
 | `docs/決定事項/31_...地図公開の入口と検証設定の判断記録.md`（最新版） | 地図は管理コマンドで取り込む、地図が無いと Spot を公開しない、公開判定の承認済み設定（`deploy/map-validation/`）と版ごとの根拠の分け方（Issue #11、2026-11-01 利用者決定） |
-| [`docs/決定事項/36_NexusStudio_v2UI刷新の判断記録_2026-11-25_v01.md`](docs/決定事項/36_NexusStudio_v2UI刷新の判断記録_2026-11-25_v01.md) | v2 の見た目の正本、共通部品と表示文言、ホーム・イベントの仕様、段階実装の順序（2026-11-25 利用者決定） |
+| [`docs/決定事項/36_NexusStudio_v2UI刷新の判断記録_2026-11-26_v02.md`](docs/決定事項/36_NexusStudio_v2UI刷新の判断記録_2026-11-26_v02.md) | v2 の見た目の正本、フォント・トークン、フラット App Shell、共通部品と表示文言、ホーム・イベントの仕様、段階実装・未設計画面の進め方（2026-11-26 利用者決定） |
 | `nexus-mobile/docs/decisions/E0-7-studio-scope-split.md` | nexus-mobile側からみたStudio分離の決定記録 |
 
 ## UI実装とFigmaの関係

@@ -1,35 +1,33 @@
 import { NavLink } from 'react-router'
 import { useSessionQuery } from '../auth/session'
-import { Badge } from '../ui/Badge'
 import { cn } from '../ui/cn'
 import { AccountMenu } from './AccountMenu'
 import { navGroups, type NavArea } from './navigation'
 
 /**
- * Figma v2 `App Shell / Sidebar`（18:4）。ロゴ直下に環境バッジ（12 UI-22、決定事項36 V2-7）、
- * ホーム＋3グループ（コンテンツ／公開／運用）、最下部にアカウントメニュー。
+ * Figma v2 `App Shell / Sidebar`（18:4、決定事項36 V2-12）。幅220px・右1px仕切り。
+ * ロゴ直下に環境バッジ（12 UI-22、決定事項36 V2-7）、ホーム＋3グループ（コンテンツ／公開／運用）、最下部にアカウントメニュー。
  * 画面の高さが足りないときは縦にスクロールしてアカウントメニューへ届くようにする（検証記録 A-5 D9）。
  */
 export function Sidebar() {
   const { data: session } = useSessionQuery()
 
   return (
-    <aside className="flex w-[216px] shrink-0 flex-col gap-4 overflow-y-auto bg-sidebar px-3 pt-5 pb-3">
-      <div className="flex shrink-0 flex-col items-start gap-1.5 px-2.5">
-        <p className="text-[15px] leading-6 text-text-primary">
-          <span className="font-bold">Nexus</span> <span className="font-normal">Studio</span>
-        </p>
+    <aside className="flex w-[220px] shrink-0 flex-col gap-4 overflow-y-auto border-r border-border bg-sidebar px-3 pt-4 pb-3">
+      <div className="flex shrink-0 flex-col items-start gap-2 px-2.5">
+        <p className="text-[15px] leading-[1.3] font-bold text-text-primary">Nexus Studio</p>
         {session?.environmentLabel && (
-          <Badge tone="info">
+          <span className="inline-flex items-center gap-1.5 rounded border border-border bg-surface-hover px-2 py-0.5 text-[11px] leading-4 text-text-secondary">
+            <span aria-hidden className="size-1.5 shrink-0 rounded-full bg-warning-dot" />
             {session.environmentLabel}
-          </Badge>
+          </span>
         )}
       </div>
 
       <nav aria-label="メインメニュー" className="flex shrink-0 flex-col gap-4">
         {navGroups.map((group) => (
           <div key={group.label ?? 'top'} className="flex flex-col gap-0.5">
-            {group.label && <p className="px-2.5 pb-1 text-[11px] leading-[19px] font-medium text-text-secondary">{group.label}</p>}
+            {group.label && <p className="px-2.5 pb-1 text-[11px] leading-4 font-bold text-text-secondary">{group.label}</p>}
             {group.areas.map((area) => (
               <SidebarLink key={area.path} area={area} />
             ))}
@@ -38,7 +36,7 @@ export function Sidebar() {
       </nav>
 
       {session && (
-        <div className="mt-auto shrink-0 border-t border-border pt-2">
+        <div className="mt-auto shrink-0 border-t border-border-subtle pt-2">
           <AccountMenu session={session} />
         </div>
       )}
@@ -53,14 +51,20 @@ function SidebarLink({ area }: { area: NavArea }) {
       to={area.path}
       className={({ isActive }) =>
         cn(
-          'flex h-8 items-center gap-2 rounded-lg px-2.5 text-[13px] leading-[21px]',
+          'flex h-9 items-center gap-2 rounded-md px-2.5 text-[13px] leading-[19px]',
           'focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand',
-          isActive ? 'bg-brand-nav font-medium text-brand-nav-text' : 'text-text-primary hover:bg-black/5',
+          isActive
+            ? 'bg-nav-active font-bold text-text-primary'
+            : 'font-normal text-text-secondary hover:bg-surface-hover hover:text-text-primary',
         )
       }
     >
-      <Icon aria-hidden size={16} strokeWidth={1.5} className="shrink-0" />
-      <span className="truncate">{area.label}</span>
+      {({ isActive }) => (
+        <>
+          <Icon aria-hidden size={16} strokeWidth={1.5} className={cn('shrink-0', isActive && 'text-brand')} />
+          <span className="truncate">{area.label}</span>
+        </>
+      )}
     </NavLink>
   )
 }

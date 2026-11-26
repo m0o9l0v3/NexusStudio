@@ -12,7 +12,7 @@ const toneClass: Record<Tone, string> = {
 /** Figma `Status Badge`（6:19）。状態は色だけでなく必ず文言で示す。 */
 export function Badge({ tone = 'neutral', children, className }: { tone?: Tone; children: ReactNode; className?: string }) {
   return (
-    <span className={cn('inline-flex rounded-full px-[9px] py-[3px] text-[11px] leading-[19px] font-medium whitespace-nowrap', toneClass[tone], className)}>
+    <span className={cn('inline-flex rounded-full px-[9px] py-[3px] text-[11px] leading-[19px] font-normal whitespace-nowrap', toneClass[tone], className)}>
       {children}
     </span>
   )

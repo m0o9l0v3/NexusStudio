@@ -1,53 +1,67 @@
-@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap');
 @import 'tailwindcss';
 
 /*
- * Figma v2（Nexus Studio v2 `9:2`）の画面実測値に対応する。値を直接書かず、このトークンを使う。
- * Figma Variables の数値共有があれば後追いで反映する（決定事項36 V2-9）。
- * 文字色は背景との組み合わせで WCAG AA（4.5:1）を確保する。部品の識別に必要な境界は 3:1（WCAG 1.4.11）。
+ * 刷新した Figma v2 Variables（Nexus Studio v2 `9:2`、色23種・寸法13種・影2種）を正本とする（決定事項36 V2-10・V2-11）。
+ * 値を直接書かず、このトークンを使う。
+ * 本文は WCAG 2.2 AA（4.5:1 以上）、入力欄境界は WCAG 1.4.11（3.0:1 以上）を満たす。
  */
 @theme {
-  --font-sans: 'Noto Sans JP', system-ui, sans-serif;
+  --font-sans: 'Geist', 'LINE Seed JP', system-ui, sans-serif;
+  --font-mono: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
 
   /* 面 */
-  --color-sidebar: #e9e9ee;
-  --color-canvas: #f5f5f7;
+  --color-sidebar: #f7f7f8;
+  --color-canvas: #ffffff;
+  /* 既存未刷新画面の後方互換エイリアス */
   --color-surface: #ffffff;
-  --color-surface-subtle: #f1f2f6;
+  --color-surface-subtle: #f7f7f9;
+  --color-surface-hover: #f3f3f6;
+  --color-nav-active: #eaeaf0;
 
-  /* 枠線。シート・カードの区切りは v2 の淡い線を使う。 */
-  --color-border: #d8d8dc;
-  --color-border-subtle: #e5e5ea;
-  /* 入力欄の枠。#d8d8dc は白に対して 3:1 に届かないため、入力欄・セレクトだけこの色を使う（WCAG 1.4.11）。
-     白 3.48:1／canvas 3.20:1／surface-subtle 3.11:1（2026-10-15 利用者判断、検証記録 A-5 D10、決定事項36 V2-9。Figma要反映）。 */
-  --color-border-input: #7f8a9e;
+  /* 枠線 */
+  --color-border-subtle: #ececef;
+  --color-border: #dcdce1;
+  /* 入力欄・セレクト・チェックボックスの枠。白地 3.55:1 で WCAG 1.4.11（3.0:1 以上）を満たす（決定事項36 V2-11）。 */
+  --color-border-input: #878792;
 
   /* 文字 */
-  --color-text-primary: #1c1c1e;
-  --color-text-secondary: #5c5c66;
+  --color-text-primary: #16161a;
+  --color-text-secondary: #52525b;
+  --color-text-muted: #696973;
 
-  /* ブランド・状態 */
-  --color-brand: #0c5ed7;
-  --color-brand-subtle: #e1ebfa;
-  /* Sidebar の選択中の背景と文字色。文字は brand を暗くして AA（4.5:1）を満たす。 */
-  --color-brand-nav: #ced8eb;
-  --color-brand-nav-text: color-mix(in srgb, var(--color-brand) 80%, var(--color-text-primary));
-  --color-success: #1e7e3e;
-  --color-warning: #af5914;
-  --color-warning-subtle: #fff4dd;
-  --color-danger: #dc2030;
-  /* danger-subtle の上の danger 文字は 4.16:1。小さい文字を載せない（文字は白地に置く）。 */
-  --color-danger-subtle: #fce8ea;
-  /* ダイアログ背後の暗幕。 */
-  --color-overlay: rgb(18 26 38 / 0.38);
+  /* ブランド・状態・オーバーレイ */
+  --color-brand: #1f53c4;
+  --color-brand-hover: #1945a5;
+  /* 未刷新画面・情報バッジ用互換（コントラスト 6.26:1） */
+  --color-brand-subtle: #e8effc;
+  --color-success-dot: #1a8944;
+  --color-success: #156e35;
+  --color-warning-dot: #c96a16;
+  --color-warning: #9c4a08;
+  --color-warning-subtle: #fef7e7;
+  --color-danger-dot: #cc2230;
+  --color-danger: #b91c28;
+  /* danger（#b91c28）× danger-subtle（#fef2f2）は 5.89:1 で WCAG AA 準拠（決定事項36 V2-11）。 */
+  --color-danger-subtle: #fef2f2;
+  --color-danger-border: #f3c6cb;
+  --color-overlay: rgb(22 22 26 / 0.38);
 
-  --shadow-floating: 0 2px 8px 0 rgb(28 28 30 / 0.05), 0 18px 44px 0 rgb(28 28 30 / 0.12);
-  --shadow-menu: 0 8px 24px rgb(28 28 30 / 0.12), 0 1px 3px rgb(28 28 30 / 0.08);
+  /* 影 */
+  --shadow-floating: 0 2px 8px 0 rgb(22 22 26 / 0.05), 0 18px 44px 0 rgb(22 22 26 / 0.12);
+  --shadow-menu: 0 4px 16px 0 rgb(22 22 26 / 0.08), 0 1px 2px 0 rgb(22 22 26 / 0.05);
 }
 
 body {
   margin: 0;
   font-family: var(--font-sans);
+  font-synthesis-weight: none;
+  font-size: 14px;
   background: var(--color-canvas);
   color: var(--color-text-primary);
+}
+
+time,
+input[type='time'],
+input[type='number'] {
+  font-variant-numeric: tabular-nums;
 }
