@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { ArrowRight, ChevronDown, ChevronRight, CircleDashed, RefreshCw, Save } from 'lucide-react'
+import { ChevronDown, RefreshCw } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import { Link } from 'react-router'
 import type { LogItem } from '../../api/logs'
@@ -20,7 +20,6 @@ import { Badge } from '../../ui/Badge'
 import { Button } from '../../ui/Button'
 import { cn } from '../../ui/cn'
 import { NoticeBanner } from '../../ui/NoticeBanner'
-import { PageSheet } from '../../ui/PageSheet'
 import { StatusLabel } from '../../ui/StatusLabel'
 
 const tokyo = { timeZone: 'Asia/Tokyo', hourCycle: 'h23' } as const
@@ -41,13 +40,10 @@ const areas = [
   { kind: 'categories', label: 'カテゴリ', path: '/events/categories' },
 ] as const satisfies ReadonlyArray<{ kind: TargetKind; label: string; path: string }>
 
-const dashedCircle = <CircleDashed size={16} strokeWidth={1.5} />
-const saveIcon = <Save size={16} strokeWidth={1.5} />
-const cardClass = 'rounded-[10px] border border-border'
-const dividedCardClass = `${cardClass} divide-y divide-border`
-const noteClass = 'text-[13px] leading-[18px] text-text-secondary'
 const focusClass = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand'
-const textLinkClass = `inline-flex items-center gap-1 rounded-sm text-brand hover:underline ${focusClass}`
+const insetFocusClass = 'focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand'
+const brandLinkClass = `inline-flex items-center gap-1 rounded-sm text-brand hover:underline ${focusClass}`
+const unpublishedRowGridClass = 'grid min-h-11 grid-cols-1 items-center gap-x-4 gap-y-1 px-1 py-2.5 sm:grid-cols-[200px_minmax(0,1fr)_auto]'
 
 function formatRelativeTime(value: string, campusToday: string) {
   const date = new Date(value)
@@ -83,9 +79,9 @@ export function OverviewPage() {
     <>
       <Toolbar
         title="ホーム"
-        className="max-[500px]:flex-wrap max-[500px]:gap-y-1"
+        className="max-[500px]:flex-wrap max-[500px]:gap-y-1 max-[500px]:px-3"
         titleNode={(
-          <span className="flex flex-wrap items-center gap-x-2 gap-y-1 py-0.5">
+          <span className="flex flex-wrap items-center gap-x-3 gap-y-1 py-1">
             <span>ホーム</span>
             {data && occurrence && (
               <span className="relative inline-flex min-w-0 max-w-full px-0.5">
@@ -93,13 +89,13 @@ export function OverviewPage() {
                   aria-label="公開中の開催回を切り替える"
                   value={occurrence.id}
                   onChange={(event) => setSelectedId(event.target.value)}
-                  className={`h-7 min-w-0 max-w-full appearance-none truncate rounded-md border border-border-input bg-surface pl-2.5 pr-7 text-sm font-normal ${focusClass}`}
+                  className={`h-[30px] min-w-0 max-w-full appearance-none truncate rounded-md border border-border-input bg-surface-subtle pl-2.5 pr-7 text-[13px] font-normal tracking-normal text-text-primary transition-colors hover:bg-surface-hover ${focusClass}`}
                 >
                   {data.publishedOccurrences.map(({ id, name }) => (
                     <option key={id} value={id}>{name}</option>
                   ))}
                 </select>
-                <ChevronDown aria-hidden size={16} strokeWidth={1.5} className="pointer-events-none absolute top-1.5 right-2 text-text-secondary" />
+                <ChevronDown aria-hidden size={14} strokeWidth={1.75} className="pointer-events-none absolute top-1/2 right-2.5 -translate-y-1/2 text-text-secondary" />
               </span>
             )}
           </span>
@@ -107,57 +103,55 @@ export function OverviewPage() {
       >
         <div className="flex shrink-0 items-center gap-2 max-[500px]:basis-full">
           {data && (
-            <span className={noteClass}>
-              最終更新 <time dateTime={data.generatedAt}>{clock.format(new Date(data.generatedAt))}</time>
+            <span className="text-[12px] leading-[17px] text-text-muted">
+              <time dateTime={data.generatedAt} className="tabular-nums">{clock.format(new Date(data.generatedAt))}</time> 更新
             </span>
           )}
-          <Button variant="secondary" size="sm" className="w-7 px-0" aria-label="最新の状態に更新" onClick={refresh} disabled={overview.isFetching}>
-            <RefreshCw aria-hidden size={16} strokeWidth={1.5} className={overview.isFetching ? 'motion-safe:animate-spin' : undefined} />
+          <Button variant="ghost" size="sm" className="w-[30px] px-0" aria-label="最新の状態に更新" onClick={refresh} disabled={overview.isFetching}>
+            <RefreshCw aria-hidden size={16} strokeWidth={1.75} className={overview.isFetching ? 'motion-safe:animate-spin' : undefined} />
           </Button>
         </div>
       </Toolbar>
-      <PageSheet className="max-[500px]:mx-2">
-        <div className="min-h-0 flex-1 overflow-y-auto">
-          <div className="mx-auto flex max-w-[1160px] flex-col gap-6 px-3 py-5 text-sm max-[500px]:wrap-anywhere sm:px-6 xl:px-7 xl:py-6">
-            {overview.isPending && <p role="status" className="text-text-secondary">ホームを読み込んでいます。</p>}
-            {overview.isError && (
-              <NoticeBanner tone={data ? 'warning' : 'blocking'}>
-                <span className="inline-flex flex-wrap items-center gap-x-3 gap-y-2">
-                  <span>
-                    {data ? (
-                      <>
-                        最新の状態を取得できませんでした。
-                        <time dateTime={data.generatedAt}>{fullDateTime.format(new Date(data.generatedAt))}</time>（日本時間）に取得した内容を表示しています。
-                      </>
-                    ) : 'ホームのデータを取得できませんでした。'}
-                  </span>
-                  <Button variant="secondary" size="sm" onClick={refresh} disabled={overview.isFetching}>再試行</Button>
+      <main className="min-h-0 flex-1 overflow-y-auto bg-canvas">
+        <div className="mx-auto flex max-w-[1160px] flex-col gap-7 px-6 py-6 text-[14px] max-[500px]:px-3 max-[500px]:wrap-anywhere">
+          {overview.isPending && <p role="status" className="text-[13px] text-text-secondary">ホームを読み込んでいます。</p>}
+          {overview.isError && (
+            <NoticeBanner tone={data ? 'warning' : 'blocking'}>
+              <span className="inline-flex flex-wrap items-center gap-x-3 gap-y-2">
+                <span>
+                  {data ? (
+                    <>
+                      最新の状態を取得できませんでした。
+                      <time dateTime={data.generatedAt}>{fullDateTime.format(new Date(data.generatedAt))}</time>（日本時間）に取得した内容を表示しています。
+                    </>
+                  ) : 'ホームのデータを取得できませんでした。'}
                 </span>
-              </NoticeBanner>
-            )}
-            {data && (
-              <>
-                <CurrentRelease release={data.latestRelease} />
-                <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-2">
-                  <OccurrenceSchedule occurrence={occurrence} campusToday={data.campusToday} />
-                  <DataHealth health={data.dataHealth} campusToday={data.campusToday} />
-                </div>
-                <UnpublishedChanges changes={data.unpublishedChanges} />
-                <RecentLogs logs={data.recentLogs} campusToday={data.campusToday} />
-              </>
-            )}
-          </div>
+                <Button variant="secondary" size="sm" onClick={refresh} disabled={overview.isFetching}>再試行</Button>
+              </span>
+            </NoticeBanner>
+          )}
+          {data && (
+            <>
+              <CurrentRelease release={data.latestRelease} />
+              <div className="grid grid-cols-1 items-start gap-8 border-b border-border-subtle pb-5 lg:grid-cols-2">
+                <OccurrenceSchedule occurrence={occurrence} campusToday={data.campusToday} />
+                <DataHealth health={data.dataHealth} campusToday={data.campusToday} />
+              </div>
+              <UnpublishedChanges changes={data.unpublishedChanges} />
+              <RecentLogs logs={data.recentLogs} campusToday={data.campusToday} />
+            </>
+          )}
         </div>
-      </PageSheet>
+      </main>
     </>
   )
 }
 
 function Section({ title, aside, children }: { title: string; aside?: ReactNode; children: ReactNode }) {
   return (
-    <section className="flex min-w-0 flex-col gap-2">
-      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-        <h2 className="text-[17px] leading-[23px] font-bold">{title}</h2>
+    <section className="flex min-w-0 flex-col">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 border-b border-border-subtle pb-2">
+        <h2 className="text-[13px] leading-[18px] font-bold text-text-primary">{title}</h2>
         {aside}
       </div>
       {children}
@@ -167,7 +161,7 @@ function Section({ title, aside, children }: { title: string; aside?: ReactNode;
 
 function describeReleaseEntry({ targetKind, action, count }: OverviewReleaseKindCount) {
   const noun = kindNouns[targetKind as TargetKind] ?? 'その他'
-  const target = targetKind === 'categories' && count === 1 ? noun : `${noun}${count}件`
+  const target = targetKind === 'categories' && count === 1 ? noun : `${noun} ${count}件`
   if (action === 'withdraw') return `${target}（${actionVerbs.withdraw}）`
   if (action === 'restore') return `${target}（${actionVerbs.restore}）`
   return target
@@ -175,67 +169,96 @@ function describeReleaseEntry({ targetKind, action, count }: OverviewReleaseKind
 
 function CurrentRelease({ release }: { release: OverviewRelease | null }) {
   return (
-    <Section title="いま公開中の版">
+    <section className="flex min-w-0 flex-col gap-1.5 border-b border-border-subtle pb-5">
+      <h2 className="text-[12px] leading-[17px] font-normal text-text-secondary">いま公開中の版</h2>
       {release ? (
-        <Link
-          to={`/releases?id=${encodeURIComponent(release.releaseId)}`}
-          className={`${cardClass} ${focusClass} group flex min-h-[54px] flex-wrap items-center gap-x-4 gap-y-1 px-3 py-2 hover:bg-black/[0.03] active:bg-black/[0.06]`}
-        >
-          <span className="flex flex-wrap items-baseline gap-x-1.5">
-            <strong className="font-medium group-hover:underline">第{release.sequence}版</strong>
-            <span className="text-xs text-text-secondary">release-{release.sequence}</span>
-          </span>
-          <StatusLabel tone="success">公開中</StatusLabel>
-          <span className="text-text-secondary">
-            公開日時 <time dateTime={release.publishedAt}>{fullDateTime.format(new Date(release.publishedAt))}</time>（日本時間）
-          </span>
-          <span className="text-text-secondary">
-            公開したもの：{release.entrySummary.map(describeReleaseEntry).join('・') || 'なし'}
-          </span>
-          {release.previousSequence !== null && (
-            <span className="text-text-secondary">元にした版：第{release.previousSequence}版</span>
-          )}
-        </Link>
+        <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
+          <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
+            <span className="text-[20px] leading-[1.2] font-bold tracking-[-0.01em] tabular-nums text-text-primary">
+              第{release.sequence}版
+            </span>
+            <StatusLabel tone="success" textTone="primary">公開中</StatusLabel>
+          </div>
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] leading-[19px] text-text-secondary">
+            <time dateTime={release.publishedAt} className="tabular-nums">
+              {fullDateTime.format(new Date(release.publishedAt))}
+            </time>
+            <span aria-hidden className="text-text-muted">・</span>
+            <span className="tabular-nums">{release.entrySummary.map(describeReleaseEntry).join('・') || 'なし'}</span>
+            {release.previousSequence !== null && (
+              <>
+                <span aria-hidden className="text-text-muted">・</span>
+                <span className="tabular-nums">元: 第{release.previousSequence}版</span>
+              </>
+            )}
+            <Link
+              to={`/releases?id=${encodeURIComponent(release.releaseId)}`}
+              className={`ml-1 ${brandLinkClass}`}
+            >
+              <span>公開履歴</span>
+              <span aria-hidden>→</span>
+            </Link>
+          </div>
+        </div>
       ) : (
-        <div className={`${cardClass} flex min-h-[54px] flex-wrap items-center gap-x-4 gap-y-1 px-3 py-2`}>
-          <StatusLabel icon={dashedCircle} className="whitespace-normal!">まだ公開されていません</StatusLabel>
-          <p className={noteClass}>公開すると、ここに版と公開内容が表示されます。</p>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <StatusLabel tone="neutral" className="whitespace-normal!">まだ公開されていません</StatusLabel>
+          <p className="text-[13px] leading-[19px] text-text-secondary">公開すると、ここに版と公開内容が表示されます。</p>
         </div>
       )}
-    </Section>
+    </section>
   )
 }
 
 function OccurrenceSchedule({ occurrence, campusToday }: { occurrence?: OverviewOccurrence; campusToday: string }) {
+  const hasToday = occurrence?.days.some((day) => day.date === campusToday) ?? false
+
   return (
     <Section
       title="開催情報"
-      aside={occurrence ? <StatusLabel tone="success">公開中</StatusLabel> : <StatusLabel icon={dashedCircle}>未公開</StatusLabel>}
+      aside={occurrence ? <StatusLabel tone="success" textTone="primary">公開中</StatusLabel> : <StatusLabel tone="neutral">未公開</StatusLabel>}
     >
       {occurrence && occurrence.days.length > 0 ? (
-        <ul className={dividedCardClass}>
+        <ul className="divide-y divide-border-subtle border-b border-border-subtle">
           {occurrence.days.map((day) => {
             const cancelled = day.status === 'cancelled'
             return (
-              <li key={day.id} className="flex min-h-11 flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2">
-                <div className="flex min-w-24 flex-wrap items-center gap-1.5">
-                  <time dateTime={day.date}>{formatDateLong(day.date)}</time>
-                  {day.date === campusToday && <Badge tone="info">今日</Badge>}
+              <li key={day.id} className="flex min-h-11 flex-wrap items-center justify-between gap-x-3 gap-y-1 py-2.5">
+                <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <time dateTime={day.date} className="font-bold tabular-nums text-text-primary">
+                      {formatDateLong(day.date)}
+                    </time>
+                    {day.date === campusToday && <Badge tone="info">今日</Badge>}
+                  </div>
+                  <span className="tabular-nums text-text-secondary">{formatHours(day) ?? '開催時間未登録'}</span>
                 </div>
-                <span className="flex-1">{formatHours(day) ?? '開催時間未登録'}</span>
-                <StatusLabel tone={cancelled ? 'danger' : 'success'}>{cancelled ? '中止' : '予定どおり'}</StatusLabel>
-                {cancelled && day.cancelNote && <p className={`basis-full wrap-anywhere ${noteClass}`}>{day.cancelNote}</p>}
+                {cancelled ? (
+                  <StatusLabel tone="danger">中止</StatusLabel>
+                ) : (
+                  <span className="text-[13px] text-text-secondary">予定どおり</span>
+                )}
+                {cancelled && day.cancelNote && (
+                  <p className="basis-full text-[12px] leading-[18px] text-text-secondary wrap-anywhere">{day.cancelNote}</p>
+                )}
               </li>
             )
           })}
         </ul>
       ) : (
-        <div className={`${cardClass} flex flex-wrap items-baseline gap-x-3 gap-y-1 px-3 py-3`}>
-          <p>{occurrence ? '公開中の開催日はありません。' : '公開中のオープンキャンパスはありません'}</p>
-          <Link to="/open-campus" className={textLinkClass}>オープンキャンパスを見る</Link>
+        <div className="flex min-h-11 flex-wrap items-baseline justify-between gap-x-3 gap-y-1 border-b border-border-subtle py-3 text-[13px]">
+          <p className="text-text-secondary">{occurrence ? '公開中の開催日はありません。' : '公開中のオープンキャンパスはありません'}</p>
+          <Link to="/open-campus" className={brandLinkClass}>
+            <span>オープンキャンパスを見る</span>
+            <span aria-hidden>→</span>
+          </Link>
         </div>
       )}
-      <p className={noteClass}>「今日」かどうかは、実際の日付と公開済みの開催日で判断します。</p>
+      {hasToday && (
+        <p className="pt-2.5 text-[12px] leading-[17px] text-text-muted">
+          「今日」かどうかは、実際の日付と公開済みの開催日で判断します。
+        </p>
+      )}
     </Section>
   )
 }
@@ -245,31 +268,19 @@ function DiagnosisStatus({ health }: { health: OverviewDataHealth }) {
   const stale = diagnosisStatus === 'stale'
   const age = stale ? '（古い結果）' : ''
 
-  if (diagnosisStatus === 'neverRun') return <StatusLabel icon={dashedCircle}>未チェック</StatusLabel>
+  if (diagnosisStatus === 'neverRun') return <StatusLabel tone="neutral">未チェック</StatusLabel>
   if (diagnosisStatus === 'failed') return <StatusLabel tone="danger">チェック失敗</StatusLabel>
   if (totalBlockingCount !== null && totalBlockingCount > 0) {
-    return <StatusLabel tone="danger" className="whitespace-normal!">公開できない問題 {totalBlockingCount}件{age}</StatusLabel>
+    return <StatusLabel tone="danger" className="whitespace-normal! tabular-nums">公開できない問題 {totalBlockingCount}件{age}</StatusLabel>
   }
   if (totalWarningCount !== null && totalWarningCount > 0) {
-    return <StatusLabel tone="warning" className="whitespace-normal!">要確認 {totalWarningCount}件{age}</StatusLabel>
+    return <StatusLabel tone="warning" className="whitespace-normal! tabular-nums">要確認 {totalWarningCount}件{age}</StatusLabel>
   }
   if (stale) return <StatusLabel tone="warning">結果が古い</StatusLabel>
   if (diagnosisStatus === 'ok' && totalBlockingCount === 0 && totalWarningCount === 0) {
-    return <StatusLabel tone="success">問題なし</StatusLabel>
+    return <StatusLabel tone="success" textTone="primary">問題なし</StatusLabel>
   }
-  return <StatusLabel icon={dashedCircle}>結果不明</StatusLabel>
-}
-
-function HealthRow({ title, detail, status }: { title: string; detail: string; status: ReactNode }) {
-  return (
-    <li className="flex min-h-11 items-center gap-3 px-3 py-2 max-[500px]:flex-col max-[500px]:items-start max-[500px]:gap-1">
-      <div className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-3 gap-y-0.5">
-        <span className="xl:w-[156px]">{title}</span>
-        <span className="text-text-secondary">{detail}</span>
-      </div>
-      <div className="max-w-full min-[501px]:max-w-[60%]">{status}</div>
-    </li>
-  )
+  return <StatusLabel tone="neutral">結果不明</StatusLabel>
 }
 
 function DataHealth({ health, campusToday }: { health: OverviewDataHealth; campusToday: string }) {
@@ -282,36 +293,42 @@ function DataHealth({ health, campusToday }: { health: OverviewDataHealth; campu
   return (
     <Section
       title="データの状態"
-      aside={(
-        <span className={noteClass}>
-          最終チェック {lastCheckedAt ? (
-            <time dateTime={lastCheckedAt}>{formatRelativeTime(lastCheckedAt, campusToday)}</time>
-          ) : '未実施'}
+      aside={lastCheckedAt ? (
+        <span className="text-[12px] leading-[17px] text-text-muted tabular-nums">
+          <time dateTime={lastCheckedAt}>{formatRelativeTime(lastCheckedAt, campusToday)}</time> チェック
         </span>
+      ) : (
+        <span className="text-[12px] leading-[17px] text-text-muted">未チェック</span>
       )}
     >
-      <h3 className="text-xs font-bold text-text-secondary">公開中のデータ</h3>
-      <ul className={cardClass}>
-        <HealthRow
-          title="いま公開中の版"
-          detail={hasPublishedRelease ? '公開前チェック済み' : 'まだ公開されていません'}
-          status={hasPublishedRelease ? <StatusLabel tone="success">問題なし</StatusLabel> : <StatusLabel icon={dashedCircle}>未公開</StatusLabel>}
-        />
+      <ul className="divide-y divide-border-subtle border-b border-border-subtle">
+        <li className="flex min-h-11 items-center justify-between gap-3 py-2.5 max-[500px]:flex-wrap">
+          <span className="text-text-primary">公開中の版</span>
+          {hasPublishedRelease ? (
+            <StatusLabel tone="success" textTone="primary">問題なし</StatusLabel>
+          ) : (
+            <StatusLabel tone="neutral">未公開</StatusLabel>
+          )}
+        </li>
+        <li className="flex min-h-11 items-center justify-between gap-3 py-2.5 max-[500px]:flex-wrap">
+          <span className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+            <span className="text-text-primary">下書き</span>
+            {includesMap && <span className="text-[12px] text-text-muted">地図を含む</span>}
+          </span>
+          <DiagnosisStatus health={health} />
+        </li>
+        <li className="flex min-h-11 items-center justify-between gap-3 py-2.5 max-[500px]:flex-wrap">
+          <span className="text-text-primary">未チェックの下書き</span>
+          {unchecked ? (
+            <StatusLabel tone="warning" className="whitespace-normal! tabular-nums">
+              {uncheckedSummary || `${uncheckedDraftCount}件`}
+            </StatusLabel>
+          ) : (
+            <span className="text-[13px] text-text-muted">なし</span>
+          )}
+        </li>
       </ul>
-      <h3 className="text-xs font-bold text-text-secondary">下書き</h3>
-      <ul className={dividedCardClass}>
-        <HealthRow
-          title="すべての下書き"
-          detail={includesMap ? '地図を含む' : '公開前チェックの結果'}
-          status={<DiagnosisStatus health={health} />}
-        />
-        <HealthRow
-          title="未チェックの下書き"
-          detail={unchecked ? uncheckedSummary || `${uncheckedDraftCount}件` : 'なし'}
-          status={unchecked ? <StatusLabel tone="warning" icon={dashedCircle}>未チェック</StatusLabel> : <StatusLabel>なし</StatusLabel>}
-        />
-      </ul>
-      <p className={noteClass}>下書きに問題があっても、公開中のデータに問題があるわけではありません。</p>
+      <p className="pt-2.5 text-[12px] leading-[17px] text-text-muted">下書きの問題は、現在公開中のデータに影響しません。</p>
     </Section>
   )
 }
@@ -322,88 +339,81 @@ function describeChange(area: Area, { draftCount, uncheckedCount, blockingCount,
   const validationPath = `/validation?area=${area.kind}`
   if (blockingCount !== null && blockingCount > 0) {
     return {
-      status: <StatusLabel tone="danger" className="whitespace-normal!">下書き {draftCount}件・公開できない問題 {blockingCount}件</StatusLabel>,
+      status: <StatusLabel tone="danger" className="whitespace-normal! tabular-nums">下書き {draftCount}件・公開できない問題 {blockingCount}件</StatusLabel>,
       action: '修正する',
+      actionClass: 'text-danger',
       path: validationPath,
     }
   }
   if (uncheckedCount > 0) {
     return {
       status: (
-        <StatusLabel tone="warning" icon={dashedCircle} className="whitespace-normal!">
+        <StatusLabel tone="warning" className="whitespace-normal! tabular-nums">
           未チェック {uncheckedCount}件{draftCount > uncheckedCount && `（下書き ${draftCount}件）`}
         </StatusLabel>
       ),
-      action: 'チェックする',
+      action: 'チェック',
+      actionClass: 'text-text-secondary',
       path: validationPath,
     }
   }
   return {
-    status: <StatusLabel icon={saveIcon} className="whitespace-normal!">保存した下書き {draftCount}件</StatusLabel>,
+    status: <span className="text-[13px] tabular-nums text-text-secondary">保存済みの下書き {draftCount}件</span>,
     action: '確認する',
+    actionClass: 'text-text-secondary',
     path: area.kind === 'map' && latestMapRevisionId ? reviewPath('map', '', 'publish', latestMapRevisionId) : area.path,
   }
 }
 
 function UnpublishedChanges({ changes }: { changes: OverviewAreaStatus[] }) {
   return (
-    <Section title="まだ公開していない変更" aside={<p className={noteClass}>次に公開されるものとは限りません</p>}>
-      <div className={`${cardClass} overflow-hidden`}>
-        <table className="w-full table-fixed text-left">
-          <thead className="text-[13px] text-text-secondary">
-            <tr>
-              <th scope="col" className="h-9 w-[32%] px-3 py-1 font-medium lg:w-[212px]">項目</th>
-              <th scope="col" className="pr-3 font-medium">状態と次にすること</th>
-            </tr>
-          </thead>
-          <tbody>
-            {areas.map((area) => {
-              const change = changes.find(({ targetKind }) => targetKind === area.kind)
-              const row = change && change.draftCount > 0 ? describeChange(area, change) : null
+    <Section
+      title="まだ公開していない変更"
+      aside={<p className="text-[12px] leading-[17px] text-text-muted">次に公開されるとは限りません</p>}
+    >
+      <ul className="divide-y divide-border-subtle border-b border-border-subtle">
+        {areas.map((area) => {
+          const change = changes.find(({ targetKind }) => targetKind === area.kind)
+          const row = change && change.draftCount > 0 ? describeChange(area, change) : null
 
-              return (
-                <tr
-                  key={area.kind}
-                  className={cn('relative border-t border-border', row && 'hover:bg-black/[0.03] active:bg-black/[0.06]')}
+          if (row) {
+            return (
+              <li key={area.kind}>
+                <Link
+                  to={row.path}
+                  className={cn(unpublishedRowGridClass, 'rounded-sm transition-colors hover:bg-surface-hover', insetFocusClass)}
                 >
-                  <th scope="row" className="h-12 px-3 py-2 font-normal">{area.label}</th>
-                  <td className="py-2 pr-3">
-                    {row ? (
-                      <div className="flex items-center gap-2 max-[500px]:flex-col max-[500px]:items-start">
-                        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1">
-                          <div className="max-w-full">{row.status}</div>
-                          <Link
-                            to={row.path}
-                            aria-label={`${area.label}の下書きを${row.action}`}
-                            className={`relative z-10 inline-flex min-h-7 items-center rounded-md bg-brand-subtle px-2.5 font-medium text-brand hover:bg-brand-subtle/75 ${focusClass}`}
-                          >
-                            {row.action}
-                          </Link>
-                        </div>
-                        {/* 矢印リンクの当たり判定を行全体に広げ、アクションリンクはその手前に置く。 */}
-                        <Link
-                          to={area.path}
-                          aria-label={`${area.label}を開く`}
-                          className="shrink-0 self-end text-text-secondary outline-none after:absolute after:inset-0 after:content-[''] focus-visible:after:outline-2 focus-visible:after:-outline-offset-2 focus-visible:after:outline-brand min-[501px]:self-center"
-                        >
-                          <ChevronRight aria-hidden size={16} strokeWidth={1.5} />
-                        </Link>
-                      </div>
-                    ) : change ? <StatusLabel>変更なし</StatusLabel> : (
-                      <StatusLabel icon={dashedCircle} className="whitespace-normal!">取得できません</StatusLabel>
-                    )}
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
-      </div>
+                  <span className="text-text-primary">{area.label}</span>
+                  <span className="min-w-0">{row.status}</span>
+                  <span className={cn('inline-flex items-center gap-1 text-[13px] sm:justify-self-end', row.actionClass)}>
+                    <span>{row.action}</span>
+                    <span aria-hidden>→</span>
+                  </span>
+                </Link>
+              </li>
+            )
+          }
+
+          return (
+            <li key={area.kind} className={unpublishedRowGridClass}>
+              <span className="text-text-secondary">{area.label}</span>
+              <span className="min-w-0">
+                {change ? (
+                  <span className="text-[13px] text-text-muted">変更なし</span>
+                ) : (
+                  <StatusLabel tone="neutral" className="whitespace-normal!">取得できません</StatusLabel>
+                )}
+              </span>
+              <span aria-hidden className="text-[13px] text-text-muted sm:justify-self-end">—</span>
+            </li>
+          )
+        })}
+      </ul>
     </Section>
   )
 }
 
-const logActions: Record<string, string> = { publish: '公開', save: '下書きを保存', import: '取り込み' }
+const logActions: Record<string, string> = { publish: '公開', save: '下書き保存', import: '取り込み' }
 
 function describeLogAction(log: LogItem) {
   if (log.action === 'publish' && log.status === 'succeeded' && log.detail) {
@@ -422,10 +432,10 @@ function LogStatus({ log }: { log: LogItem }) {
     case 'processing':
       return <StatusLabel tone="warning">処理中</StatusLabel>
     case 'succeeded':
-      if (log.action === 'save') return <StatusLabel icon={saveIcon}>保存済み</StatusLabel>
-      return <StatusLabel tone="success">{log.action === 'import' ? '完了' : '成功'}</StatusLabel>
+      if (log.action === 'save') return <span className="text-[12px] leading-[17px] text-text-muted">保存済み</span>
+      return <StatusLabel tone="success" textTone="primary">{log.action === 'import' ? '完了' : '成功'}</StatusLabel>
     default:
-      return <StatusLabel icon={dashedCircle}>結果不明</StatusLabel>
+      return <StatusLabel tone="neutral">結果不明</StatusLabel>
   }
 }
 
@@ -434,28 +444,38 @@ function RecentLogs({ logs, campusToday }: { logs: OverviewResponse['recentLogs'
     <Section
       title="最近の操作"
       aside={(
-        <Link to="/logs" className={textLinkClass}>
-          操作記録で見る <ArrowRight aria-hidden size={16} strokeWidth={1.5} />
+        <Link to="/logs" className={`text-[12px] leading-[17px] ${brandLinkClass}`}>
+          <span>操作記録を見る</span>
+          <span aria-hidden>→</span>
         </Link>
       )}
     >
       {logs.length === 0 ? (
-        <p className={`${cardClass} px-3 py-3`}>操作記録はまだありません。</p>
+        <p className="border-b border-border-subtle py-3 text-[13px] text-text-secondary">操作記録はまだありません。</p>
       ) : (
-        <ul className={dividedCardClass}>
+        <ul className="divide-y divide-border-subtle border-b border-border-subtle">
           {logs.map((log) => {
-            const target = log.targetLabel || log.targetId || kindNouns[log.targetKind as TargetKind] || '対象不明'
-            const version = log.releaseSequence !== null ? `（第${log.releaseSequence}版）` : log.action === 'save' ? '（下書き）' : ''
+            const target = log.targetLabel || kindNouns[log.targetKind as TargetKind] || '対象不明'
 
             return (
               <li key={log.id}>
                 <Link
                   to={`/logs?id=${encodeURIComponent(log.id)}`}
-                  className="grid min-h-11 grid-cols-1 items-center gap-x-3 gap-y-1 px-3 py-2 hover:bg-black/[0.03] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand active:bg-black/[0.06] min-[501px]:grid-cols-[minmax(0,1fr)_auto] md:grid-cols-[80px_112px_minmax(0,1fr)_auto]"
+                  className={cn(
+                    'grid min-h-11 grid-cols-1 items-center gap-x-4 gap-y-1 rounded-sm px-1 py-2.5 transition-colors hover:bg-surface-hover min-[501px]:grid-cols-[minmax(0,1fr)_auto] md:grid-cols-[88px_112px_minmax(0,1fr)_auto]',
+                    insetFocusClass,
+                  )}
                 >
-                  <time dateTime={log.startedAt} className={noteClass}>{formatRelativeTime(log.startedAt, campusToday)}</time>
-                  <span>{describeLogAction(log)}</span>
-                  <span className="wrap-anywhere">{target}{version}</span>
+                  <time dateTime={log.startedAt} className="text-[13px] tabular-nums text-text-muted">
+                    {formatRelativeTime(log.startedAt, campusToday)}
+                  </time>
+                  <span className="text-[13px] text-text-secondary">{describeLogAction(log)}</span>
+                  <span className="min-w-0 wrap-anywhere">
+                    <span className="text-text-primary">{target}</span>
+                    {log.releaseSequence !== null && (
+                      <span className="ml-2 text-[12px] tabular-nums text-text-muted">第{log.releaseSequence}版</span>
+                    )}
+                  </span>
                   <span className="justify-self-end"><LogStatus log={log} /></span>
                 </Link>
               </li>
