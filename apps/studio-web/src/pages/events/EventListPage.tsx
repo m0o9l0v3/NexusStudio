@@ -1,5 +1,5 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
-import { CalendarX, ChevronDown, ChevronRight, CircleDashed, Minus, Pencil, Plus, Search } from 'lucide-react'
+import { ChevronDown, ChevronRight, Plus, Search } from 'lucide-react'
 import { useDeferredValue, useMemo, type ReactNode } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router'
 import { listEvents, type EventListItem } from '../../api/events'
@@ -10,7 +10,6 @@ import { Toolbar } from '../../shell/Toolbar'
 import { Button } from '../../ui/Button'
 import { cn } from '../../ui/cn'
 import { NoticeBanner } from '../../ui/NoticeBanner'
-import { PageSheet } from '../../ui/PageSheet'
 import { StatusLabel } from '../../ui/StatusLabel'
 
 const updatedFormat = new Intl.DateTimeFormat('ja-JP', {
@@ -24,13 +23,8 @@ const updatedFormat = new Intl.DateTimeFormat('ja-JP', {
 
 const publicationOptions = ['unpublished', 'published', 'publishedWithChanges', 'withdrawn'] as const
 
-const pencilIcon = <Pencil size={16} strokeWidth={1.5} />
-const dashedCircleIcon = <CircleDashed size={16} strokeWidth={1.5} />
-const minusIcon = <Minus size={16} strokeWidth={1.5} />
-const calendarXIcon = <CalendarX size={16} strokeWidth={1.5} />
-
 const rowGridClass =
-  'xl:grid xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1.25fr)_minmax(0,0.9fr)_minmax(180px,1.25fr)_92px_108px] xl:items-center xl:gap-x-3'
+  'xl:grid xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1.25fr)_minmax(0,0.9fr)_minmax(180px,1.25fr)_116px] xl:items-center xl:gap-x-3'
 
 function parseIsoDate(date: string): { year: number; month: number; day: number } {
   const [year, month, day] = date.split('-').map(Number)
@@ -102,6 +96,7 @@ export function EventListPage() {
   const failed = events.isError && (!events.data || events.isPlaceholderData)
   const staleRetained = events.isError && Boolean(events.data) && !events.isPlaceholderData
   const rows = failed ? [] : (events.data ?? [])
+  const showCount = !events.isPending && !failed && !(events.isPlaceholderData && rows.length === 0) && Boolean(events.data)
 
   function update(key: string, value: string) {
     const next = new URLSearchParams(params)
@@ -116,141 +111,151 @@ export function EventListPage() {
 
   return (
     <>
-      <Toolbar title="イベント" className="max-[500px]:flex-wrap max-[500px]:gap-y-1.5">
+      <Toolbar
+        title="イベント"
+        titleNode={
+          <span className="inline-flex items-baseline gap-2">
+            <span>イベント</span>
+            {showCount && (
+              <span className="text-[13px] font-normal tracking-normal text-text-muted tabular-nums">
+                {rows.length}件
+              </span>
+            )}
+          </span>
+        }
+        className="max-[500px]:flex-wrap max-[500px]:gap-y-1.5"
+      >
         <div className="flex shrink-0 flex-wrap items-center gap-2 max-[500px]:basis-full">
           <Button variant="secondary" onClick={() => void navigate('/events/categories')}>
             カテゴリを管理
           </Button>
-          <Button onClick={() => void navigate('/events/new')}>
+          <Button variant="primary" onClick={() => void navigate('/events/new')}>
             <Plus aria-hidden size={16} strokeWidth={1.75} />
             新規イベント
           </Button>
         </div>
       </Toolbar>
-      <PageSheet className="max-[500px]:mx-2">
-        <main className="min-h-0 flex-1 overflow-y-auto">
-          <div className="mx-auto flex w-full max-w-[1160px] flex-col px-3 py-5 text-sm sm:px-6 xl:px-7 xl:py-6">
-            <div className="flex flex-wrap items-center gap-2" role="search">
-              <div className="relative w-full sm:min-w-[220px] sm:flex-1 sm:max-w-[340px]">
-                <label className="sr-only" htmlFor="event-search">
-                  タイトルで検索
-                </label>
-                <Search
-                  aria-hidden
-                  size={16}
-                  strokeWidth={1.5}
-                  className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-text-secondary"
-                />
-                <input
-                  id="event-search"
-                  type="search"
-                  value={q}
-                  onChange={(event) => update('q', event.target.value)}
-                  placeholder="タイトルで検索"
-                  className="h-9 w-full rounded-md border border-border-input bg-surface pr-3 pl-9 text-[13px] leading-5 text-text-primary placeholder:text-text-secondary focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand"
-                />
-              </div>
-              <FilterSelect label="オープンキャンパス" value={occurrenceId} onChange={(value) => update('occurrenceId', value)}>
-                <option value="">オープンキャンパス：すべて</option>
-                {occurrences.map((occurrence) => (
-                  <option key={occurrence.id} value={occurrence.id}>
-                    オープンキャンパス：{occurrence.name}
-                  </option>
-                ))}
-              </FilterSelect>
-              <FilterSelect
-                label="公開状態"
-                value={publication}
-                describedBy="event-list-withdrawn-note"
-                onChange={(value) => update('publication', value)}
-              >
-                <option value="">公開状態：すべて</option>
-                {publicationOptions.map((state) => (
-                  <option key={state} value={state}>
-                    公開状態：{publicationBadge(state).label}
-                  </option>
-                ))}
-              </FilterSelect>
-              <FilterSelect
-                label="並べ替え"
-                value={sort}
-                active={sort !== 'updated'}
-                onChange={(value) => update('sort', value === 'updated' ? '' : value)}
-              >
-                <option value="updated">並べ替え：更新日時順</option>
-                <option value="schedule">並べ替え：開催日時順</option>
-              </FilterSelect>
+      <main className="min-h-0 flex-1 overflow-y-auto bg-canvas">
+        <div className="mx-auto flex w-full max-w-[1160px] flex-col px-6 py-5 text-[14px] max-[500px]:px-3">
+          <div className="flex flex-wrap items-center gap-2" role="search">
+            <div className="relative w-full sm:min-w-[220px] sm:flex-1">
+              <label className="sr-only" htmlFor="event-search">
+                タイトルで検索
+              </label>
+              <Search
+                aria-hidden
+                size={15}
+                strokeWidth={1.5}
+                className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-text-muted"
+              />
+              <input
+                id="event-search"
+                type="search"
+                value={q}
+                onChange={(event) => update('q', event.target.value)}
+                placeholder="タイトルで検索"
+                className="h-9 w-full rounded-md border border-border-input bg-canvas pr-3 pl-9 text-[13px] leading-5 text-text-primary placeholder:text-text-muted focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand"
+              />
             </div>
-
-            <div aria-busy={events.isFetching || undefined}>
-              {staleRetained && (
-                <NoticeBanner tone="warning" className="mt-4">
-                  <span className="inline-flex flex-wrap items-center gap-x-3 gap-y-2">
-                    <span>最新のイベント一覧を取得できませんでした。以前取得した一覧を表示しています。</span>
-                    <Button variant="secondary" size="sm" onClick={retry} disabled={events.isFetching}>
-                      再試行
-                    </Button>
-                  </span>
-                </NoticeBanner>
-              )}
-
-              {events.isPending ? (
-                <LoadingRows />
-              ) : failed ? (
-                <NoticeBanner tone="blocking" className="mt-4">
-                  <span className="inline-flex flex-wrap items-center gap-x-3 gap-y-2">
-                    <span>イベント一覧を取得できませんでした。0件とは扱わず、再試行してください。</span>
-                    <Button variant="secondary" size="sm" onClick={retry} disabled={events.isFetching}>
-                      再試行
-                    </Button>
-                  </span>
-                </NoticeBanner>
-              ) : events.isPlaceholderData && rows.length === 0 ? (
-                <LoadingRows />
-              ) : rows.length === 0 ? (
-                filtered ? (
-                  <NoticeBanner className="mt-4">
-                    <span className="inline-flex flex-wrap items-center gap-x-3 gap-y-2">
-                      <span>検索・絞り込みに一致するイベントはありません。条件を解除できます。</span>
-                      <Button variant="secondary" size="sm" onClick={() => setParams(new URLSearchParams(), { replace: true })}>
-                        条件を解除
-                      </Button>
-                    </span>
-                  </NoticeBanner>
-                ) : (
-                  <NoticeBanner className="mt-4">イベントは正式に0件です。新規イベントから下書きを作成できます。</NoticeBanner>
-                )
-              ) : (
-                <div className="mt-4 overflow-hidden rounded-[10px] border border-border bg-surface">
-                  <div
-                    aria-hidden
-                    className={cn(
-                      'hidden border-b border-border px-4 py-2.5 text-xs font-medium text-text-secondary',
-                      rowGridClass,
-                    )}
-                  >
-                    <span>イベント名</span>
-                    <span>開催日時</span>
-                    <span>会場</span>
-                    <span>状態</span>
-                    <span>最終更新</span>
-                    <span />
-                  </div>
-                  <ul className="divide-y divide-border" aria-label="イベント一覧">
-                    {rows.map((item) => (
-                      <EventRow key={item.id} item={item} />
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
-
-            <p id="event-list-withdrawn-note" className="mt-3 text-[12px] leading-5 text-text-secondary">
-              公開をやめたイベントは、「公開状態」で選ぶと表示されます。
-            </p>
+            <FilterSelect label="オープンキャンパス" value={occurrenceId} onChange={(value) => update('occurrenceId', value)}>
+              <option value="">オープンキャンパス：すべて</option>
+              {occurrences.map((occurrence) => (
+                <option key={occurrence.id} value={occurrence.id}>
+                  オープンキャンパス：{occurrence.name}
+                </option>
+              ))}
+            </FilterSelect>
+            <FilterSelect
+              label="状態"
+              value={publication}
+              describedBy="event-list-withdrawn-note"
+              onChange={(value) => update('publication', value)}
+            >
+              <option value="">状態：すべて</option>
+              {publicationOptions.map((state) => (
+                <option key={state} value={state}>
+                  状態：{publicationBadge(state).label}
+                </option>
+              ))}
+            </FilterSelect>
+            <FilterSelect
+              label="並べ替え"
+              value={sort}
+              active={sort !== 'updated'}
+              onChange={(value) => update('sort', value === 'updated' ? '' : value)}
+            >
+              <option value="updated">並べ替え：更新日時順</option>
+              <option value="schedule">並べ替え：開催日時順</option>
+            </FilterSelect>
           </div>
-        </main>
-      </PageSheet>
+
+          <div aria-busy={events.isFetching || undefined}>
+            {staleRetained && (
+              <NoticeBanner tone="warning" className="mt-4">
+                <span className="inline-flex flex-wrap items-center gap-x-3 gap-y-2">
+                  <span>最新のイベント一覧を取得できませんでした。以前取得した一覧を表示しています。</span>
+                  <Button variant="secondary" size="sm" onClick={retry} disabled={events.isFetching}>
+                    再試行
+                  </Button>
+                </span>
+              </NoticeBanner>
+            )}
+
+            {events.isPending ? (
+              <LoadingRows />
+            ) : failed ? (
+              <NoticeBanner tone="blocking" className="mt-4">
+                <span className="inline-flex flex-wrap items-center gap-x-3 gap-y-2">
+                  <span>イベント一覧を取得できませんでした。0件とは扱わず、再試行してください。</span>
+                  <Button variant="secondary" size="sm" onClick={retry} disabled={events.isFetching}>
+                    再試行
+                  </Button>
+                </span>
+              </NoticeBanner>
+            ) : events.isPlaceholderData && rows.length === 0 ? (
+              <LoadingRows />
+            ) : rows.length === 0 ? (
+              filtered ? (
+                <NoticeBanner className="mt-4">
+                  <span className="inline-flex flex-wrap items-center gap-x-3 gap-y-2">
+                    <span>検索・絞り込みに一致するイベントはありません。条件を解除できます。</span>
+                    <Button variant="secondary" size="sm" onClick={() => setParams(new URLSearchParams(), { replace: true })}>
+                      条件を解除
+                    </Button>
+                  </span>
+                </NoticeBanner>
+              ) : (
+                <NoticeBanner className="mt-4">イベントは正式に0件です。新規イベントから下書きを作成できます。</NoticeBanner>
+              )
+            ) : (
+              <div className="mt-3">
+                <div
+                  aria-hidden
+                  className={cn(
+                    'hidden border-b border-border-subtle px-1 py-2.5 text-[12px] font-normal text-text-muted',
+                    rowGridClass,
+                  )}
+                >
+                  <span>イベント名</span>
+                  <span>開催日時</span>
+                  <span>会場</span>
+                  <span>状態</span>
+                  <span className="pr-[22px] text-right">最終更新</span>
+                </div>
+                <ul className="divide-y divide-border-subtle border-b border-border-subtle" aria-label="イベント一覧">
+                  {rows.map((item) => (
+                    <EventRow key={item.id} item={item} />
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+
+          <p id="event-list-withdrawn-note" className="mt-3 text-[12px] leading-[17px] text-text-muted">
+            公開をやめたイベントは「状態」フィルターで表示できます。行をクリックすると編集画面を開きます。
+          </p>
+        </div>
+      </main>
     </>
   )
 }
@@ -274,22 +279,22 @@ function FilterSelect({ label, value, active, describedBy, onChange, children }:
         value={value}
         onChange={(event) => onChange(event.target.value)}
         className={cn(
-          'field-sizing-content h-9 max-w-full cursor-pointer appearance-none truncate rounded-md border pr-8 pl-3 text-[13px] leading-5 transition-colors',
+          'field-sizing-content h-9 max-w-full cursor-pointer appearance-none truncate rounded-md border pr-8 pl-3 text-[13px] leading-5 font-normal transition-colors',
           'focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand',
           selected
-            ? 'border-brand bg-brand-subtle/50 font-medium text-brand-nav-text hover:bg-brand-subtle/80'
-            : 'border-border-input bg-surface text-text-primary hover:bg-surface-subtle',
+            ? 'border-brand bg-brand-subtle font-normal text-brand'
+            : 'border-border-input bg-surface-subtle text-text-primary hover:bg-surface-hover',
         )}
       >
         {children}
       </select>
       <ChevronDown
         aria-hidden
-        size={16}
+        size={14}
         strokeWidth={1.5}
         className={cn(
           'pointer-events-none absolute top-1/2 right-2.5 -translate-y-1/2',
-          selected ? 'text-brand-nav-text' : 'text-text-secondary',
+          selected ? 'text-brand' : 'text-text-muted',
         )}
       />
     </span>
@@ -301,23 +306,11 @@ function PublicationStatus({ state }: { state: string }) {
     case 'published':
       return <StatusLabel tone="success">公開中</StatusLabel>
     case 'publishedWithChanges':
-      return (
-        <StatusLabel tone="warning" icon={pencilIcon}>
-          公開中・変更あり
-        </StatusLabel>
-      )
+      return <StatusLabel tone="warning">公開中・変更あり</StatusLabel>
     case 'withdrawn':
-      return (
-        <StatusLabel tone="neutral" icon={minusIcon}>
-          公開停止
-        </StatusLabel>
-      )
+      return <StatusLabel tone="neutral">公開停止</StatusLabel>
     default:
-      return (
-        <StatusLabel tone="neutral" icon={dashedCircleIcon}>
-          未公開
-        </StatusLabel>
-      )
+      return <StatusLabel tone="neutral">未公開</StatusLabel>
   }
 }
 
@@ -326,51 +319,67 @@ function CancellationStatus({ item }: { item: EventListItem }) {
   const cancelled = item.slots.filter((slot) => slot.status === 'cancelled' || slot.dayCancelled).length
   if (cancelled === 0) return null
   if (item.slots.length > 0 && cancelled === item.slots.length) {
-    return (
-      <StatusLabel tone="danger" icon={calendarXIcon}>
-        すべて中止
-      </StatusLabel>
-    )
+    return <span className="text-[12px] leading-[17px] whitespace-nowrap text-danger">· すべて中止</span>
   }
   return (
-    <StatusLabel tone="warning" icon={calendarXIcon}>
-      一部中止<span className="sr-only">（{cancelled}回中止）</span>
-    </StatusLabel>
+    <span className="text-[12px] leading-[17px] whitespace-nowrap text-warning">
+      · 一部中止<span className="sr-only">（{cancelled}回中止）</span>
+    </span>
   )
 }
 
-/** Figma v2 `イベント / 一覧の行`。1280px未満では1段目にイベント名、2段目に開催日時・会場・状態・最終更新・編集を折り返す。 */
+/** Figma v2 `イベント / 一覧の行`。1280px未満では1段目にイベント名、2段目に開催日時・会場・状態・最終更新を折り返す。 */
 function EventRow({ item }: { item: EventListItem }) {
-  const title = item.title?.trim() || '無題のイベント'
+  const hasTitle = Boolean(item.title?.trim())
+  const title = hasTitle ? item.title!.trim() : '無題のイベント'
+  const schedule = summarizeSchedule(item)
+  const venue = summarizeVenue(item)
+
   return (
     <li>
       <Link
         to={`/events/${item.id}`}
         className={cn(
-          'group flex min-h-14 flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 transition-colors',
-          'hover:bg-black/[0.03] active:bg-black/[0.06]',
+          'group flex min-h-11 flex-wrap items-center gap-x-4 gap-y-1.5 px-1 py-2.5 transition-colors',
+          'hover:bg-surface-hover',
           'focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-brand',
           rowGridClass,
         )}
       >
-        <span className="w-full min-w-0 break-words text-[14px] leading-5 font-medium text-text-primary xl:w-auto">
+        <span
+          className={cn(
+            'w-full min-w-0 break-words text-[14px] leading-5 font-normal xl:w-auto',
+            hasTitle ? 'text-text-primary' : 'text-text-muted',
+          )}
+        >
           {title}
         </span>
-        <span className="min-w-0 break-words text-[13px] leading-5 text-text-secondary">{summarizeSchedule(item)}</span>
-        <span className="min-w-0 break-words text-[13px] leading-5 text-text-secondary">{summarizeVenue(item)}</span>
-        <span className="flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-1">
+        <span
+          className={cn(
+            'min-w-0 break-words text-[13px] leading-5 tabular-nums',
+            item.slotCount === 0 ? 'text-text-muted' : 'text-text-secondary',
+          )}
+        >
+          {schedule}
+        </span>
+        <span
+          className={cn(
+            'min-w-0 break-words text-[13px] leading-5 tabular-nums',
+            item.venueCount === 0 ? 'text-text-muted' : 'text-text-secondary',
+          )}
+        >
+          {venue}
+        </span>
+        <span className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5">
           <PublicationStatus state={item.publication} />
           <CancellationStatus item={item} />
         </span>
-        <span className="text-[13px] leading-5 text-text-secondary tabular-nums">
-          <time dateTime={item.updatedAt}>{updatedFormat.format(new Date(item.updatedAt))}</time>
-          <span className="sr-only">（{item.updatedBy.displayName}）</span>
-        </span>
-        <span className="ml-auto flex shrink-0 items-center justify-end gap-2 xl:ml-0">
-          <span className="inline-flex h-7 items-center rounded-md bg-brand-subtle px-2.5 text-[12px] font-medium whitespace-nowrap text-brand group-hover:bg-brand-subtle/75">
-            編集する
+        <span className="ml-auto flex shrink-0 items-center justify-end gap-2 text-[12px] leading-[17px] text-text-muted tabular-nums xl:ml-0">
+          <span>
+            <time dateTime={item.updatedAt}>{updatedFormat.format(new Date(item.updatedAt))}</time>
+            <span className="sr-only">（{item.updatedBy.displayName}）</span>
           </span>
-          <ChevronRight aria-hidden size={16} strokeWidth={1.5} className="text-text-secondary" />
+          <ChevronRight aria-hidden size={14} strokeWidth={1.5} className="text-text-muted" />
         </span>
       </Link>
     </li>
@@ -379,17 +388,17 @@ function EventRow({ item }: { item: EventListItem }) {
 
 function LoadingRows() {
   return (
-    <div role="status" className="mt-4 overflow-hidden rounded-[10px] border border-border bg-surface">
-      <p className="border-b border-border px-4 py-2.5 text-[12px] leading-5 text-text-secondary">
+    <div role="status" className="mt-3">
+      <p className="border-b border-border-subtle px-1 py-2.5 text-[12px] leading-[17px] text-text-muted">
         イベント一覧を読み込んでいます
       </p>
-      <div aria-hidden className="divide-y divide-border">
+      <div aria-hidden className="divide-y divide-border-subtle border-b border-border-subtle">
         {[0, 1, 2, 3].map((key) => (
-          <div key={key} className="flex min-h-14 items-center gap-4 px-4 py-3">
+          <div key={key} className="flex min-h-11 items-center gap-4 px-1 py-2.5">
             <div className="h-4 w-48 max-w-[45%] rounded bg-surface-subtle motion-safe:animate-pulse" />
             <div className="hidden h-4 w-32 rounded bg-surface-subtle motion-safe:animate-pulse sm:block" />
             <div className="hidden h-4 w-24 rounded bg-surface-subtle motion-safe:animate-pulse md:block" />
-            <div className="ml-auto h-7 w-20 rounded-md bg-surface-subtle motion-safe:animate-pulse" />
+            <div className="ml-auto h-4 w-20 rounded bg-surface-subtle motion-safe:animate-pulse" />
           </div>
         ))}
       </div>
