@@ -1,20 +1,20 @@
 import { forwardRef, type ButtonHTMLAttributes } from 'react'
 import { cn } from './cn'
 
-export type ButtonVariant = 'primary' | 'secondary' | 'soft' | 'danger' | 'ghost'
+export type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'ghost' | 'ghostBrand'
 export type ButtonSize = 'md' | 'sm'
 
 const variantClass: Record<ButtonVariant, string> = {
-  primary: 'bg-brand text-surface hover:bg-brand/90',
-  secondary: 'border border-border bg-surface text-text-primary hover:bg-surface-subtle',
-  soft: 'bg-brand-subtle text-brand hover:bg-brand-subtle/75',
-  danger: 'border border-danger/45 bg-surface text-danger hover:border-danger',
-  ghost: 'text-text-secondary hover:bg-surface-subtle hover:text-text-primary',
+  primary: 'bg-brand font-bold text-canvas hover:bg-brand-hover',
+  secondary: 'border border-border bg-canvas font-normal text-text-primary hover:bg-surface-hover',
+  danger: 'border border-danger-border bg-canvas font-normal text-danger hover:border-danger hover:bg-danger-subtle',
+  ghost: 'font-normal text-text-secondary hover:bg-surface-hover hover:text-text-primary',
+  ghostBrand: 'font-normal text-brand hover:bg-surface-hover',
 }
 
 const sizeClass: Record<ButtonSize, string> = {
-  md: 'h-9 rounded-lg px-3.5 text-[13px] leading-[21px]',
-  sm: 'h-7 rounded-md px-2.5 text-[12px] leading-5',
+  md: 'h-9 rounded-md px-3 text-[13px] leading-[19px]',
+  sm: 'h-[30px] rounded-md px-2.5 text-[12px] leading-[17px]',
 }
 
 /**
@@ -34,7 +34,7 @@ function withoutOverridden(base: string, className: string | undefined): string 
 
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & { variant?: ButtonVariant; size?: ButtonSize }
 
-/** Figma v2 `Button`。md 36px高／sm 28px高。アイコンを並べるときは children に Lucide の16px（sm は14px）を入れる。 */
+/** Figma v2 `Button`（60:372・60:367）。md 36px高／sm 30px高。アイコンを並べるときは children に Lucide の16px（sm は14px）を入れる。 */
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
   { variant = 'primary', size = 'md', className, type = 'button', ...props },
   ref,
@@ -44,7 +44,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       ref={ref}
       type={type}
       className={cn(
-        'inline-flex shrink-0 items-center justify-center gap-1.5 font-medium whitespace-nowrap transition-colors',
+        'inline-flex shrink-0 items-center justify-center gap-1.5 whitespace-nowrap transition-colors',
         withoutOverridden(sizeClass[size], className),
         'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand',
         'disabled:cursor-not-allowed disabled:opacity-45',

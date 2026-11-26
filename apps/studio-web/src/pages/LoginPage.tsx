@@ -75,7 +75,7 @@ export function LoginPage() {
   const credentialsProblem = error === 'invalid' || error === 'missing'
 
   return (
-    <main className="flex min-h-svh items-center justify-center bg-canvas p-4">
+    <main className="flex min-h-svh items-center justify-center bg-surface-subtle p-4">
       <section
         aria-labelledby="login-title"
         className="flex w-[440px] max-w-full flex-col rounded-2xl border border-border bg-surface px-[38px] pt-[38px] pb-[21px] shadow-floating"

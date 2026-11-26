@@ -39,8 +39,8 @@ export function AccountMenu({ session }: { session: Session }) {
       <DropdownMenu.Root>
         <DropdownMenu.Trigger
           className={cn(
-            'flex h-8 w-full shrink-0 items-center gap-2 rounded-lg px-2.5 text-[13px] leading-[21px] text-text-primary/85 hover:bg-black/5',
-            'focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand data-[state=open]:bg-black/5 data-[state=open]:text-text-primary',
+            'flex h-9 w-full shrink-0 items-center gap-2 rounded-md px-2.5 text-[13px] leading-[19px] font-normal text-text-secondary hover:bg-surface-hover hover:text-text-primary',
+            'focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand data-[state=open]:bg-surface-hover data-[state=open]:text-text-primary',
           )}
         >
           <CircleUser aria-hidden size={16} strokeWidth={1.5} className="shrink-0" />
@@ -51,11 +51,11 @@ export function AccountMenu({ session }: { session: Session }) {
             side="top"
             align="start"
             sideOffset={6}
-            className="z-30 flex w-[232px] flex-col gap-1 rounded-xl border border-border bg-surface p-1.5 shadow-menu"
+            className="z-30 flex w-[232px] flex-col gap-1 rounded-lg border border-border bg-canvas p-1.5 shadow-menu"
           >
             <DropdownMenu.Label className="flex flex-col px-2.5 py-2">
-              <span className="text-[13px] leading-5 font-medium break-all text-text-primary">{session.displayName}</span>
-              <span className="text-[11px] leading-[19px] break-all text-text-secondary">{session.email}</span>
+              <span className="text-[13px] leading-[19px] font-bold break-all text-text-primary">{session.displayName}</span>
+              <span className="text-[11px] leading-4 break-all text-text-secondary">{session.email}</span>
             </DropdownMenu.Label>
             <DropdownMenu.Separator className="mx-1 h-px bg-border-subtle" />
             <DropdownMenu.Item
@@ -65,8 +65,8 @@ export function AccountMenu({ session }: { session: Session }) {
                 else void handleLogout()
               }}
               className={cn(
-                'flex h-8 cursor-pointer items-center gap-2 rounded-lg px-2.5 text-[13px] leading-[21px] text-text-primary outline-none',
-                'data-[highlighted]:bg-surface-subtle data-[highlighted]:outline-2 data-[highlighted]:outline-brand data-[disabled]:cursor-not-allowed data-[disabled]:opacity-45',
+                'flex h-9 cursor-pointer items-center gap-2 rounded-md px-2.5 text-[13px] leading-[19px] font-normal text-text-primary outline-none',
+                'data-[highlighted]:bg-surface-hover data-[highlighted]:outline-2 data-[highlighted]:outline-brand data-[disabled]:cursor-not-allowed data-[disabled]:opacity-45',
               )}
             >
               <LogOut aria-hidden size={16} strokeWidth={1.75} className="shrink-0 text-text-secondary" />
