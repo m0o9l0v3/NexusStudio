@@ -1,7 +1,7 @@
 import { Link } from 'react-router'
 import type { PublishAction, PublishPreview, TargetKind, ValidationFinding } from '../api/releases'
 import { Button } from '../ui/Button'
-import { StatusBadge } from '../ui/StatusBadge'
+import { StatusLabel } from '../ui/StatusLabel'
 import { describePath, editorPath, kindNouns } from './publication'
 
 type Props = {
@@ -25,7 +25,7 @@ const eventChecks: { label: string; detail: string; codes: (code: string) => boo
     detail: 'タイトル・説明・カテゴリ・開催回・各枠の日時と参加案内',
     codes: (code) => !general.has(code) && !code.startsWith('venue_') && !code.startsWith('slot_venue') && code !== 'slot_all_day_hours_missing',
   },
-  { label: '会場参照', detail: '各枠の会場が公開中のSpotであること', codes: (code) => code.startsWith('venue_') || code.startsWith('slot_venue') },
+  { label: '会場参照', detail: '各日時の会場が公開中の地点であること', codes: (code) => code.startsWith('venue_') || code.startsWith('slot_venue') },
   { label: '終日の参照元', detail: '終日枠の開催日に一般公開時間があること', codes: (code) => code === 'slot_all_day_hours_missing' },
 ]
 
@@ -44,22 +44,20 @@ export function ValidationPanel({ preview, loading, failed, kind, action, submit
   const canSubmit = Boolean(validation) && !blocked && !loading && !failed
 
   return (
-    <aside aria-label="検証・関連する影響" className="flex w-[400px] shrink-0 flex-col gap-4 overflow-auto border-l border-border bg-surface p-[18px]">
+    <aside aria-label="検証・関連する影響" className="flex w-full shrink-0 flex-col gap-4 border-t border-border-subtle bg-surface-subtle p-[18px] lg:w-[400px] lg:overflow-auto lg:border-t-0 lg:border-l">
       <h2 className="text-[16px] leading-6 font-bold text-text-primary">検証・関連する影響</h2>
 
-      <div role="status" className="flex flex-col gap-2 rounded-lg bg-surface-subtle px-3.5 py-3.5">
+      <div role="status" className="flex flex-col gap-2">
         {!validation || loading ? (
-          <p className="text-[14px] leading-[22px] font-bold text-text-secondary">{failed ? '検証結果を取得できませんでした' : '検証しています'}</p>
+          <StatusLabel>{failed ? '検証結果を取得できませんでした' : '検証しています'}</StatusLabel>
         ) : validatorFailed ? (
           <>
-            <p className="text-[15px] leading-[23px] font-bold text-danger">検証を完了できませんでした</p>
+            <StatusLabel tone="danger">検証を完了できませんでした</StatusLabel>
             <p className="text-[11px] leading-[19px] text-text-secondary">内容の不備ではなく検証処理の失敗です。合格とは扱わず、公開できません。再確認してください。</p>
           </>
         ) : (
           <>
-            <p className={blocked ? 'text-[15px] leading-[23px] font-bold text-danger' : 'text-[15px] leading-[23px] font-bold text-success'}>
-              {blocked ? `${action === 'withdraw' ? '取り下げ' : '公開'}できない問題があります` : `公開候補は${action === 'withdraw' ? '取り下げ' : '公開'}可能です`}
-            </p>
+            <StatusLabel tone={blocked ? 'danger' : 'success'}>{blocked ? '公開できない問題があります' : '公開できます'}</StatusLabel>
             <p className="flex gap-4 text-[12px] leading-5 font-medium">
               <span className="text-danger">公開阻止 {validation.blockingCount}</span>
               <span className="text-warning">警告 {validation.warningCount}</span>
@@ -70,18 +68,18 @@ export function ValidationPanel({ preview, loading, failed, kind, action, submit
       </div>
 
       {validation && !validatorFailed && kind === 'event' && action === 'publish' && (
-        <ul className="flex flex-col gap-3">
+        <ul className="flex flex-col divide-y divide-border-subtle border-y border-border-subtle">
           {eventChecks.map((check) => {
             const count = findings.filter((f) => f.severity === 'blocking' && check.codes(f.code)).length
             return (
-              <li key={check.label} className="flex items-start gap-3">
-                <StatusBadge tone={count > 0 ? 'danger' : 'success'} className="mt-0.5">
-                  {count > 0 ? `${count}件` : '合格'}
-                </StatusBadge>
+              <li key={check.label} className="flex items-start justify-between gap-3 py-3">
                 <div className="flex flex-col">
                   <p className="text-[13px] leading-[21px] font-medium text-text-primary">{check.label}</p>
                   <p className="text-[11px] leading-[19px] text-text-secondary">{check.detail}</p>
                 </div>
+                <StatusLabel tone={count > 0 ? 'danger' : 'success'} className="mt-0.5">
+                  {count > 0 ? `${count}件` : '合格'}
+                </StatusLabel>
               </li>
             )
           })}
@@ -89,28 +87,31 @@ export function ValidationPanel({ preview, loading, failed, kind, action, submit
       )}
 
       {findings.length > 0 && (
-        <ul aria-label="検証の所見" className="flex flex-col gap-2">
+        <div className={blocked ? "rounded-md border border-danger-border bg-danger-subtle p-3" : "rounded-md border border-border-subtle bg-canvas p-3"}><h3 className={blocked ? "text-[13px] font-bold text-danger" : "text-[13px] font-bold"}>{blocked ? `公開できない問題（${validation?.blockingCount ?? 0}件）` : `検証の所見（${findings.length}件）`}</h3><ul aria-label="検証の所見" className="flex flex-col gap-2">
           {findings.map((finding, position) => (
             <FindingRow key={position} finding={finding} />
           ))}
-        </ul>
+        </ul></div>
       )}
 
-      <div className="flex flex-col gap-1.5 rounded-lg border border-warning px-3 py-3">
-        <StatusBadge className="self-start">公開対象外</StatusBadge>
+      <div className="flex flex-col gap-1.5 border-t border-border-subtle pt-4">
+        <StatusLabel className="self-start">公開対象外</StatusLabel>
         <p className="text-[13px] leading-[21px] font-bold text-text-primary">選んでいない下書き</p>
         <p className="text-[11px] leading-[19px] text-text-secondary">
-          ほかのイベント・開催回・Spot・Map Data の下書きは公開しません。それらの問題は、この{action === 'withdraw' ? '取り下げ' : '公開'}を止めません。
+          ほかのイベント・開催回・地点・地図の下書きは公開しません。それらの問題は、この{action === 'withdraw' ? '取り下げ' : '公開'}を止めません。
         </p>
       </div>
-      <p className="text-[11px] leading-[19px] text-text-secondary">未公開Spotなど必要な関連変更は、自動で公開対象へ追加しません。</p>
+      <p className="text-[11px] leading-[19px] text-text-secondary">未公開地点など必要な関連変更は、自動で公開対象へ追加しません。</p>
 
+      <div className="flex flex-col gap-2 lg:mt-auto">
+      {blocked && <p className="text-[11px] text-text-secondary">公開できない問題を直して保存すると、公開できるようになります。</p>}
       <Button variant={action === 'withdraw' ? 'danger' : 'primary'} className="h-11 w-full" disabled={!canSubmit} onClick={onSubmit}>
         {submitLabel}
       </Button>
       <Button variant="secondary" className="h-10 w-full" onClick={onBack}>
         編集へ戻る
       </Button>
+      </div>
     </aside>
   )
 }
@@ -118,9 +119,9 @@ export function ValidationPanel({ preview, loading, failed, kind, action, submit
 function FindingRow({ finding }: { finding: ValidationFinding }) {
   const severity = severityLabels[finding.severity] ?? severityLabels.info
   return (
-    <li className="flex flex-col gap-1 rounded-lg border border-border px-3 py-2.5">
+    <li className="flex flex-col gap-1 py-1">
       <div className="flex items-center gap-2">
-        <StatusBadge tone={severity.tone}>{severity.label}</StatusBadge>
+        <StatusLabel tone={severity.tone}>{severity.label}</StatusLabel>
         <span className="truncate text-[11px] leading-[19px] text-text-secondary">{finding.targetLabel}</span>
       </div>
       <p className="text-[12px] leading-5 break-words text-text-primary">{finding.message}</p>
@@ -129,7 +130,7 @@ function FindingRow({ finding }: { finding: ValidationFinding }) {
           to={editorPath(finding.targetKind, finding.targetId)}
           className="self-start text-[11px] leading-[19px] font-medium text-brand hover:underline focus-visible:outline-2 focus-visible:outline-brand"
         >
-          修正先を開く{finding.path ? `（${describePath(finding.path)}）` : ''}
+          修正先を開く{finding.path ? `（${describePath(finding.path)}）` : ''} →
         </Link>
       )}
     </li>

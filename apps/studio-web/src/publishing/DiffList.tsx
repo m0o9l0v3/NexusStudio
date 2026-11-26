@@ -1,27 +1,16 @@
-import { StatusBadge } from '../ui/StatusBadge'
 import type { DiffRow } from './diff'
 
-/** 差分の行（Figma R01「公開中との差分」）。左右の見出しは用途に合わせて変える。 */
 export function DiffList({ rows, before = '公開中', after = '公開候補', empty = '公開中の内容との違いはありません。' }: { rows: DiffRow[]; before?: string; after?: string; empty?: string }) {
-  if (rows.length === 0) return <p className="mt-3 text-[12px] leading-5 text-text-secondary">{empty}</p>
+  if (rows.length === 0) return <p className="mt-3 text-[12px] text-text-secondary">{empty}</p>
   return (
-    <ul className="mt-1 flex flex-col">
+    <div className="mt-2 text-[12px]">
+      <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,2fr)_minmax(0,2fr)] gap-3 border-b border-border-subtle py-2 text-text-secondary"><span>項目</span><span>{before}</span><span>{after}</span></div>
       {rows.map((row, position) => (
-        <li key={position} className="flex flex-col gap-1.5 border-b border-border py-3.5 last:border-b-0">
-          <div className="flex items-center gap-2">
-            <StatusBadge tone={row.kind === '削除' || row.kind === '取り下げ' ? 'danger' : 'neutral'}>{row.kind}</StatusBadge>
-            <span className="text-[13px] leading-[21px] font-medium text-text-primary">{row.label}</span>
-          </div>
-          <div className="grid grid-cols-2 gap-4 text-[11px] leading-[19px] break-words">
-            <p className="text-text-secondary">
-              {before}：{row.published}
-            </p>
-            <p className="text-text-primary">
-              {after}：{row.candidate}
-            </p>
-          </div>
-        </li>
+        <div key={position} className="grid grid-cols-[minmax(0,1fr)_minmax(0,2fr)_minmax(0,2fr)] gap-3 border-b border-border-subtle py-3 break-words">
+          <div className={row.kind === '削除' || row.kind === '取り下げ' ? 'text-danger' : 'text-text-secondary'}>{row.label}<span className="block text-[11px]">{row.kind}</span></div>
+          <div className="text-text-secondary">{row.published}</div><div className="font-medium text-text-primary">{row.candidate}</div>
+        </div>
       ))}
-    </ul>
+    </div>
   )
 }
