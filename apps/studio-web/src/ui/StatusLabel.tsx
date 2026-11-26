@@ -28,6 +28,8 @@ const hollowDotClass: Record<StatusTone, string> = {
 
 type StatusLabelProps = {
   tone?: StatusTone
+  /** 文言の色。省略時は tone に合わせた色、'primary' は本文色（ドットのみ tone 色）。 */
+  textTone?: 'tone' | 'primary'
   /** 6px ドットの表現。省略時は neutral を白抜き丸、それ以外を塗り丸にする。 */
   dot?: 'filled' | 'hollow' | 'none'
   /** 既存未刷新画面の互換用。指定された場合はドットの代わりにアイコンを表示する。 */
@@ -40,10 +42,16 @@ type StatusLabelProps = {
  * Figma v2 `Status / Label`（37:224、決定事項36 V2-13）。背景のピルを持たない「6px ドット＋文言」の状態表示。
  * 状態は色だけでなく必ず文言で示す（ドット・アイコンは読み上げない）。
  */
-export function StatusLabel({ tone = 'neutral', dot, icon, children, className }: StatusLabelProps) {
+export function StatusLabel({ tone = 'neutral', textTone = 'tone', dot, icon, children, className }: StatusLabelProps) {
   const resolvedDot = dot ?? (tone === 'neutral' ? 'hollow' : 'filled')
   return (
-    <span className={cn('inline-flex shrink-0 items-center gap-1.5 text-[12px] leading-[17px] whitespace-nowrap', toneClass[tone], className)}>
+    <span
+      className={cn(
+        'inline-flex shrink-0 items-center gap-1.5 text-[12px] leading-[17px] whitespace-nowrap',
+        textTone === 'primary' ? 'text-text-primary' : toneClass[tone],
+        className,
+      )}
+    >
       {icon != null && icon !== false ? (
         <span aria-hidden className="inline-flex shrink-0">
           {icon}
