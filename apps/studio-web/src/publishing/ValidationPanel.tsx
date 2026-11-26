@@ -30,7 +30,7 @@ const eventChecks: { label: string; detail: string; codes: (code: string) => boo
 ]
 
 const severityLabels: Record<string, { label: string; tone: 'danger' | 'warning' | 'neutral' }> = {
-  blocking: { label: '公開阻止', tone: 'danger' },
+  blocking: { label: '公開できない問題', tone: 'danger' },
   warning: { label: '要確認', tone: 'warning' },
   info: { label: '情報', tone: 'neutral' },
 }
@@ -40,11 +40,33 @@ export function ValidationPanel({ preview, loading, failed, kind, action, submit
   const validation = preview?.validation
   const findings = validation?.findings ?? []
   const validatorFailed = validation?.status === 'failed'
-  const blocked = validatorFailed || (validation?.blockingCount ?? 0) > 0
+  const hasBlocking = (validation?.blockingCount ?? 0) > 0
+  const blocked = validatorFailed || hasBlocking
   const canSubmit = Boolean(validation) && !blocked && !loading && !failed
+  const summaryLabel =
+    action === 'withdraw'
+      ? blocked
+        ? '公開を停止できない問題があります'
+        : '公開停止できます'
+      : action === 'restore'
+        ? blocked
+          ? '復旧できない問題があります'
+          : '復旧できます'
+        : blocked
+          ? '公開できない問題があります'
+          : '公開できます'
+  const blockedHeading =
+    action === 'withdraw'
+      ? '公開を停止できない問題'
+      : action === 'restore'
+        ? '復旧できない問題'
+        : '公開できない問題'
 
   return (
-    <aside aria-label="検証・関連する影響" className="flex w-full shrink-0 flex-col gap-4 border-t border-border-subtle bg-surface-subtle p-[18px] lg:w-[400px] lg:overflow-auto lg:border-t-0 lg:border-l">
+    <aside
+      aria-label="検証・関連する影響"
+      className="flex w-full shrink-0 flex-col gap-4 border-t border-border-subtle bg-surface-subtle p-[18px] lg:w-[400px] lg:overflow-auto lg:border-t-0 lg:border-l"
+    >
       <h2 className="text-[16px] leading-6 font-bold text-text-primary">検証・関連する影響</h2>
 
       <div role="status" className="flex flex-col gap-2">
@@ -53,14 +75,16 @@ export function ValidationPanel({ preview, loading, failed, kind, action, submit
         ) : validatorFailed ? (
           <>
             <StatusLabel tone="danger">検証を完了できませんでした</StatusLabel>
-            <p className="text-[11px] leading-[19px] text-text-secondary">内容の不備ではなく検証処理の失敗です。合格とは扱わず、公開できません。再確認してください。</p>
+            <p className="text-[11px] leading-[19px] text-text-secondary">
+              内容の不備ではなく検証処理の失敗です。合格とは扱わず、公開できません。再確認してください。
+            </p>
           </>
         ) : (
           <>
-            <StatusLabel tone={blocked ? 'danger' : 'success'}>{blocked ? '公開できない問題があります' : '公開できます'}</StatusLabel>
-            <p className="flex gap-4 text-[12px] leading-5 font-medium">
-              <span className="text-danger">公開阻止 {validation.blockingCount}</span>
-              <span className="text-warning">警告 {validation.warningCount}</span>
+            <StatusLabel tone={blocked ? 'danger' : 'success'}>{summaryLabel}</StatusLabel>
+            <p className="flex flex-wrap gap-x-4 gap-y-1 text-[12px] leading-5 font-bold">
+              <span className="text-danger">公開できない問題 {validation.blockingCount}件</span>
+              <span className="text-warning">要確認 {validation.warningCount}件</span>
             </p>
           </>
         )}
@@ -74,7 +98,7 @@ export function ValidationPanel({ preview, loading, failed, kind, action, submit
             return (
               <li key={check.label} className="flex items-start justify-between gap-3 py-3">
                 <div className="flex flex-col">
-                  <p className="text-[13px] leading-[21px] font-medium text-text-primary">{check.label}</p>
+                  <p className="text-[13px] leading-[21px] font-bold text-text-primary">{check.label}</p>
                   <p className="text-[11px] leading-[19px] text-text-secondary">{check.detail}</p>
                 </div>
                 <StatusLabel tone={count > 0 ? 'danger' : 'success'} className="mt-0.5">
@@ -87,30 +111,56 @@ export function ValidationPanel({ preview, loading, failed, kind, action, submit
       )}
 
       {findings.length > 0 && (
-        <div className={blocked ? "rounded-md border border-danger-border bg-danger-subtle p-3" : "rounded-md border border-border-subtle bg-canvas p-3"}><h3 className={blocked ? "text-[13px] font-bold text-danger" : "text-[13px] font-bold"}>{blocked ? `公開できない問題（${validation?.blockingCount ?? 0}件）` : `検証の所見（${findings.length}件）`}</h3><ul aria-label="検証の所見" className="flex flex-col gap-2">
-          {findings.map((finding, position) => (
-            <FindingRow key={position} finding={finding} />
-          ))}
-        </ul></div>
+        <div
+          className={
+            blocked
+              ? 'rounded-md border border-danger-border bg-danger-subtle p-3'
+              : 'rounded-md border border-warning/40 bg-warning-subtle p-3'
+          }
+        >
+          <h3
+            className={
+              blocked
+                ? 'mb-1.5 text-[13px] leading-5 font-bold text-danger'
+                : 'mb-1.5 text-[13px] leading-5 font-bold text-warning'
+            }
+          >
+            {blocked ? `${blockedHeading}（${validation?.blockingCount ?? 0}件）` : `検証の所見（${findings.length}件）`}
+          </h3>
+          <ul aria-label="検証の所見" className="flex flex-col gap-2">
+            {findings.map((finding, position) => (
+              <FindingRow key={position} finding={finding} />
+            ))}
+          </ul>
+        </div>
       )}
 
       <div className="flex flex-col gap-1.5 border-t border-border-subtle pt-4">
         <StatusLabel className="self-start">公開対象外</StatusLabel>
         <p className="text-[13px] leading-[21px] font-bold text-text-primary">選んでいない下書き</p>
         <p className="text-[11px] leading-[19px] text-text-secondary">
-          ほかのイベント・開催回・地点・地図の下書きは公開しません。それらの問題は、この{action === 'withdraw' ? '取り下げ' : '公開'}を止めません。
+          ほかのイベント・開催回・地点・地図の下書きは公開しません。それらの問題は、この
+          {action === 'withdraw' ? '公開停止' : action === 'restore' ? '復旧' : '公開'}を止めません。
         </p>
       </div>
       <p className="text-[11px] leading-[19px] text-text-secondary">未公開地点など必要な関連変更は、自動で公開対象へ追加しません。</p>
 
       <div className="flex flex-col gap-2 lg:mt-auto">
-      {blocked && <p className="text-[11px] text-text-secondary">公開できない問題を直して保存すると、公開できるようになります。</p>}
-      <Button variant={action === 'withdraw' ? 'danger' : 'primary'} className="h-11 w-full" disabled={!canSubmit} onClick={onSubmit}>
-        {submitLabel}
-      </Button>
-      <Button variant="secondary" className="h-10 w-full" onClick={onBack}>
-        編集へ戻る
-      </Button>
+        {!validatorFailed && hasBlocking && (
+          <p className="text-[11px] leading-[18px] text-text-secondary">
+            {action === 'withdraw'
+              ? '公開を停止できない問題を直して保存すると、公開停止できるようになります。'
+              : action === 'restore'
+                ? '復旧できない問題を直して保存すると、復旧できるようになります。'
+                : '公開できない問題を直して保存すると、公開できるようになります。'}
+          </p>
+        )}
+        <Button variant={action === 'withdraw' ? 'danger' : 'primary'} className="h-11 w-full" disabled={!canSubmit} onClick={onSubmit}>
+          {submitLabel}
+        </Button>
+        <Button variant="secondary" className="h-10 w-full" onClick={onBack}>
+          編集へ戻る
+        </Button>
       </div>
     </aside>
   )
@@ -128,7 +178,7 @@ function FindingRow({ finding }: { finding: ValidationFinding }) {
       {finding.severity !== 'info' && (
         <Link
           to={editorPath(finding.targetKind, finding.targetId)}
-          className="self-start text-[11px] leading-[19px] font-medium text-brand hover:underline focus-visible:outline-2 focus-visible:outline-brand"
+          className="self-start rounded-sm text-[11px] leading-[19px] font-bold text-brand hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
         >
           修正先を開く{finding.path ? `（${describePath(finding.path)}）` : ''} →
         </Link>
