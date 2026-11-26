@@ -2,8 +2,13 @@ import type { EventDraft, EventSlot, Participation, SlotVenue, TimeMode } from '
 import { EVENT_SCHEMA_VERSION } from '../api/events'
 import type { CategoryItem, OcDayItem, ReferenceData, SpotItem } from '../api/reference'
 
-export const timeModeLabels: Record<TimeMode, string> = { fixed: '時間を指定', allDay: '終日' }
-export const participationLabels: Record<Participation, string> = { atStart: '開始時刻に参加', anytime: '時間内は随時参加' }
+export const timeModeLabels: Record<TimeMode, string> = { fixed: '時間を決める', allDay: '終日' }
+export const participationLabels: Record<Participation, string> = {
+  atStart: '始まる時間に集合',
+  anytime: '時間内ならいつでも参加できる',
+}
+
+const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土'] as const
 
 export function newId(): string {
   return crypto.randomUUID()
@@ -57,15 +62,23 @@ export function indexReference(reference: ReferenceData | undefined): ReferenceI
 
 // ---- 表示用の書式 ----
 
-function parseDate(date: string): { month: number; day: number } {
-  const [, month, day] = date.split('-').map(Number)
-  return { month, day }
+function parseDate(date: string): { year: number; month: number; day: number } {
+  const [year, month, day] = date.split('-').map(Number)
+  return { year, month, day }
 }
 
-/** 9月20日 */
+/** 9月20日（他画面互換のため形式を変更しない）。 */
 export function formatDateLong(date: string): string {
   const { month, day } = parseDate(date)
   return `${month}月${day}日`
+}
+
+/** 9月20日（土） */
+export function formatDateWithWeekday(date: string): string {
+  const { year, month, day } = parseDate(date)
+  if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) return formatDateLong(date)
+  const weekday = WEEKDAYS[new Date(Date.UTC(year, month - 1, day)).getUTCDay()]
+  return `${month}月${day}日（${weekday}）`
 }
 
 /** 9/20 */
@@ -78,25 +91,38 @@ export function formatHours(day: Pick<OcDayItem, 'publicStart' | 'publicEnd'>): 
   return day.publicStart && day.publicEnd ? `${day.publicStart}–${day.publicEnd}` : null
 }
 
-/** 開催日の選択肢：9月20日（10:00–16:00）。未登録の時間は推定しない。 */
+/** 開催日の選択肢：9月20日（土）。未登録の時間・開催日中止は必要に応じて併記する。 */
 export function formatDayOption(day: OcDayItem): string {
-  const hours = formatHours(day)
-  const cancelled = day.status === 'cancelled' ? '・開催日中止' : ''
-  return `${formatDateLong(day.date)}（${hours ?? '開催時間未登録'}${cancelled}）`
+  const notes = [
+    !formatHours(day) ? '開催時間未登録' : null,
+    day.status === 'cancelled' ? '開催日中止' : null,
+  ].filter(Boolean)
+  return `${formatDateWithWeekday(day.date)}${notes.length > 0 ? `（${notes.join('・')}）` : ''}`
 }
 
-/** 枠の見出し：9月20日 10:00–11:00／9月21日 終日 10:00–15:00 */
+/** 日時の見出し：9月20日（土） 10:00–11:00／9月21日（日） 終日 10:00–16:00／日付未選択 */
 export function formatSlotHeading(slot: EventSlot, index: ReferenceIndex): string {
   const day = slot.ocDayId ? index.days.get(slot.ocDayId) : undefined
-  const date = day ? formatDateLong(day.date) : slot.ocDayId ? '開催日不明' : '開催日未選択'
+  const date = day ? formatDateWithWeekday(day.date) : slot.ocDayId ? '日付不明' : '日付未選択'
   if (slot.timeMode === 'allDay') {
     const hours = day ? formatHours(day) : null
-    return `${date} 終日${hours ? ` ${hours}` : '（時間未解決）'}`
+    return `${date} 終日${hours ? ` ${hours}` : '（開催時間未登録）'}`
   }
   if (slot.timeMode === 'fixed') {
     return `${date} ${slot.fixed?.start ?? '--:--'}–${slot.fixed?.end ?? '--:--'}`
   }
-  return `${date}（時間方式未選択）`
+  if (!slot.ocDayId) return '日付未選択'
+  return `${date} 時間未選択`
+}
+
+/** 上部エラーサマリー用の日時ラベル：9月20日（土） 10:00の回／9月21日（日） 終日の回／日時1 */
+export function formatSlotReference(slot: EventSlot, slotIndex: number, index: ReferenceIndex): string {
+  const day = slot.ocDayId ? index.days.get(slot.ocDayId) : undefined
+  if (!day) return `日時${slotIndex + 1}`
+  const date = formatDateWithWeekday(day.date)
+  if (slot.timeMode === 'fixed' && slot.fixed?.start) return `${date} ${slot.fixed.start}の回`
+  if (slot.timeMode === 'allDay') return `${date} 終日の回`
+  return `${date}の回`
 }
 
 export function formatSpotLocation(spot: SpotItem | undefined): string {
@@ -108,17 +134,21 @@ export function formatSpotLocation(spot: SpotItem | undefined): string {
 // 下書き保存は妨げない。最終的な公開可否は公開候補の検証（Step 4）で判定する。
 
 export type IssueLevel = 'blocking' | 'warning'
+export type IssueKind = 'missing' | 'invalid'
 
 export type DraftIssue = {
   level: IssueLevel
-  /** 対象の枠。共通情報の問題ではnull。 */
+  /** 新規作成の初期未保存状態で抑止する「未入力」か、入力・選択済みの値に対する問題か。 */
+  kind: IssueKind
+  /** 対象の日時。基本情報の問題ではnull。 */
   slotId: string | null
   field: 'title' | 'occurrence' | 'category' | 'slots' | 'day' | 'timeMode' | 'time' | 'participation' | 'venues' | 'venue' | 'cancel'
   canonicalSpotId?: string
+  /** 上部サマリー向けの平易なメッセージ。 */
+  summary: string
+  /** 各入力欄の直下に出すメッセージ。 */
   message: string
 }
-
-const SAVE_OK = '下書き保存はできます。'
 
 function toMinutes(time: string): number {
   const [hours, minutes] = time.split(':').map(Number)
@@ -134,71 +164,214 @@ export function findDraftIssues(
   const issues: DraftIssue[] = []
   const push = (issue: DraftIssue) => issues.push(issue)
 
-  if (!draft.title?.trim()) push({ level: 'blocking', slotId: null, field: 'title', message: `タイトルが未入力です。${SAVE_OK}` })
-  if (!draft.occurrenceId) push({ level: 'blocking', slotId: null, field: 'occurrence', message: `対象の開催が未選択です。${SAVE_OK}` })
+  if (!draft.title?.trim()) {
+    push({
+      level: 'blocking',
+      kind: 'missing',
+      slotId: null,
+      field: 'title',
+      summary: 'タイトルが入力されていません',
+      message: '公開するにはタイトルが必要です',
+    })
+  }
+  if (!draft.occurrenceId) {
+    push({
+      level: 'blocking',
+      kind: 'missing',
+      slotId: null,
+      field: 'occurrence',
+      summary: 'オープンキャンパスが選ばれていません',
+      message: '公開するにはオープンキャンパスが必要です',
+    })
+  }
   if (!draft.categoryId) {
-    push({ level: 'blocking', slotId: null, field: 'category', message: `カテゴリが未選択です。${SAVE_OK}` })
+    push({
+      level: 'blocking',
+      kind: 'missing',
+      slotId: null,
+      field: 'category',
+      summary: 'カテゴリが選ばれていません',
+      message: '公開するにはカテゴリが必要です',
+    })
   } else if (options.referenceLoaded) {
     const category = index.categories.get(draft.categoryId)
     if (!category) {
-      push({ level: 'blocking', slotId: null, field: 'category', message: `選択中のカテゴリが見つかりません。${SAVE_OK}` })
+      push({
+        level: 'blocking',
+        kind: 'invalid',
+        slotId: null,
+        field: 'category',
+        summary: '選ばれているカテゴリが見つかりません',
+        message: '選ばれているカテゴリが見つかりません。別のカテゴリを選んでください。',
+      })
     } else if (!category.selectable && draft.categoryId !== options.savedCategoryId) {
-      push({ level: 'blocking', slotId: null, field: 'category', message: '新規選択停止のカテゴリは新たに選べません。' })
+      push({
+        level: 'blocking',
+        kind: 'invalid',
+        slotId: null,
+        field: 'category',
+        summary: '新規選択停止のカテゴリが選ばれています',
+        message: '新規選択停止のカテゴリは新たに選べません。',
+      })
     }
   }
-  if (draft.slots.length === 0) push({ level: 'blocking', slotId: null, field: 'slots', message: `開催枠がありません。${SAVE_OK}` })
+  if (draft.slots.length === 0) {
+    push({
+      level: 'blocking',
+      kind: 'missing',
+      slotId: null,
+      field: 'slots',
+      summary: '日時がありません',
+      message: '公開するには日時が1回以上必要です',
+    })
+  }
 
-  for (const slot of draft.slots) {
+  draft.slots.forEach((slot, slotIndex) => {
     const day = slot.ocDayId ? index.days.get(slot.ocDayId) : undefined
+    const prefix = formatSlotReference(slot, slotIndex, index)
+
     if (!slot.ocDayId) {
-      push({ level: 'blocking', slotId: slot.slotId, field: 'day', message: `開催日が未選択です。${SAVE_OK}` })
+      push({
+        level: 'blocking',
+        kind: 'missing',
+        slotId: slot.slotId,
+        field: 'day',
+        summary: `${prefix}：日付が選ばれていません`,
+        message: '公開するには日付が必要です',
+      })
     } else if (options.referenceLoaded && (!day || day.occurrenceId !== draft.occurrenceId)) {
-      push({ level: 'blocking', slotId: slot.slotId, field: 'day', message: `開催日が対象の開催に属していません。開催日を選び直してください。${SAVE_OK}` })
+      push({
+        level: 'blocking',
+        kind: 'invalid',
+        slotId: slot.slotId,
+        field: 'day',
+        summary: `${prefix}：選択中のオープンキャンパスにない日付です`,
+        message: 'この日付は選択中のオープンキャンパスに含まれていません。日付を選び直してください。',
+      })
     }
 
     if (!slot.timeMode) {
-      push({ level: 'blocking', slotId: slot.slotId, field: 'timeMode', message: `時間方式が未選択です。${SAVE_OK}` })
+      push({
+        level: 'blocking',
+        kind: 'missing',
+        slotId: slot.slotId,
+        field: 'timeMode',
+        summary: `${prefix}：時間の決め方が選ばれていません`,
+        message: '「時間を決める」か「終日」を選んでください',
+      })
     } else if (slot.timeMode === 'fixed') {
       const start = slot.fixed?.start
       const end = slot.fixed?.end
       if (!start || !end) {
-        push({ level: 'blocking', slotId: slot.slotId, field: 'time', message: `開始・終了の時刻が未入力です。${SAVE_OK}` })
+        push({
+          level: 'blocking',
+          kind: 'missing',
+          slotId: slot.slotId,
+          field: 'time',
+          summary: `${prefix}：開始・終了の時刻が入力されていません`,
+          message: '公開するには開始時刻と終了時刻が必要です',
+        })
       } else if (toMinutes(end) <= toMinutes(start)) {
-        push({ level: 'blocking', slotId: slot.slotId, field: 'time', message: `終了時刻は開始時刻より後にしてください。${SAVE_OK}` })
+        push({
+          level: 'blocking',
+          kind: 'invalid',
+          slotId: slot.slotId,
+          field: 'time',
+          summary: `${prefix}：終了時刻が開始時刻より前か同じです`,
+          message: '終了時刻は開始時刻より後にしてください',
+        })
       } else if (day?.publicStart && day.publicEnd) {
         if (toMinutes(start) < toMinutes(day.publicStart)) {
-          push({ level: 'warning', slotId: slot.slotId, field: 'time', message: `一般公開時間 ${day.publicStart}–${day.publicEnd} より前に開始します。時刻を確認してください。` })
+          push({
+            level: 'warning',
+            kind: 'invalid',
+            slotId: slot.slotId,
+            field: 'time',
+            summary: `${prefix}：一般公開時間（${day.publicStart}–${day.publicEnd}）より前に始まります`,
+            message: `一般公開時間（${day.publicStart}–${day.publicEnd}）より前に始まります。時刻を確認してください。`,
+          })
         } else if (toMinutes(end) > toMinutes(day.publicEnd)) {
-          push({ level: 'warning', slotId: slot.slotId, field: 'time', message: `一般公開時間 ${day.publicStart}–${day.publicEnd} より後に終了します。時刻を確認してください。` })
+          push({
+            level: 'warning',
+            kind: 'invalid',
+            slotId: slot.slotId,
+            field: 'time',
+            summary: `${prefix}：一般公開時間（${day.publicStart}–${day.publicEnd}）より後に終わります`,
+            message: `一般公開時間（${day.publicStart}–${day.publicEnd}）より後に終わります。時刻を確認してください。`,
+          })
         }
       }
     } else if (day && !formatHours(day)) {
-      push({ level: 'blocking', slotId: slot.slotId, field: 'time', message: `開催時間が未登録のため公開できません。${SAVE_OK}` })
+      push({
+        level: 'blocking',
+        kind: 'invalid',
+        slotId: slot.slotId,
+        field: 'time',
+        summary: `${prefix}：開催日の開催時間が登録されていません`,
+        message: 'この日の開催時間が未登録のため公開できません。「オープンキャンパス」の画面で時間を登録するか、時間を決めて入力してください。',
+      })
     }
 
     if (!slot.participation) {
-      push({ level: 'blocking', slotId: slot.slotId, field: 'participation', message: `参加案内が未選択です。${SAVE_OK}` })
+      push({
+        level: 'blocking',
+        kind: 'missing',
+        slotId: slot.slotId,
+        field: 'participation',
+        summary: `${prefix}：参加についてが選ばれていません`,
+        message: '公開するには「参加について」を選んでください',
+      })
     }
 
     if (slot.status === 'cancelled' && !slot.cancelNote?.trim()) {
-      push({ level: 'warning', slotId: slot.slotId, field: 'cancel', message: '中止案内がありません。来場者向けの案内文を確認してください。' })
+      push({
+        level: 'warning',
+        kind: 'invalid',
+        slotId: slot.slotId,
+        field: 'cancel',
+        summary: `${prefix}：中止の案内が入力されていません`,
+        message: '中止の案内がありません。来場者向けの案内を確認してください。',
+      })
     }
 
     if (slot.venues.length === 0) {
-      push({ level: 'blocking', slotId: slot.slotId, field: 'venues', message: `公開には会場が必要です。${SAVE_OK}` })
+      push({
+        level: 'blocking',
+        kind: 'missing',
+        slotId: slot.slotId,
+        field: 'venues',
+        summary: `${prefix}：会場がありません`,
+        message: '公開するには会場が1か所以上必要です',
+      })
     }
 
     if (options.spotsLoaded) {
       for (const venue of slot.venues) {
         const spot = spots.get(venue.canonicalSpotId)
         if (!spot) {
-          push({ level: 'blocking', slotId: slot.slotId, field: 'venue', canonicalSpotId: venue.canonicalSpotId, message: 'このIDのSpotが見つかりません。別のSpotに置き換えず、会場を選び直してください。' })
+          push({
+            level: 'blocking',
+            kind: 'invalid',
+            slotId: slot.slotId,
+            field: 'venue',
+            canonicalSpotId: venue.canonicalSpotId,
+            summary: `${prefix}：「${venue.canonicalSpotId}」が見つかりません`,
+            message: `「${venue.canonicalSpotId}」は見つかりません。別の地点に自動で置き換えず、会場を選び直してください。`,
+          })
         } else if (!spot.isPublished) {
-          push({ level: 'blocking', slotId: slot.slotId, field: 'venue', canonicalSpotId: venue.canonicalSpotId, message: '会場のSpotが未公開です。このイベントは公開できません。Spotを自動で公開対象へ追加しません。' })
+          push({
+            level: 'blocking',
+            kind: 'invalid',
+            slotId: slot.slotId,
+            field: 'venue',
+            canonicalSpotId: venue.canonicalSpotId,
+            summary: `${prefix}：「${spot.name}」はまだ公開されていない地点です`,
+            message: `「${spot.name}」はまだ公開されていない地点です。「地点」の画面で公開するか、別の会場を選んでください。`,
+          })
         }
       }
     }
-  }
+  })
 
   return issues
 }
@@ -218,7 +391,7 @@ export function previewLines(draft: EventDraft, index: ReferenceIndex, spots: Ma
   return sortSlotsForDisplay(draft.slots, index).map((slot) => {
     const day = slot.ocDayId ? index.days.get(slot.ocDayId) : undefined
     const date = day ? formatDateShort(day.date) : '日付未選択'
-    const participation = slot.participation === 'atStart' ? '開始時刻に参加' : slot.participation === 'anytime' ? '随時参加可' : '参加案内未選択'
+    const participation = slot.participation === 'atStart' ? '始まる時間に集合' : slot.participation === 'anytime' ? '随時参加可' : '参加について未選択'
     const venueNames = slot.venues.map((venue) => spots.get(venue.canonicalSpotId)?.name ?? venue.canonicalSpotId)
     const cancelled = cancellationOf(slot, index)
     if (cancelled) {
@@ -230,13 +403,13 @@ export function previewLines(draft: EventDraft, index: ReferenceIndex, spots: Ma
     if (slot.timeMode === 'allDay') {
       const hours = day ? formatHours(day) : null
       return {
-        heading: `${date} 終日${hours ? ` ${hours}` : '・時間未解決'}`,
-        detail: `${participation}・${venueNames.length === 0 ? '会場未選択' : `${venueNames.length}会場`}`,
+        heading: `${date} 終日${hours ? ` ${hours}` : '・開催時間未登録'}`,
+        detail: `${participation}・${venueNames.length === 0 ? '会場なし' : `${venueNames.length}会場`}`,
       }
     }
 
     const time = slot.timeMode === 'fixed' ? `${slot.fixed?.start ?? '--:--'}–${slot.fixed?.end ?? '--:--'}` : '時間未選択'
-    let detail = '会場未選択'
+    let detail = '会場なし'
     if (venueNames.length === 1) {
       const spot = spots.get(slot.venues[0].canonicalSpotId)
       detail = [venueNames[0], spot ? [spot.buildingName, spot.floorName].filter(Boolean).join('') : ''].filter(Boolean).join('・')
