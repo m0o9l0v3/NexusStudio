@@ -1,7 +1,7 @@
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ChevronLeft, CircleDashed, OctagonX, Pencil, Plus, Save } from 'lucide-react'
+import { ArrowRight, ArrowUpRight, ChevronDown, ChevronLeft, ChevronUp, Plus } from 'lucide-react'
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
-import { useBlocker, useNavigate, useParams, type Location } from 'react-router'
+import { Link, useBlocker, useNavigate, useParams, type Location } from 'react-router'
 import { ApiError, NetworkError } from '../../../api/client'
 import {
   createEvent,
@@ -36,11 +36,10 @@ import { useWideLayout } from '../../../shell/useWideLayout'
 import { Button } from '../../../ui/Button'
 import { Dialog, DialogActions } from '../../../ui/Dialog'
 import { NoticeBanner } from '../../../ui/NoticeBanner'
-import { PageSheet } from '../../../ui/PageSheet'
 import { StatusLabel } from '../../../ui/StatusLabel'
 import { CommonInfoCard } from './CommonInfoCard'
 import { ConflictPanel } from './ConflictPanel'
-import { PreviewPanel } from './PreviewPanel'
+import { PreviewPanel, type PreviewSyncState } from './PreviewPanel'
 import { SlotCard } from './SlotCard'
 
 const clock = new Intl.DateTimeFormat('ja-JP', {
@@ -55,19 +54,11 @@ function PublicationStatusLabel({ state }: { state: string }) {
     case 'published':
       return <StatusLabel tone="success">公開中</StatusLabel>
     case 'publishedWithChanges':
-      return (
-        <StatusLabel tone="warning" icon={<Pencil size={15} strokeWidth={1.5} />}>
-          公開中・変更あり
-        </StatusLabel>
-      )
+      return <StatusLabel tone="warning">公開中・変更あり</StatusLabel>
     case 'withdrawn':
       return <StatusLabel tone="neutral">公開停止</StatusLabel>
     default:
-      return (
-        <StatusLabel tone="neutral" icon={<CircleDashed size={15} strokeWidth={1.5} />}>
-          未公開
-        </StatusLabel>
-      )
+      return <StatusLabel tone="neutral">未公開</StatusLabel>
   }
 }
 
@@ -99,19 +90,28 @@ export function EventEditorPage() {
   if (event.data) return <EventEditor key={id} initial={event.data} />
 
   const notFound = event.error instanceof ApiError && event.error.status === 404
+  const stateHeading = event.isPending ? '読み込み中' : notFound ? '見つかりません' : '取得できませんでした'
   return (
     <>
       <Toolbar
-        title="イベント"
+        title={stateHeading}
         leading={
-          <Button variant="secondary" size="sm" onClick={() => void navigate('/events')}>
-            <ChevronLeft aria-hidden size={14} strokeWidth={1.75} />
-            イベント一覧
-          </Button>
+          <div className="flex shrink-0 items-center gap-2.5">
+            <Link
+              to="/events"
+              className="inline-flex items-center gap-1 rounded-sm text-[13px] leading-5 font-normal text-text-secondary hover:text-text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+            >
+              <ChevronLeft aria-hidden size={15} strokeWidth={1.75} />
+              イベント
+            </Link>
+            <span aria-hidden className="text-[13px] text-text-muted">
+              /
+            </span>
+          </div>
         }
       />
-      <PageSheet>
-        <main className="min-h-0 flex-1 overflow-y-auto px-4 py-5 sm:px-6 xl:px-7">
+      <div className="flex min-h-0 flex-1 overflow-hidden bg-canvas">
+        <main className="min-h-0 flex-1 overflow-y-auto px-6 py-6 max-[500px]:px-3">
           <div className="flex max-w-[784px] flex-col items-start gap-3">
             {event.isPending ? (
               <NoticeBanner>選択したイベントを読み込んでいます。取得できるまで編集欄は表示しません。</NoticeBanner>
@@ -130,7 +130,7 @@ export function EventEditorPage() {
             </Button>
           </div>
         </main>
-      </PageSheet>
+      </div>
     </>
   )
 }
@@ -157,13 +157,14 @@ function EventEditor({ initial }: { initial: EventDetail | null }) {
   const wide = useWideLayout()
   const [previewVisible, setPreviewVisible] = useState(true)
   const [panelOpen, setPanelOpen] = useState(false)
+  const [detailsOpen, setDetailsOpen] = useState(false)
   const panelButton = useRef<HTMLButtonElement>(null)
 
   const [expandedSlotId, setExpandedSlotId] = useState<string | null>(() => draft.slots[0]?.slotId ?? null)
   const [previewSlotId, setPreviewSlotId] = useState<string | null>(() => draft.slots[0]?.slotId ?? null)
   // 追加・複製した枠は開いた直後に見出しへフォーカスを移す（07 §4.4、検証記録 A-3 D4）。
   const [focusSlotId, setFocusSlotId] = useState<string | null>(null)
-  // ［この欄へ移動］の移動先。閉じていた日時を開いた直後の DOM マウント後にスクロール＆フォーカスする。
+  // ［移動 →］の移動先。閉じていた日時を開いた直後の DOM マウント後にスクロール＆フォーカスする。
   const [jumpTarget, setJumpTarget] = useState<{ id: string; seq: number } | null>(null)
 
   // 同じ内容の保存・差し戻しを再試行するときは同じ operationId を使い、応答が失われた操作を二重に作らない。
@@ -238,6 +239,10 @@ function EventEditor({ initial }: { initial: EventDetail | null }) {
   )
   const displayedBlockingIssues = useMemo(
     () => displayedIssues.filter((issue) => issue.level === 'blocking'),
+    [displayedIssues],
+  )
+  const displayedWarningIssues = useMemo(
+    () => displayedIssues.filter((issue) => issue.level === 'warning'),
     [displayedIssues],
   )
 
@@ -455,13 +460,18 @@ function EventEditor({ initial }: { initial: EventDetail | null }) {
   const titleText = draft.title?.trim() || (base ? '無題のイベント' : '新規イベント')
   const publicationState = base?.publication.state ?? 'unpublished'
   const publication = publicationBadge(publicationState)
-  const hasReleaseHistory = Boolean(base && (base.publication.state !== 'unpublished' || base.publication.publishedAt))
   const live = Boolean(base && isLive(base.publication.state))
   const showSidePanel = !wide || Boolean(conflict) || previewVisible
+  const previewState: PreviewSyncState =
+    base && base.publication.state === 'published' && !dirty
+      ? 'published'
+      : live
+        ? 'publishedWithChanges'
+        : 'unpublished'
 
   const saveStatusNode = (() => {
     if (saveState === 'saving') {
-      return <span className="text-[13px] leading-5 whitespace-nowrap text-text-secondary">保存中…</span>
+      return <span className="text-[12px] leading-[17px] whitespace-nowrap text-text-muted tabular-nums">保存中…</span>
     }
     if (saveState === 'conflict') {
       return <StatusLabel tone="warning">保存競合</StatusLabel>
@@ -470,23 +480,15 @@ function EventEditor({ initial }: { initial: EventDetail | null }) {
       return <StatusLabel tone="danger">保存失敗</StatusLabel>
     }
     if (!base) {
-      return (
-        <StatusLabel icon={<Save size={16} strokeWidth={1.5} />} className="text-[13px]">
-          まだ保存していません
-        </StatusLabel>
-      )
+      return <span className="text-[12px] leading-[17px] whitespace-nowrap text-text-muted tabular-nums">まだ保存していません</span>
     }
     if (dirty) {
-      return (
-        <StatusLabel tone="warning" icon={<Save size={16} strokeWidth={1.5} />} className="text-[13px]">
-          未保存の変更あり
-        </StatusLabel>
-      )
+      return <StatusLabel tone="warning">未保存の変更あり</StatusLabel>
     }
     return (
-      <StatusLabel icon={<Save size={16} strokeWidth={1.5} />} className="text-[13px]">
-        保存済み <time dateTime={base.updatedAt}>{clock.format(new Date(base.updatedAt))}</time>
-      </StatusLabel>
+      <span className="text-[12px] leading-[17px] whitespace-nowrap text-text-muted tabular-nums">
+        <time dateTime={base.updatedAt}>{clock.format(new Date(base.updatedAt))}</time> 保存済み
+      </span>
     )
   })()
 
@@ -495,10 +497,18 @@ function EventEditor({ initial }: { initial: EventDetail | null }) {
       <Toolbar
         title={titleText}
         leading={
-          <Button variant="secondary" size="sm" onClick={() => void navigate('/events')}>
-            <ChevronLeft aria-hidden size={14} strokeWidth={1.75} />
-            イベント一覧
-          </Button>
+          <div className="flex shrink-0 items-center gap-2.5">
+            <Link
+              to="/events"
+              className="inline-flex items-center gap-1 rounded-sm text-[13px] leading-5 font-normal text-text-secondary hover:text-text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+            >
+              <ChevronLeft aria-hidden size={15} strokeWidth={1.75} />
+              イベント
+            </Link>
+            <span aria-hidden className="text-[13px] text-text-muted">
+              /
+            </span>
+          </div>
         }
         titleNode={
           <span className="flex min-w-0 items-center gap-2.5">
@@ -514,12 +524,12 @@ function EventEditor({ initial }: { initial: EventDetail | null }) {
         {wide ? (
           <>
             {!previewVisible && !conflict && (
-              <Button variant="soft" size="sm" onClick={() => setPreviewVisible(true)}>
+              <Button variant="ghost" size="sm" onClick={() => setPreviewVisible(true)}>
                 見え方を表示
               </Button>
             )}
             <Button variant="secondary" onClick={() => void save()} disabled={busy || conflictOpen}>
-              {saveState === 'saving' ? '保存中…' : conflictOpen ? '保存不可' : '下書きを保存'}
+              {saveState === 'saving' ? '保存中…' : conflictOpen ? '保存不可' : '下書き保存'}
             </Button>
             <Button variant="primary" onClick={() => void review()} disabled={busy || conflictOpen}>
               {dirty || !base ? '保存して確認' : '公開内容を確認'}
@@ -528,7 +538,7 @@ function EventEditor({ initial }: { initial: EventDetail | null }) {
         ) : (
           <>
             <Button variant="secondary" size="sm" onClick={() => void save()} disabled={busy || conflictOpen}>
-              {saveState === 'saving' ? '保存中…' : conflictOpen ? '保存不可' : '下書きを保存'}
+              {saveState === 'saving' ? '保存中…' : conflictOpen ? '保存不可' : '下書き保存'}
             </Button>
             <Button
               ref={panelButton}
@@ -559,8 +569,8 @@ function EventEditor({ initial }: { initial: EventDetail | null }) {
         )}
       </Toolbar>
 
-      <PageSheet className="flex-row">
-        <main className="min-w-0 flex-1 overflow-y-auto px-4 py-5 sm:px-6 xl:px-7">
+      <div className="flex min-h-0 flex-1 overflow-hidden bg-canvas">
+        <main className="min-h-0 flex-1 overflow-y-auto px-6 py-6 max-[500px]:px-3">
           <div className="flex max-w-[820px] flex-col gap-6 pb-8">
             {failure && (
               <div ref={failureRef}>
@@ -574,34 +584,53 @@ function EventEditor({ initial }: { initial: EventDetail | null }) {
               />
             )}
 
-            {/* E05：公開する前に直すこと（白地＋赤枠で文字コントラストを確保） */}
+            {/* E05：公開する前に直すこと */}
             {displayedBlockingIssues.length > 0 && (
               <section
                 role="region"
                 aria-label="公開する前に直すこと"
-                className="flex flex-col gap-2.5 rounded-[10px] border border-danger/60 bg-surface p-4"
+                className="rounded-md border border-danger-border border-l-[3px] border-l-danger bg-danger-subtle px-4 py-3"
               >
-                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                  <span className="inline-flex items-center gap-1.5 text-[13px] leading-5 font-bold text-danger">
-                    <OctagonX aria-hidden size={16} strokeWidth={2} className="shrink-0" />
-                    公開する前に直すことが{displayedBlockingIssues.length}件あります
-                  </span>
-                  <span className="text-[12px] leading-5 text-text-secondary">（下書きの保存はできます）</span>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-[13px] leading-[18px] font-bold text-danger tabular-nums">
+                    公開する前に直すこと（{displayedBlockingIssues.length}件）
+                  </p>
+                  <span className="text-[12px] leading-[17px] text-text-muted">下書き保存はできます</span>
                 </div>
-                <ul className="flex flex-col gap-2">
+                <ul className="mt-2 flex flex-col gap-1">
                   {displayedBlockingIssues.map((issue, idx) => (
-                    <li
-                      key={`${issue.slotId ?? 'common'}-${issue.field}-${issue.canonicalSpotId ?? idx}`}
-                      className="flex flex-wrap items-center justify-between gap-2 pl-1 text-[13px] leading-5 text-text-primary"
-                    >
-                      <span className="min-w-0 flex-1">・{issue.summary}</span>
-                      <Button variant="soft" size="sm" onClick={() => jumpToIssue(issue)}>
-                        この欄へ移動
-                      </Button>
+                    <li key={`${issue.slotId ?? 'common'}-${issue.field}-${issue.canonicalSpotId ?? idx}`}>
+                      <button
+                        type="button"
+                        onClick={() => jumpToIssue(issue)}
+                        className="group flex w-full items-center justify-between gap-3 rounded-sm py-1 text-left text-[13px] leading-5 text-text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+                      >
+                        <span className="min-w-0 flex-1 group-hover:underline">{issue.summary}</span>
+                        <span className="inline-flex shrink-0 items-center gap-1 text-[12px] leading-[17px] text-danger group-hover:underline">
+                          移動
+                          <ArrowRight aria-hidden size={13} strokeWidth={1.75} />
+                        </span>
+                      </button>
                     </li>
                   ))}
                 </ul>
               </section>
+            )}
+
+            {displayedWarningIssues.length > 0 && (
+              <NoticeBanner tone="warning">
+                <span className="tabular-nums">公開前に確認したい項目が{displayedWarningIssues.length}件あります。</span>
+                {displayedWarningIssues.map((issue, idx) => (
+                  <button
+                    key={`${issue.slotId ?? 'common'}-${issue.field}-${idx}`}
+                    type="button"
+                    onClick={() => jumpToIssue(issue)}
+                    className="ml-2 inline rounded-sm underline underline-offset-2 hover:text-text-primary focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand"
+                  >
+                    {issue.summary}
+                  </button>
+                ))}
+              </NoticeBanner>
             )}
 
             {/* セクション 1：基本情報 */}
@@ -619,14 +648,21 @@ function EventEditor({ initial }: { initial: EventDetail | null }) {
 
             {/* セクション 2：日時と会場 */}
             <section aria-labelledby="slots-heading" className="flex flex-col gap-3">
-              <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border-subtle pb-2">
                 <div className="flex items-baseline gap-2">
-                  <h2 id="slots-heading" className="text-[16px] leading-6 font-bold text-text-primary">
+                  <h2 id="slots-heading" className="text-[13px] leading-[18px] font-bold text-text-primary">
                     日時と会場
                   </h2>
-                  <span className="text-[13px] leading-5 text-text-secondary">{draft.slots.length}回</span>
+                  <span className="text-[12px] leading-[17px] text-text-muted tabular-nums">{draft.slots.length}回</span>
                 </div>
-                <Button ref={addSlotButton} id={`${editorId}-add-slot`} variant="secondary" size="sm" onClick={addSlot}>
+                <Button
+                  ref={addSlotButton}
+                  id={`${editorId}-add-slot`}
+                  variant="ghost"
+                  size="sm"
+                  className="-mr-2 text-text-primary!"
+                  onClick={addSlot}
+                >
                   <Plus aria-hidden size={14} strokeWidth={1.75} />
                   日時を追加
                 </Button>
@@ -635,125 +671,121 @@ function EventEditor({ initial }: { initial: EventDetail | null }) {
               {displayedIssues
                 .filter((issue) => issue.slotId === null && issue.field === 'slots')
                 .map((issue) => (
-                  <p key={issue.field} className="inline-flex items-center gap-1 text-[11px] leading-[19px] text-danger">
-                    <OctagonX aria-hidden size={13} strokeWidth={2} className="shrink-0" />
-                    <span>{issue.message}</span>
+                  <p key={issue.field} className="text-[11px] leading-4 text-danger">
+                    {issue.message}
                   </p>
                 ))}
 
-              {draft.slots.map((slot) => (
-                <SlotCard
-                  key={slot.slotId}
-                  editorId={editorId}
-                  slot={slot}
-                  index={index}
-                  occurrence={index.occurrences.find((item) => item.id === draft.occurrenceId)}
-                  spots={spots}
-                  issues={displayedIssues.filter((issue) => issue.slotId === slot.slotId)}
-                  expanded={expandedSlotId === slot.slotId}
-                  onToggle={() => {
-                    if (expandedSlotId === slot.slotId) {
-                      setExpandedSlotId(null)
-                    } else {
-                      setExpandedSlotId(slot.slotId)
-                      setPreviewSlotId(slot.slotId)
-                    }
-                    setFocusSlotId(null)
-                  }}
-                  onChange={(next) => updateSlot(slot.slotId, next)}
-                  onDuplicate={() => duplicate(slot.slotId)}
-                  onDelete={() => remove(slot.slotId)}
-                  focusOnOpen={focusSlotId === slot.slotId}
-                />
-              ))}
-            </section>
-
-            {/* セクション 3：このイベントの管理 */}
-            <section aria-labelledby="event-management-heading" className="flex flex-col gap-3">
-              <h2 id="event-management-heading" className="text-[16px] leading-6 font-bold text-text-primary">
-                このイベントの管理
-              </h2>
-              <div className="divide-y divide-border rounded-[10px] border border-border bg-surface">
-                <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3.5">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[13px] leading-5 text-text-primary">
-                      このイベントを公開した記録と、公開をやめた記録を見られます。
-                    </p>
-                    {!hasReleaseHistory && (
-                      <p className="mt-0.5 text-[12px] leading-5 text-text-secondary">まだ公開していないので、記録はありません。</p>
-                    )}
-                  </div>
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    disabled={!hasReleaseHistory}
-                    onClick={() => base && void navigate(`/releases?targetKind=event&targetId=${encodeURIComponent(base.id)}`)}
-                  >
-                    公開履歴を見る
-                  </Button>
-                </div>
-
-                <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3.5">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[13px] leading-5 text-text-primary">
-                      最後に「下書きを保存」したときの内容に戻します。
-                    </p>
-                    {!base ? (
-                      <p className="mt-0.5 text-[12px] leading-5 text-text-secondary">まだ一度も保存していません。</p>
-                    ) : !dirty ? (
-                      <p className="mt-0.5 text-[12px] leading-5 text-text-secondary">いま、保存していない変更はありません。</p>
-                    ) : null}
-                  </div>
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    disabled={!base || !dirty || busy || conflictOpen}
-                    onClick={() => setConfirmDiscard(true)}
-                  >
-                    保存していない変更を取り消す
-                  </Button>
-                </div>
-
-                {live && base && (
-                  <>
-                    <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3.5">
-                      <div className="min-w-0 flex-1">
-                        <p className="text-[13px] leading-5 text-text-primary">
-                          下書きを、いまアプリに出ている内容に戻します。保存した変更は消えます。
-                        </p>
-                        {base.publication.state !== 'publishedWithChanges' && (
-                          <p className="mt-0.5 text-[12px] leading-5 text-text-secondary">いまの下書きは公開中の内容と同じです。</p>
-                        )}
-                      </div>
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        disabled={base.publication.state !== 'publishedWithChanges' || busy || conflictOpen}
-                        onClick={() => setConfirmRevert(true)}
-                      >
-                        公開中の内容に戻す
-                      </Button>
-                    </div>
-
-                    <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3.5">
-                      <div className="min-w-0 flex-1">
-                        <p className="text-[13px] leading-5 text-text-primary">
-                          このイベントをアプリに表示しないようにします。下書きは残るので、あとで公開し直せます。
-                        </p>
-                      </div>
-                      <Button
-                        variant="danger"
-                        size="sm"
-                        disabled={busy}
-                        onClick={() => void navigate(reviewPath('event', base.id, 'withdraw'))}
-                      >
-                        公開をやめる
-                      </Button>
-                    </div>
-                  </>
-                )}
+              <div className="flex flex-col gap-2">
+                {draft.slots.map((slot) => (
+                  <SlotCard
+                    key={slot.slotId}
+                    editorId={editorId}
+                    slot={slot}
+                    index={index}
+                    occurrence={index.occurrences.find((item) => item.id === draft.occurrenceId)}
+                    spots={spots}
+                    issues={displayedIssues.filter((issue) => issue.slotId === slot.slotId)}
+                    expanded={expandedSlotId === slot.slotId}
+                    onToggle={() => {
+                      if (expandedSlotId === slot.slotId) {
+                        setExpandedSlotId(null)
+                      } else {
+                        setExpandedSlotId(slot.slotId)
+                        setPreviewSlotId(slot.slotId)
+                      }
+                      setFocusSlotId(null)
+                    }}
+                    onChange={(next) => updateSlot(slot.slotId, next)}
+                    onDuplicate={() => duplicate(slot.slotId)}
+                    onDelete={() => remove(slot.slotId)}
+                    focusOnOpen={focusSlotId === slot.slotId}
+                  />
+                ))}
               </div>
             </section>
+
+            {/* セクション 3：下部管理エリア（新規作成 E04 では非表示。E02・E02-details `102:3553`） */}
+            {base && (
+              <section aria-label="このイベントの管理" className="border-t border-border-subtle pt-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <Link
+                    to={`/releases?targetId=${encodeURIComponent(base.id)}`}
+                    className="inline-flex items-center gap-1 rounded-sm text-[12px] leading-[17px] text-brand hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+                  >
+                    公開履歴を見る
+                    <ArrowUpRight aria-hidden size={14} strokeWidth={1.75} />
+                  </Link>
+                  <button
+                    type="button"
+                    aria-expanded={detailsOpen}
+                    aria-controls={`${editorId}-details-panel`}
+                    onClick={() => setDetailsOpen((open) => !open)}
+                    className="inline-flex items-center gap-1.5 rounded-sm text-[12px] leading-[17px] text-text-secondary hover:text-text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+                  >
+                    詳細管理（元に戻す・公開停止）
+                    {detailsOpen ? (
+                      <ChevronUp aria-hidden size={14} strokeWidth={1.75} />
+                    ) : (
+                      <ChevronDown aria-hidden size={14} strokeWidth={1.75} />
+                    )}
+                  </button>
+                </div>
+
+                {detailsOpen && (
+                  <div
+                    id={`${editorId}-details-panel`}
+                    className="mt-3 divide-y divide-border-subtle rounded-lg border border-border-subtle bg-surface-subtle"
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+                      <p className="min-w-0 flex-1 text-[12px] leading-[18px] text-text-muted">
+                        最後に下書きを保存したときの内容に戻します。
+                      </p>
+                      <button
+                        type="button"
+                        disabled={!dirty || busy || conflictOpen}
+                        onClick={() => setConfirmDiscard(true)}
+                        className="shrink-0 rounded-sm text-[12px] leading-[18px] text-text-primary hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:cursor-not-allowed disabled:opacity-45 disabled:no-underline"
+                      >
+                        保存していない変更を取り消す
+                      </button>
+                    </div>
+
+                    {live && (
+                      <>
+                        <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+                          <p className="min-w-0 flex-1 text-[12px] leading-[18px] text-text-muted">
+                            下書きを、いまアプリに出ている内容に戻します。
+                          </p>
+                          <button
+                            type="button"
+                            disabled={base.publication.state !== 'publishedWithChanges' || busy || conflictOpen}
+                            onClick={() => setConfirmRevert(true)}
+                            className="shrink-0 rounded-sm text-[12px] leading-[18px] text-text-primary hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:cursor-not-allowed disabled:opacity-45 disabled:no-underline"
+                          >
+                            公開中の内容に戻す
+                          </button>
+                        </div>
+
+                        <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+                          <p className="min-w-0 flex-1 text-[12px] leading-[18px] text-text-muted">
+                            アプリでの表示を停止します。下書きは残ります。
+                          </p>
+                          <button
+                            type="button"
+                            disabled={busy}
+                            onClick={() => void navigate(reviewPath('event', base.id, 'withdraw'))}
+                            className="shrink-0 rounded-sm text-[12px] leading-[18px] text-danger hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:cursor-not-allowed disabled:opacity-45 disabled:no-underline"
+                          >
+                            公開をやめる
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
+              </section>
+            )}
           </div>
         </main>
 
@@ -781,7 +813,7 @@ function EventEditor({ initial }: { initial: EventDetail | null }) {
                 draft={draft}
                 index={index}
                 spots={spots}
-                syncedWithPublished={Boolean(base && base.publication.state === 'published' && !dirty)}
+                previewState={previewState}
                 selectedSlotId={previewSlotId}
                 onSelectSlot={setPreviewSlotId}
                 onHide={wide ? () => setPreviewVisible(false) : undefined}
@@ -789,7 +821,7 @@ function EventEditor({ initial }: { initial: EventDetail | null }) {
             )}
           </SidePanel>
         )}
-      </PageSheet>
+      </div>
 
       {/* 未保存離脱確認（S03） */}
       <Dialog
@@ -823,7 +855,7 @@ function EventEditor({ initial }: { initial: EventDetail | null }) {
         open={confirmDiscard}
         onOpenChange={setConfirmDiscard}
         title="保存していない変更を取り消しますか"
-        description="最後に「下書きを保存」したときの内容に戻します。保存していない入力は失われます。"
+        description="最後に「下書き保存」したときの内容に戻します。保存していない入力は失われます。"
       >
         <DialogActions>
           <Button variant="secondary" onClick={() => setConfirmDiscard(false)}>

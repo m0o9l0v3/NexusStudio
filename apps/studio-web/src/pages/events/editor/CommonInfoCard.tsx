@@ -1,4 +1,3 @@
-import { OctagonX } from 'lucide-react'
 import { useState } from 'react'
 import type { EventDraft } from '../../../api/events'
 import type { DraftIssue, ReferenceIndex } from '../../../events/model'
@@ -18,15 +17,6 @@ type CommonInfoCardProps = {
   issues: DraftIssue[]
   onChange: (patch: Partial<EventDraft>) => void
   onChangeOccurrence: (occurrenceId: string | null) => void
-}
-
-function IssueText({ message }: { message: string }) {
-  return (
-    <span className="inline-flex items-start gap-1">
-      <OctagonX aria-hidden size={13} strokeWidth={2} className="mt-0.5 shrink-0" />
-      <span>{message}</span>
-    </span>
-  )
 }
 
 /** 基本情報（Figma v2 E02 `65:610`・E04 `78:1645`・E05 `79:1452`）：タイトル・説明・オープンキャンパス・カテゴリ。 */
@@ -59,7 +49,7 @@ export function CommonInfoCard({
 
   return (
     <section aria-labelledby="common-info-heading" className="flex flex-col gap-3">
-      <h2 id="common-info-heading" className="text-[16px] leading-6 font-bold text-text-primary">
+      <h2 id="common-info-heading" className="text-[13px] leading-[18px] font-bold text-text-primary">
         基本情報
       </h2>
 
@@ -67,8 +57,9 @@ export function CommonInfoCard({
         id={`${editorId}-title`}
         label="タイトル"
         value={draft.title ?? ''}
+        placeholder="イベント名を入力"
         invalid={Boolean(titleIssue)}
-        message={titleIssue ? <IssueText message={titleIssue.message} /> : undefined}
+        message={titleIssue?.message}
         onChange={(event) => onChange({ title: event.target.value || null })}
       />
 
@@ -77,6 +68,7 @@ export function CommonInfoCard({
         label="説明"
         rows={3}
         value={draft.description ?? ''}
+        placeholder="参加者向けアプリに表示する説明文"
         onChange={(event) => onChange({ description: event.target.value || null })}
       />
 
@@ -96,7 +88,7 @@ export function CommonInfoCard({
           value={draft.occurrenceId ?? ''}
           disabled={!referenceReady}
           invalid={Boolean(occurrenceIssue)}
-          message={occurrenceIssue ? <IssueText message={occurrenceIssue.message} /> : undefined}
+          message={occurrenceIssue?.message}
           onChange={(event) => requestOccurrence(event.target.value || null)}
         >
           <option value="">{referenceState === 'loading' ? '読み込み中…' : '選んでください'}</option>
@@ -117,11 +109,11 @@ export function CommonInfoCard({
           disabled={!referenceReady}
           invalid={Boolean(categoryIssue)}
           message={
-            categoryIssue ? (
-              <IssueText message={categoryIssue.message} />
-            ) : currentCategory && !currentCategory.selectable ? (
-              '新規選択停止のカテゴリです。既存の参照は表示を維持します。'
-            ) : undefined
+            categoryIssue
+              ? categoryIssue.message
+              : currentCategory && !currentCategory.selectable
+                ? '新規選択停止のカテゴリです。既存の参照は表示を維持します。'
+                : undefined
           }
           messageTone={categoryIssue ? 'danger' : 'warning'}
           onChange={(event) => onChange({ categoryId: event.target.value || null })}

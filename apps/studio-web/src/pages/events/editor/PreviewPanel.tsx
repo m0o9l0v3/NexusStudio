@@ -1,18 +1,19 @@
-import { MapPin, Pencil } from 'lucide-react'
+import { MapPin } from 'lucide-react'
 import type { EventDraft } from '../../../api/events'
 import type { SpotItem } from '../../../api/reference'
 import { cancellationOf, formatSlotHeading, sortSlotsForDisplay, type ReferenceIndex } from '../../../events/model'
-import { Button } from '../../../ui/Button'
 import { cn } from '../../../ui/cn'
-import { IPHONE_LOGICAL_VIEWPORT, IPhoneFrame } from '../../../ui/IPhoneFrame'
+import { IPhoneFrame } from '../../../ui/IPhoneFrame'
 import { StatusLabel } from '../../../ui/StatusLabel'
+
+export type PreviewSyncState = 'published' | 'publishedWithChanges' | 'unpublished'
 
 type PreviewPanelProps = {
   draft: EventDraft
   index: ReferenceIndex
   spots: Map<string, SpotItem>
-  /** 下書きが公開中の内容と一致しているか。 */
-  syncedWithPublished: boolean
+  /** プレビューに表示している内容と公開状態の関係。 */
+  previewState: PreviewSyncState
   /** プレビュー内で表示中の日時ID。 */
   selectedSlotId: string | null
   onSelectSlot: (slotId: string) => void
@@ -28,7 +29,7 @@ export function PreviewPanel({
   draft,
   index,
   spots,
-  syncedWithPublished,
+  previewState,
   selectedSlotId,
   onSelectSlot,
   onHide,
@@ -41,44 +42,42 @@ export function PreviewPanel({
   return (
     <aside
       aria-label="アプリでの見え方"
-      className="flex w-[368px] shrink-0 flex-col gap-3 overflow-y-auto border-l border-border bg-surface p-5 xl:w-[384px]"
+      className="flex w-[350px] shrink-0 flex-col gap-3 overflow-y-auto border-l border-border-subtle bg-surface-subtle p-5"
     >
       <div className="flex items-center justify-between gap-2">
-        <h2 className="text-[16px] leading-6 font-bold text-text-primary">アプリでの見え方</h2>
+        <h2 className="text-[13px] leading-[18px] font-bold text-text-primary">アプリでの見え方</h2>
         {onHide && (
-          <Button variant="soft" size="sm" onClick={onHide}>
+          <button
+            type="button"
+            onClick={onHide}
+            className="rounded-sm text-[12px] leading-[17px] text-text-muted hover:text-text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+          >
             隠す
-          </Button>
+          </button>
         )}
       </div>
 
-      {syncedWithPublished ? (
-        <StatusLabel tone="success" className="items-start text-[12px] leading-[18px] whitespace-normal">
-          公開中と同じ内容を表示しています
-        </StatusLabel>
+      {previewState === 'published' ? (
+        <StatusLabel tone="success">公開中と同じ内容を表示</StatusLabel>
+      ) : previewState === 'publishedWithChanges' ? (
+        <StatusLabel tone="warning">編集中（未公開）を表示</StatusLabel>
       ) : (
-        <StatusLabel
-          tone="warning"
-          icon={<Pencil size={14} strokeWidth={1.75} className="mt-0.5" />}
-          className="items-start text-[12px] leading-[18px] whitespace-normal"
-        >
-          編集中の内容を表示しています（まだ公開されていません）
-        </StatusLabel>
+        <p className="text-[12px] leading-[17px] text-text-muted">未公開の下書きを表示</p>
       )}
 
-      <IPhoneFrame className="max-w-[300px] self-center">
+      <IPhoneFrame className="max-w-[292px] self-center">
         <div className="flex flex-col gap-3">
           <div>
-            <p className={cn('text-[17px] leading-6 font-bold break-words', draft.title?.trim() ? 'text-text-primary' : 'text-text-secondary')}>
+            <p className={cn('text-[16px] leading-6 font-bold break-words', draft.title?.trim() ? 'text-text-primary' : 'text-text-muted')}>
               {draft.title?.trim() || '（タイトル未入力）'}
             </p>
-            <p className="mt-0.5 text-[11px] leading-4 text-text-secondary">{category ?? '（カテゴリ未選択）'}</p>
+            <p className="mt-0.5 text-[11px] leading-4 text-text-muted">{category ?? '（カテゴリ未選択）'}</p>
           </div>
 
           <div className="flex flex-col gap-1.5">
             <p className="text-[11px] leading-4 font-bold text-text-primary">日時</p>
             {sortedSlots.length === 0 ? (
-              <p className="text-[12px] leading-5 text-text-secondary">（日時なし）</p>
+              <p className="text-[12px] leading-5 text-text-muted">（日時なし）</p>
             ) : (
               <div className="flex flex-col gap-1.5">
                 {sortedSlots.map((slot) => {
@@ -98,24 +97,30 @@ export function PreviewPanel({
                         'focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand',
                         selected
                           ? 'bg-brand-subtle text-brand'
-                          : 'border border-border bg-surface text-text-primary hover:bg-surface-subtle',
+                          : 'border border-border-subtle bg-canvas text-text-primary hover:bg-surface-hover',
                       )}
                     >
-                      <span className={cn('text-[11px] leading-4', selected ? 'font-bold' : 'font-medium', !slot.ocDayId && !slot.timeMode && 'font-normal text-text-secondary')}>
+                      <span
+                        className={cn(
+                          'text-[11px] leading-4 tabular-nums',
+                          selected && (slot.ocDayId || slot.timeMode) ? 'font-bold' : 'font-normal',
+                          !slot.ocDayId && !slot.timeMode && 'text-text-muted',
+                        )}
+                      >
                         {label}
                       </span>
                       {cancelled ? (
                         <span
                           className={cn(
-                            'text-[10px] leading-3.5 font-medium text-danger',
-                            selected && 'self-start rounded bg-surface px-1.5 py-0.5',
+                            'text-[10px] leading-3.5 font-bold text-danger',
+                            selected && 'self-start rounded bg-canvas px-1.5 py-0.5',
                           )}
                         >
                           中止{cancelReason && cancelReason !== '中止' ? `・${cancelReason}` : ''}
                         </span>
                       ) : (
                         slot.participation === 'anytime' && (
-                          <span className={cn('text-[10px] leading-3.5', selected ? 'text-brand' : 'text-text-secondary')}>
+                          <span className={cn('text-[10px] leading-3.5', selected ? 'text-brand' : 'text-text-muted')}>
                             随時参加可
                           </span>
                         )
@@ -130,21 +135,21 @@ export function PreviewPanel({
           <div className="flex flex-col gap-1.5">
             <p className="text-[11px] leading-4 font-bold text-text-primary">会場</p>
             {!activeSlot || activeSlot.venues.length === 0 ? (
-              <p className="text-[12px] leading-5 text-text-secondary">（会場なし）</p>
+              <p className="text-[12px] leading-5 text-text-muted">（会場なし）</p>
             ) : (
               <div className="flex flex-col gap-2">
                 {activeSlot.venues.map((venue) => {
                   const spot = spots.get(venue.canonicalSpotId)
                   return (
                     <div key={venue.canonicalSpotId} className="flex items-center gap-2">
-                      <MapPin aria-hidden size={14} strokeWidth={1.75} className="shrink-0 text-text-secondary" />
+                      <MapPin aria-hidden size={14} strokeWidth={1.75} className="shrink-0 text-text-muted" />
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-[12px] leading-4 font-medium text-text-primary">
+                        <p className="truncate text-[12px] leading-4 font-bold text-text-primary">
                           {spot?.name ?? venue.canonicalSpotId}
                         </p>
-                        {venue.note && <p className="truncate text-[10px] leading-3.5 text-text-secondary">{venue.note}</p>}
+                        {venue.note && <p className="truncate text-[10px] leading-3.5 text-text-muted">{venue.note}</p>}
                       </div>
-                      <span className="shrink-0 text-[11px] leading-4 font-medium text-brand">案内</span>
+                      <span className="shrink-0 text-[11px] leading-4 text-brand">案内</span>
                     </div>
                   )
                 })}
@@ -152,17 +157,15 @@ export function PreviewPanel({
             )}
           </div>
 
-          <p className={cn('text-[11px] leading-[17px] break-words whitespace-pre-line', draft.description?.trim() ? 'text-text-primary' : 'text-text-secondary')}>
+          <p className={cn('text-[11px] leading-[17px] break-words whitespace-pre-line', draft.description?.trim() ? 'text-text-primary' : 'text-text-muted')}>
             {draft.description?.trim() || '（説明未入力）'}
           </p>
 
-          {hasCancelled && <p className="text-[10px] leading-4 font-medium text-danger">中止枠の案内を確認してください</p>}
+          {hasCancelled && <p className="text-[10px] leading-4 font-bold text-danger">中止枠の案内を確認してください</p>}
         </div>
       </IPhoneFrame>
 
-      <p className="text-[11px] leading-[17px] text-text-secondary">
-        アプリの画面を近い形で表示しています。実際の見え方と少し違うことがあります。（iPhone 17 / {IPHONE_LOGICAL_VIEWPORT}）
-      </p>
+      <p className="text-[11px] leading-4 text-text-muted">実際の見え方と一部異なる場合があります。</p>
     </aside>
   )
 }
