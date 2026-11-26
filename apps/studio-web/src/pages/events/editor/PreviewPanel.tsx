@@ -1,7 +1,7 @@
 import { MapPin } from 'lucide-react'
 import type { EventDraft } from '../../../api/events'
 import type { SpotItem } from '../../../api/reference'
-import { cancellationOf, formatSlotHeading, sortSlotsForDisplay, type ReferenceIndex } from '../../../events/model'
+import { cancellationOf, formatSlotHeading, participationLabels, sortSlotsForDisplay, type ReferenceIndex } from '../../../events/model'
 import { cn } from '../../../ui/cn'
 import { IPhoneFrame } from '../../../ui/IPhoneFrame'
 import { StatusLabel } from '../../../ui/StatusLabel'
@@ -119,11 +119,18 @@ export function PreviewPanel({
                           中止{cancelReason && cancelReason !== '中止' ? `・${cancelReason}` : ''}
                         </span>
                       ) : (
-                        slot.participation === 'anytime' && (
-                          <span className={cn('text-[10px] leading-3.5', selected ? 'text-brand' : 'text-text-muted')}>
-                            随時参加可
-                          </span>
-                        )
+                        <span
+                          className={cn(
+                            'text-[10px] leading-3.5',
+                            slot.participation && selected ? 'text-brand' : 'text-text-muted',
+                          )}
+                        >
+                          {slot.participation === 'atStart'
+                            ? participationLabels.atStart
+                            : slot.participation === 'anytime'
+                              ? participationLabels.anytime
+                              : '（参加案内未選択）'}
+                        </span>
                       )}
                     </button>
                   )
