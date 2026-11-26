@@ -8,8 +8,8 @@ const toneClass: Record<StatusTone, string> = {
   info: 'bg-brand-subtle text-brand',
   success: 'bg-surface-subtle text-success',
   warning: 'bg-warning-subtle text-warning',
-  // danger の文字は danger-subtle（4.16:1）・surface-subtle（4.37:1）では AA に届かないため白地に枠を付ける。
-  danger: 'bg-surface text-danger ring-1 ring-danger/45 ring-inset',
+  // danger（#b91c28）× danger-subtle（#fef2f2）は 5.89:1 で WCAG AA 準拠（決定事項36 V2-11）。
+  danger: 'bg-danger-subtle text-danger ring-1 ring-danger-border ring-inset',
 }
 
 /**
@@ -18,7 +18,7 @@ const toneClass: Record<StatusTone, string> = {
  */
 export function StatusBadge({ tone = 'neutral', children, className }: { tone?: StatusTone; children: ReactNode; className?: string }) {
   return (
-    <span className={cn('inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-0.5 text-[12px] leading-5 font-medium whitespace-nowrap', toneClass[tone], className)}>
+    <span className={cn('inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-0.5 text-[12px] leading-[17px] font-normal whitespace-nowrap', toneClass[tone], className)}>
       {children}
     </span>
   )

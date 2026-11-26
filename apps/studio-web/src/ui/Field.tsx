@@ -4,10 +4,17 @@ import { cn } from './cn'
 
 // Figma v2 入力欄（60:379）。ラベルは枠の上に配置する。
 
+export type FieldControlSize = 'md' | 'sm'
+
+const controlSizeClass: Record<FieldControlSize, string> = {
+  md: 'h-9',
+  sm: 'h-[30px]',
+}
+
 const boxClass = (invalid?: boolean) =>
   cn(
-    'w-full rounded-md border bg-surface px-2.5 text-sm leading-[19px] text-text-primary placeholder:text-text-secondary',
-    'focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand disabled:cursor-not-allowed disabled:opacity-55',
+    'w-full rounded-md border bg-canvas px-2.5 text-sm leading-[19px] text-text-primary placeholder:text-text-muted',
+    'focus-visible:border-brand focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand disabled:cursor-not-allowed disabled:opacity-55',
     invalid ? 'border-danger' : 'border-border-input',
   )
 
@@ -24,7 +31,7 @@ type FieldFrameProps = {
 function FieldFrame({ id, label, invalid, message, messageTone = 'danger', className, children }: FieldFrameProps) {
   return (
     <div className={cn('flex flex-col gap-1.5', className)}>
-      <label htmlFor={id} className={cn('text-[12px] leading-5 font-medium', invalid ? 'text-danger' : 'text-text-secondary')}>
+      <label htmlFor={id} className={cn('text-[12px] leading-[17px] font-normal', invalid ? 'text-danger' : 'text-text-secondary')}>
         {label}
       </label>
       {children}
@@ -32,7 +39,7 @@ function FieldFrame({ id, label, invalid, message, messageTone = 'danger', class
         <p
           id={`${id}-message`}
           className={cn(
-            'text-[11px] leading-[19px]',
+            'text-[11px] leading-4',
             messageTone === 'danger' ? 'text-danger' : messageTone === 'warning' ? 'text-warning' : 'text-text-secondary',
           )}
         >
@@ -51,8 +58,10 @@ type CommonProps = {
   className?: string
 }
 
-export const InputField = forwardRef<HTMLInputElement, CommonProps & InputHTMLAttributes<HTMLInputElement>>(function InputField(
-  { label, invalid, message, messageTone, className, id, ...props },
+type SizedProps = CommonProps & { controlSize?: FieldControlSize }
+
+export const InputField = forwardRef<HTMLInputElement, SizedProps & InputHTMLAttributes<HTMLInputElement>>(function InputField(
+  { label, invalid, message, messageTone, controlSize = 'md', className, id, ...props },
   ref,
 ) {
   const generated = useId()
@@ -64,7 +73,7 @@ export const InputField = forwardRef<HTMLInputElement, CommonProps & InputHTMLAt
         id={inputId}
         aria-invalid={invalid || undefined}
         aria-describedby={message ? `${inputId}-message` : undefined}
-        className={cn(boxClass(invalid), 'h-8')}
+        className={cn(boxClass(invalid), controlSizeClass[controlSize])}
         {...props}
       />
     </FieldFrame>
@@ -80,7 +89,7 @@ export function TextAreaField({ label, invalid, message, messageTone, className,
         id={inputId}
         aria-invalid={invalid || undefined}
         aria-describedby={message ? `${inputId}-message` : undefined}
-        className={cn(boxClass(invalid), 'min-h-10 resize-y py-2')}
+        className={cn(boxClass(invalid), 'min-h-[52px] resize-y py-2')}
         {...props}
       />
     </FieldFrame>
@@ -88,7 +97,17 @@ export function TextAreaField({ label, invalid, message, messageTone, className,
 }
 
 /** Kind=Select。一覧はブラウザ標準のものを使う（キーボード・読み上げの互換性のため）。 */
-export function SelectField({ label, invalid, message, messageTone, className, id, children, ...props }: CommonProps & SelectHTMLAttributes<HTMLSelectElement>) {
+export function SelectField({
+  label,
+  invalid,
+  message,
+  messageTone,
+  controlSize = 'md',
+  className,
+  id,
+  children,
+  ...props
+}: SizedProps & SelectHTMLAttributes<HTMLSelectElement>) {
   const generated = useId()
   const inputId = id ?? generated
   return (
@@ -98,7 +117,7 @@ export function SelectField({ label, invalid, message, messageTone, className, i
           id={inputId}
           aria-invalid={invalid || undefined}
           aria-describedby={message ? `${inputId}-message` : undefined}
-          className={cn(boxClass(invalid), 'h-8 appearance-none pr-8')}
+          className={cn(boxClass(invalid), controlSizeClass[controlSize], 'appearance-none pr-8')}
           {...props}
         >
           {children}

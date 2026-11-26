@@ -30,7 +30,7 @@ export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(function Che
           disabled={disabled}
           aria-describedby={descriptionIds}
           className={cn(
-            'peer size-4 cursor-pointer appearance-none rounded-[4px] border border-border-input bg-surface',
+            'peer size-4 cursor-pointer appearance-none rounded-[4px] border border-border-input bg-canvas',
             'checked:border-brand checked:bg-brand',
             'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:cursor-not-allowed',
           )}
@@ -40,15 +40,15 @@ export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(function Che
           aria-hidden
           size={12}
           strokeWidth={3}
-          className="pointer-events-none absolute top-1/2 left-1/2 hidden -translate-x-1/2 -translate-y-1/2 text-surface peer-checked:block"
+          className="pointer-events-none absolute top-1/2 left-1/2 hidden -translate-x-1/2 -translate-y-1/2 text-canvas peer-checked:block"
         />
       </span>
       <span className="flex min-w-0 flex-col">
-        <label htmlFor={inputId} className={cn('text-sm leading-5 text-text-primary', disabled ? 'cursor-not-allowed' : 'cursor-pointer')}>
+        <label htmlFor={inputId} className={cn('text-sm leading-5 font-normal text-text-primary', disabled ? 'cursor-not-allowed' : 'cursor-pointer')}>
           {label}
         </label>
         {description && (
-          <span id={descriptionId} className="text-[11px] leading-[19px] text-text-secondary">
+          <span id={descriptionId} className="text-[11px] leading-4 text-text-secondary">
             {description}
           </span>
         )}
