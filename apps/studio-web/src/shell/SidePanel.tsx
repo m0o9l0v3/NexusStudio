@@ -51,7 +51,7 @@ export function SidePanel({ id, label, open, onClose, returnFocusTo, children }:
       role="region"
       aria-label={label}
       tabIndex={-1}
-      className="fixed top-14 right-0 bottom-0 z-20 flex max-w-[calc(100vw-216px)] overflow-hidden rounded-tl-xl shadow-floating focus:outline-none"
+      className="fixed top-[54px] right-0 bottom-0 z-20 flex max-w-[calc(100vw-220px)] overflow-hidden rounded-tl-lg border-t border-l border-border bg-surface-subtle shadow-floating focus:outline-none"
     >
       {children}
       <button
@@ -60,7 +60,7 @@ export function SidePanel({ id, label, open, onClose, returnFocusTo, children }:
           onClose()
           returnFocusTo.current?.focus()
         }}
-        className="absolute top-3.5 right-4 flex h-8 items-center rounded-lg border border-border bg-surface px-3 text-[12px] leading-5 font-medium text-text-primary hover:bg-surface-subtle focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+        className="absolute top-3 right-4 flex h-[30px] items-center rounded-md border border-border bg-canvas px-2.5 text-[12px] leading-[17px] font-normal text-text-primary hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
       >
         閉じる
       </button>

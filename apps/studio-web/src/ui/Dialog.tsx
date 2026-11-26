@@ -27,7 +27,7 @@ export function Dialog({ open, onOpenChange, title, description, children, dismi
       <RadixDialog.Portal>
         <RadixDialog.Overlay className="fixed inset-0 z-40 bg-overlay" />
         <RadixDialog.Content
-          className="fixed top-1/2 left-1/2 z-50 flex w-[520px] max-w-[calc(100vw-32px)] -translate-x-1/2 -translate-y-1/2 flex-col gap-[18px] rounded-xl border border-border bg-surface p-6 focus:outline-none"
+          className="fixed top-1/2 left-1/2 z-50 flex w-[520px] max-w-[calc(100vw-32px)] -translate-x-1/2 -translate-y-1/2 flex-col gap-[18px] rounded-lg border border-border bg-canvas p-6 shadow-floating focus:outline-none"
           onEscapeKeyDown={(event) => !dismissible && event.preventDefault()}
           onPointerDownOutside={(event) => !dismissible && event.preventDefault()}
           onInteractOutside={(event) => !dismissible && event.preventDefault()}

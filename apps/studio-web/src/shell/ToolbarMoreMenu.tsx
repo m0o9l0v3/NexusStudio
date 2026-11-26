@@ -14,8 +14,8 @@ export function ToolbarMoreMenu({ label, note, items }: { label: string; note?: 
       <DropdownMenu.Trigger
         aria-label={label}
         className={cn(
-          'flex size-9 shrink-0 items-center justify-center rounded-lg border border-border bg-surface text-text-primary hover:bg-surface-subtle',
-          'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand data-[state=open]:bg-surface-subtle',
+          'flex size-9 shrink-0 items-center justify-center rounded-md border border-border bg-canvas text-text-primary hover:bg-surface-hover',
+          'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand data-[state=open]:bg-surface-hover',
         )}
       >
         <Ellipsis aria-hidden size={16} />
@@ -24,18 +24,20 @@ export function ToolbarMoreMenu({ label, note, items }: { label: string; note?: 
         <DropdownMenu.Content
           align="end"
           sideOffset={8}
-          className="z-30 flex w-[220px] flex-col items-stretch gap-1.5 rounded-xl border border-border bg-surface p-2 shadow-menu"
+          className="z-30 flex w-[220px] flex-col items-stretch gap-1.5 rounded-lg border border-border bg-canvas p-1.5 shadow-menu"
         >
-          {note && <DropdownMenu.Label className="text-[12px] leading-5 font-medium text-text-secondary">{note}</DropdownMenu.Label>}
+          {note && <DropdownMenu.Label className="px-1.5 py-1 text-[12px] leading-[17px] font-normal text-text-secondary">{note}</DropdownMenu.Label>}
           {items.map((item) => (
             <DropdownMenu.Item
               key={item.label}
               disabled={item.disabled}
               onSelect={item.onSelect}
               className={cn(
-                'flex h-9 cursor-pointer items-center justify-center rounded-lg border bg-surface px-3 text-[13px] leading-[21px] font-medium outline-none',
-                item.danger ? 'border-danger/45 text-danger' : 'border-border text-text-primary',
-                'data-[highlighted]:bg-surface-subtle data-[highlighted]:outline-2 data-[highlighted]:outline-brand data-[disabled]:cursor-not-allowed data-[disabled]:opacity-45',
+                'flex h-9 cursor-pointer items-center justify-center rounded-md border bg-canvas px-3 text-[13px] leading-[19px] font-normal outline-none',
+                item.danger
+                  ? 'border-danger-border text-danger data-[highlighted]:bg-danger-subtle'
+                  : 'border-border text-text-primary data-[highlighted]:bg-surface-hover',
+                'data-[highlighted]:outline-2 data-[highlighted]:outline-brand data-[disabled]:cursor-not-allowed data-[disabled]:opacity-45',
               )}
             >
               {item.label}

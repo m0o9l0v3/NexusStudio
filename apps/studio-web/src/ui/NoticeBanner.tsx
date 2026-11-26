@@ -5,10 +5,10 @@ import { cn } from './cn'
 type Tone = 'info' | 'warning' | 'blocking'
 
 const toneClass: Record<Tone, string> = {
-  info: 'border-brand/40 bg-brand-subtle text-brand',
-  warning: 'border-warning/45 bg-warning-subtle text-warning',
-  // danger の文字は danger-subtle の上では 4.16:1 で AA に届かないため白地にする。
-  blocking: 'border-danger/60 bg-surface text-danger',
+  info: 'border-brand/35 bg-brand-subtle text-brand',
+  warning: 'border-warning/40 bg-warning-subtle text-warning',
+  // danger（#b91c28）× danger-subtle（#fef2f2）は 5.89:1 で WCAG AA 準拠（決定事項36 V2-11）。
+  blocking: 'border-danger-border bg-danger-subtle text-danger',
 }
 
 const toneIcon: Record<Tone, LucideIcon> = {
@@ -23,7 +23,7 @@ export function NoticeBanner({ tone = 'info', children, className }: { tone?: To
   return (
     <div
       role={tone === 'info' ? 'status' : 'alert'}
-      className={cn('flex min-h-[48px] items-center gap-2.5 rounded-lg border px-3.5 py-2 font-medium', toneClass[tone], className)}
+      className={cn('flex min-h-[48px] items-center gap-2.5 rounded-lg border px-3.5 py-2 font-normal', toneClass[tone], className)}
     >
       <Icon aria-hidden size={16} strokeWidth={2} className="shrink-0" />
       <p className="text-[12px] leading-[19px]">{children}</p>

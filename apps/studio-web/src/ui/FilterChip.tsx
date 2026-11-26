@@ -21,9 +21,9 @@ export function FilterChip({ label, value, active, onChange, children }: FilterC
         value={value}
         onChange={(event) => onChange(event.target.value)}
         className={cn(
-          'field-sizing-content h-7 max-w-[280px] cursor-pointer appearance-none truncate rounded-full border pr-7 pl-3 text-[12px] leading-5 font-medium',
+          'field-sizing-content h-[30px] max-w-[280px] cursor-pointer appearance-none truncate rounded-full border pr-7 pl-3 text-[12px] leading-[17px] font-normal',
           'focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand',
-          selected ? 'border-brand bg-brand-subtle text-brand' : 'border-border-input bg-surface text-text-secondary hover:bg-surface-subtle',
+          selected ? 'border-brand bg-brand-subtle text-brand' : 'border-border-input bg-canvas text-text-secondary hover:bg-surface-hover',
         )}
       >
         {children}
