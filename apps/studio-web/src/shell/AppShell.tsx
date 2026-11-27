@@ -1,18 +1,19 @@
 import { Outlet, useMatches } from 'react-router'
 import { cn } from '../ui/cn'
-import { Sidebar } from './Sidebar'
+import { MobileSidebar, Sidebar } from './Sidebar'
 
 /**
  * Figma v2 フラット App Shell（`9:2`、決定事項36 V2-12）：
  * 左 Sidebar 220px（`bg-sidebar`＋1px `border-border` 仕切り）＋ 右 白キャンバス（`bg-canvas`、54px Toolbar ＋ 本文）。
- * 1280px未満に対応した画面（ルートの handle.responsive）だけ最小幅を外す。対応前の画面は横スクロールで操作する（検証記録 A-5 D9）。
+ * ルートの handle.responsive が true の画面は最小幅を外し、md 未満でモバイルメニューを表示する。
  */
 export function AppShell() {
-  const responsive = useMatches().some((match) => (match.handle as { responsive?: boolean } | undefined)?.responsive)
+  const responsive = useMatches().some((match) => (match.handle as { responsive?: boolean } | undefined)?.responsive === true)
   return (
-    <div className={cn('flex h-svh bg-canvas', responsive ? 'min-w-0' : 'min-w-[1280px]')}>
-      <Sidebar />
-      <div className="flex min-w-0 flex-1 flex-col bg-canvas">
+    <div className={cn('flex h-svh bg-canvas', responsive ? 'min-w-0 max-md:flex-col' : 'min-w-[1280px]')}>
+      <Sidebar className={responsive ? 'max-md:hidden' : undefined} />
+      {responsive && <MobileSidebar />}
+      <div className={cn('flex min-w-0 flex-1 flex-col bg-canvas', responsive && 'max-md:min-h-0')}>
         <Outlet />
       </div>
     </div>
