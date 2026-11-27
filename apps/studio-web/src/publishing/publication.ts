@@ -1,5 +1,5 @@
-import type { StatusTone } from '../ui/StatusBadge'
-import type { PublishAction, TargetKind } from '../api/releases'
+import type { StatusTone } from '../ui/StatusLabel'
+import type { PublishAction, TargetKind, ValidationFinding } from '../api/releases'
 
 /** 公開状態の表示（07 §5）。状態はAPIが Release から算出する。 */
 export function publicationBadge(state: string): { label: string; tone: StatusTone } {
@@ -79,11 +79,42 @@ export function reviewPath(kind: TargetKind, id: string, action: PublishAction =
 
 /** slots[1].venues[0] → 日時2・会場1 */
 export function describePath(path: string): string {
-  const slot = /slots\[(\d+)\]/.exec(path)
-  const venue = /venues\[(\d+)\]/.exec(path)
+  const slot = /^slots\[(\d+)\](?:\.([\w]+)(?:\[(\d+)\])?)?/.exec(path)
+  const item = /^items\[(\d+)\]/.exec(path)
   const day = /days\[(\d+)\]/.exec(path)
-  if (slot) return `日時${Number(slot[1]) + 1}${venue ? `・会場${Number(venue[1]) + 1}` : ''}`
+  if (slot) {
+    const [, index, field, venueIndex] = slot
+    const slotFields: Record<string, string> = { ocDayId: '開催日', timeMode: '時間方式', fixed: '時刻', participation: '参加案内', venues: '会場' }
+    const suffix = field && slotFields[field] ? `・${slotFields[field]}` : ''
+    const venue = field === 'venues' && venueIndex !== undefined ? Number(venueIndex) + 1 : ''
+    return `日時${Number(index) + 1}${suffix}${venue}`
+  }
+  if (item) return `カテゴリ${Number(item[1]) + 1}`
   if (day) return `開催日${Number(day[1]) + 1}`
-  const labels: Record<string, string> = { title: 'タイトル', description: '説明', categoryId: 'カテゴリ', occurrenceId: '開催回', name: '名称', utilization: '利用状態', kind: '種別', items: 'カテゴリ', days: '開催日' }
+  const labels: Record<string, string> = { title: 'タイトル', description: '説明', categoryId: 'カテゴリ', occurrenceId: '開催回', name: '名称', utilization: '利用状態', kind: '種別', items: 'カテゴリ', days: '開催日', slots: '日時' }
   return labels[path] ?? path
+}
+
+/** API や保存済みの所見・操作記録に含まれる旧表記を表示時にそろえる。 */
+export function normalizePublicationTerms(message: string, withdraw = '公開停止'): string {
+  return message
+    .replaceAll('開催枠', '日時')
+    .replaceAll('過去の枠', '過去の日時')
+    .replaceAll('終日枠', '終日の日時')
+    .replaceAll('の枠が', 'の日時が')
+    .replaceAll('取り下げ済み', '公開停止')
+    .replaceAll('取り下げられません', '公開をやめられません')
+    .replaceAll('取り下げる', '公開をやめる')
+    .replaceAll('取り下げて', '公開をやめて')
+    .replaceAll('取り下げ', withdraw)
+    .replaceAll(/公開阻止(?:の問題)?/g, '公開できない問題')
+    .replaceAll(/\bReleases\b(?: の履歴)?/g, '公開履歴')
+    .replaceAll('地図や Spot の', '地図や地点の')
+    .replaceAll(/\bSpot (?=[はのを])/g, '地点')
+    .replaceAll(/\bSpot\b/g, '地点')
+}
+
+export function formatFindingMessage(finding: Pick<ValidationFinding, 'code' | 'message'>): string {
+  if (finding.code === 'slots_required') return '日時を1つ以上追加してください。'
+  return normalizePublicationTerms(finding.message)
 }
