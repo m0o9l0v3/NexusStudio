@@ -1,6 +1,7 @@
+import { ChevronDown, ChevronLeft, ChevronRight, Plus, TriangleAlert } from 'lucide-react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useMemo, useRef, useState } from 'react'
-import { useNavigate, useParams } from 'react-router'
+import { Link, useNavigate, useParams } from 'react-router'
 import { ApiError } from '../../api/client'
 import {
   createOccurrence,
@@ -20,12 +21,12 @@ import { formatDateLong } from '../../events/model'
 import { isLive, publicationBadge, reviewPath } from '../../publishing/publication'
 import { Toolbar } from '../../shell/Toolbar'
 import { Button } from '../../ui/Button'
-import { ChoiceGroup } from '../../ui/ChoiceGroup'
+import { SegmentedControl } from '../../ui/SegmentedControl'
 import { cn } from '../../ui/cn'
 import { Dialog, DialogActions } from '../../ui/Dialog'
 import { InputField, TextAreaField } from '../../ui/Field'
 import { NoticeBanner } from '../../ui/NoticeBanner'
-import { StatusBadge } from '../../ui/StatusBadge'
+import { StatusLabel } from '../../ui/StatusLabel'
 
 /** `/open-campus/new` と `/open-campus/:id`。 */
 export function OccurrenceEditorPage() {
@@ -45,7 +46,7 @@ export function OccurrenceEditorPage() {
   const notFound = occurrence.error instanceof ApiError && occurrence.error.status === 404
   return (
     <>
-      <Toolbar title="Open Campus / 編集対象を読み込み中" />
+      <Toolbar title="オープンキャンパス"><Link className="focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand" to="/open-campus">‹ オープンキャンパス</Link></Toolbar>
       <main className="min-h-0 flex-1 overflow-auto px-5 pt-[18px] pb-6">
         <div className="flex w-[784px] max-w-full flex-col items-start gap-3">
           {occurrence.isPending ? (
@@ -82,7 +83,7 @@ function dayIssues(day: OcDayDraft, duplicate: boolean): DayIssue[] {
   if (!day.date) issues.push({ level: 'blocking', message: '日付を入力してください。日付が無い開催日は保存できません。' })
   if (duplicate) issues.push({ level: 'blocking', message: '同じ日付の開催日があります。保存できません。' })
   if (!day.publicStart && !day.publicEnd) {
-    issues.push({ level: 'blocking', message: '一般公開時間が未登録です。終日の開催枠は時刻を決められないため公開できません。下書き保存はできます。' })
+    issues.push({ level: 'blocking', message: '一般公開時間が未登録です。終日の日時は時刻を決められないため公開できません。下書き保存はできます。' })
   } else if (!day.publicStart || !day.publicEnd) {
     issues.push({ level: 'blocking', message: '一般公開の開始・終了の片方が未入力です。下書き保存はできます。' })
   } else if (toMinutes(day.publicEnd) <= toMinutes(day.publicStart)) {
@@ -114,6 +115,7 @@ function OccurrenceEditor({ initial }: { initial: OccurrenceDetail | null }) {
   })
   const { draft, base } = editor
   const [expandedDayId, setExpandedDayId] = useState<string | null>(() => draft.days[0]?.id ?? null)
+  const [managementOpen, setManagementOpen] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState<OcDayDraft | null>(null)
   const addDayButton = useRef<HTMLButtonElement>(null)
 
@@ -181,32 +183,17 @@ function OccurrenceEditor({ initial }: { initial: OccurrenceDetail | null }) {
 
   return (
     <>
-      <Toolbar title={`Open Campus / ${title}`}>
-        <StatusBadge tone={publication.tone}>{publication.label}</StatusBadge>
-        <StatusBadge tone={editor.statusBadge.tone}>
-          <span role="status">{editor.statusBadge.label}</span>
-        </StatusBadge>
-        {blockingCount > 0 && <StatusBadge tone="danger">公開阻止 {blockingCount}件</StatusBadge>}
-        <Button className="min-w-[93px]" onClick={() => void save()} disabled={editor.saveState === 'saving' || editor.conflictOpen}>
-          {editor.saveState === 'saving' ? '保存中…' : editor.conflictOpen ? '保存不可' : '下書き保存'}
-        </Button>
-        <Button variant="secondary" className="min-w-[93px]" onClick={() => void navigate('/open-campus')}>
-          一覧へ戻る
-        </Button>
-        <Button variant="secondary" onClick={() => void review()} disabled={editor.saveState === 'saving' || editor.conflictOpen}>
-          {editor.dirty || !base ? '保存して確認' : '公開内容を確認'}
-        </Button>
-        {base && isLive(base.publication.state) && (
-          <Button variant="danger" className="min-w-[93px]" onClick={() => void navigate(reviewPath('occurrence', base.id, 'withdraw'))}>
-            取り下げ
-          </Button>
-        )}
+      <Toolbar title={title} className="flex-wrap" titleNode={<span className="flex flex-wrap items-center gap-2"><Link to="/open-campus" className="inline-flex items-center text-[12px] font-normal text-text-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"><ChevronLeft aria-hidden size={16} />オープンキャンパス</Link><span className="text-text-muted">/</span><span>{title}</span><StatusLabel tone={publication.tone}>{publication.label === '取り下げ済み' ? '公開停止' : publication.label}</StatusLabel></span>}>
+        <span role="status" className="text-[12px] text-text-muted">{editor.statusBadge.label}</span>
+        {blockingCount > 0 && <StatusLabel tone="danger">公開できない問題 {blockingCount}件</StatusLabel>}
+        <Button variant="secondary" onClick={() => void save()} disabled={editor.saveState === 'saving' || editor.conflictOpen}>{editor.saveState === 'saving' ? '保存中…' : '下書き保存'}</Button>
+        <Button onClick={() => void review()} disabled={editor.saveState === 'saving' || editor.conflictOpen}>{editor.dirty || !base ? '保存して確認' : '公開内容を確認'}</Button>
       </Toolbar>
 
-      <div className="flex min-h-0 flex-1">
-        <main className="min-h-0 flex-1 overflow-auto px-5 pt-[18px] pb-10">
+      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-canvas lg:flex-row lg:overflow-hidden">
+        <main className="flex-1 px-6 pt-[18px] pb-10 lg:min-h-0 lg:overflow-y-auto">
           <div className="flex w-[784px] max-w-full flex-col gap-3">
-            <h2 className="text-[22px] leading-[30px] font-bold text-text-primary">{base ? '開催回を編集' : '新規開催回'}</h2>
+
             {editor.failure && <NoticeBanner tone="blocking">{editor.failure}</NoticeBanner>}
             {editor.conflictOpen && editor.conflict && (
               <ConflictNotice
@@ -219,7 +206,7 @@ function OccurrenceEditor({ initial }: { initial: OccurrenceDetail | null }) {
               <h3 id="occurrence-basic" className="text-[15px] leading-[23px] font-bold text-text-primary">
                 基本情報
               </h3>
-              <div className="flex flex-col gap-3 rounded-[10px] border border-border bg-surface p-3.5">
+              <div className="flex flex-col gap-3">
                 <InputField
                   label="名称"
                   value={draft.name ?? ''}
@@ -229,7 +216,7 @@ function OccurrenceEditor({ initial }: { initial: OccurrenceDetail | null }) {
                   invalid={!draft.name?.trim()}
                 />
                 <TextAreaField
-                  label="出典（任意）"
+                  label="出典メモ（任意）"
                   rows={2}
                   value={draft.sourceNote ?? ''}
                   onChange={(event) => editor.update((current) => ({ ...current, sourceNote: event.target.value || null }))}
@@ -242,8 +229,8 @@ function OccurrenceEditor({ initial }: { initial: OccurrenceDetail | null }) {
                 <h3 id="occurrence-days" className="text-[15px] leading-[23px] font-bold text-text-primary">
                   開催日
                 </h3>
-                <StatusBadge>{draft.days.length}日</StatusBadge>
-                <Button ref={addDayButton} variant="secondary" onClick={addDay}>
+                <span className="text-[12px] text-text-muted tabular-nums">{draft.days.length}日</span>
+                <Button ref={addDayButton} variant="ghost" className="ml-auto" onClick={addDay}><Plus aria-hidden size={15} />
                   開催日を追加
                 </Button>
               </div>
@@ -263,17 +250,17 @@ function OccurrenceEditor({ initial }: { initial: OccurrenceDetail | null }) {
                       type="button"
                       onClick={() => setExpandedDayId(day.id)}
                       aria-expanded={false}
-                      className="relative flex h-16 w-full items-center gap-2.5 rounded-lg border border-border bg-surface px-3 text-left hover:bg-surface-subtle focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+                      className="flex min-h-11 w-full flex-wrap items-center gap-2 border-b border-border-subtle py-3 text-left hover:bg-surface-subtle focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
                     >
-                      <span className="w-[270px] shrink-0 truncate text-[13px] leading-[21px] font-medium text-text-primary">{formatDayHeading(day)}</span>
-                      <StatusBadge tone={day.status === 'cancelled' ? 'danger' : 'neutral'}>{day.status === 'cancelled' ? '中止' : '通常'}</StatusBadge>
-                      <StatusBadge>関連 {dayReferences.length}枠</StatusBadge>
+                      <ChevronRight aria-hidden size={14} /><span className="text-[13px] leading-[21px] font-bold text-text-primary">{formatDayHeading(day)}</span>
+                      {day.status === 'cancelled' && <StatusLabel tone="danger">開催日を中止</StatusLabel>}
+                      <span className="text-[12px] text-text-muted">関連する日時 {dayReferences.length}件</span>
                       {blocking.length > 0 ? (
-                        <StatusBadge tone="danger">公開阻止 {blocking.length}件</StatusBadge>
+                        <StatusLabel tone="danger">公開できない問題 {blocking.length}件</StatusLabel>
                       ) : dayProblems.length > 0 ? (
-                        <StatusBadge tone="warning">要確認</StatusBadge>
+                        <StatusLabel tone="warning">要確認</StatusLabel>
                       ) : (
-                        <StatusBadge tone="success">問題なし</StatusBadge>
+                        <StatusLabel tone="success">問題なし</StatusLabel>
                       )}
                       <span className="sr-only">。開いて編集する</span>
                     </button>
@@ -281,11 +268,11 @@ function OccurrenceEditor({ initial }: { initial: OccurrenceDetail | null }) {
                 }
 
                 return (
-                  <section key={day.id} aria-label={`開催日 ${formatDayHeading(day)}`} className="flex w-full flex-col gap-3 rounded-[10px] border border-brand bg-surface px-4 py-3.5">
-                    <div className="flex items-center gap-2.5">
+                  <section key={day.id} aria-label={`開催日 ${formatDayHeading(day)}`} className="flex w-full flex-col gap-3 rounded-lg border border-border bg-canvas px-4 py-3.5">
+                    <button type="button" aria-expanded="true" onClick={() => setExpandedDayId(null)} className="flex flex-wrap items-center gap-2 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"><ChevronDown aria-hidden size={14} />
                       <h4 className="text-[16px] leading-6 font-bold text-text-primary">{formatDayHeading(day)}</h4>
-                      <StatusBadge>関連 {dayReferences.length}枠</StatusBadge>
-                    </div>
+                      <span className="text-[12px] text-text-muted">関連する日時 {dayReferences.length}件</span>{day.status === 'cancelled' && <StatusLabel tone="danger">開催日を中止</StatusLabel>}
+                    </button>
                     <InputField
                       label="日付"
                       type="date"
@@ -294,42 +281,41 @@ function OccurrenceEditor({ initial }: { initial: OccurrenceDetail | null }) {
                       onChange={(event) => updateDay(day.id, { date: event.target.value || null })}
                       message={
                         locked
-                          ? `イベントの開催枠（${dayReferences.length}枠）が参照しているため、日付は変更できません。`
+                          ? `イベントの日時（${dayReferences.length}件）がこの開催日を参照しているため、日付は変更できません。`
                           : savedDate && day.date !== savedDate
                             ? '参照しているイベントが無いため変更できます。'
                             : undefined
                       }
                       messageTone="secondary"
                       invalid={!day.date || duplicateDates.has(day.date)}
-                      className="w-[320px]"
+                      className="min-w-0 w-full max-w-[320px] [&_input:disabled]:bg-surface-subtle"
                     />
-                    <div className="flex gap-4">
+                    <div className="grid grid-cols-2 gap-4">
                       <InputField
                         label="一般公開の開始"
                         type="time"
                         value={day.publicStart ?? ''}
                         onChange={(event) => updateDay(day.id, { publicStart: event.target.value || null })}
-                        className="w-[320px]"
+                        className="min-w-0 w-full max-w-[320px]"
                       />
                       <InputField
                         label="一般公開の終了"
                         type="time"
                         value={day.publicEnd ?? ''}
                         onChange={(event) => updateDay(day.id, { publicEnd: event.target.value || null })}
-                        className="w-[320px]"
+                        className="min-w-0 w-full max-w-[320px]"
                       />
                     </div>
-                    <ChoiceGroup<'normal' | 'cancelled'>
-                      label="開催状況"
+                    <div><span className="mr-2 text-[12px] text-text-secondary">開催状況</span><SegmentedControl<'normal' | 'cancelled'>
+                      aria-label="開催状況"
                       name={`day-status-${day.id}`}
                       value={day.status as 'normal' | 'cancelled'}
-                      choices={[
+                      options={[
                         { value: 'normal', label: '通常' },
                         { value: 'cancelled', label: '開催日を中止' },
                       ]}
                       onChange={(status) => updateDay(day.id, { status })}
-                      optionWidthClass="w-[168px]"
-                    />
+                    /></div>
                     {day.status === 'cancelled' && (
                       <>
                         <TextAreaField
@@ -338,7 +324,7 @@ function OccurrenceEditor({ initial }: { initial: OccurrenceDetail | null }) {
                           value={day.cancelNote ?? ''}
                           onChange={(event) => updateDay(day.id, { cancelNote: event.target.value || null })}
                         />
-                        <NoticeBanner>この日に属する枠へ親由来の中止を反映します。枠独自の中止理由は別に保持し、開催日の中止を解除しても枠独自の中止は解除しません。</NoticeBanner>
+                        <NoticeBanner>この日に属するイベントの日時へ親由来の中止を反映します。日時独自の中止理由は別に保持し、開催日の中止を解除しても日時独自の中止は解除しません。</NoticeBanner>
                       </>
                     )}
                     {dayProblems.map((issue) => (
@@ -350,16 +336,17 @@ function OccurrenceEditor({ initial }: { initial: OccurrenceDetail | null }) {
                       <Button variant="danger" disabled={locked} onClick={() => setConfirmDelete(day)}>
                         この日を削除
                       </Button>
-                      {locked && <p className="text-[11px] leading-[19px] text-text-secondary">参照しているイベントの開催枠があるため削除できません。</p>}
+                      {locked && <p className="text-[11px] leading-[19px] text-text-secondary">関連する日時があるため削除できません。開催を取りやめる場合は「開催日を中止」を選んでください。</p>}
                     </div>
                   </section>
                 )
               })}
             </section>
+            {base && <div className="mt-4 border-t border-border-subtle pt-4"><div className="flex flex-wrap items-center justify-between gap-3"><Link className="text-[12px] text-brand focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand" to={`/releases?targetKind=occurrence&targetId=${encodeURIComponent(base.id)}`}>公開履歴を見る ↗</Link>{isLive(base.publication.state) && <button type="button" aria-expanded={managementOpen} onClick={() => setManagementOpen(!managementOpen)} className="text-[12px] text-text-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand">詳細管理（公開停止） {managementOpen ? '⌃' : '⌄'}</button>}</div>{managementOpen && isLive(base.publication.state) && <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded bg-surface-subtle p-3"><p className="text-[12px] text-text-secondary">アプリでの表示を停止します。下書きは残ります。</p><Button variant="danger" onClick={() => void navigate(reviewPath('occurrence', base.id, 'withdraw'))}>公開をやめる</Button></div>}</div>}
           </div>
         </main>
 
-        <aside aria-label={editor.conflict ? '最新の保存内容と比較' : '影響を受けるイベント'} className="flex w-[400px] shrink-0 flex-col gap-3 overflow-auto border-l border-border bg-surface p-[18px]">
+        <aside aria-label={editor.conflict ? '最新の保存内容と比較' : '影響を受けるイベント'} className="flex w-full shrink-0 flex-col gap-3 border-t border-border-subtle bg-surface-subtle p-[18px] lg:w-[380px] lg:min-h-0 lg:overflow-y-auto lg:border-t-0 lg:border-l">
           {editor.conflict ? (
             <CompareRows
               rows={compareRows}
@@ -405,7 +392,7 @@ function OccurrenceEditor({ initial }: { initial: OccurrenceDetail | null }) {
 }
 
 /**
- * 開催時間・中止の変更が影響するイベントの開催枠（08 OC-07・OC-08）。
+ * 開催時間・中止の変更が影響するイベントの日時（08 OC-07・OC-08）。
  * 保存済みのイベント下書きを対象に、編集中の開催時間で判定する。公開版への影響は公開確認（Step 4）で示す。
  */
 function ImpactPanel({ days, references }: { days: OcDayDraft[]; references: Map<string, SlotReference[]> }) {
@@ -413,9 +400,9 @@ function ImpactPanel({ days, references }: { days: OcDayDraft[]; references: Map
   return (
     <>
       <h2 className="text-[16px] leading-6 font-bold text-text-primary">影響を受けるイベント</h2>
-      <p className="text-[11px] leading-[19px] text-text-secondary">保存済みのイベント下書きのうち、各開催日を参照している開催枠です。</p>
+      <p className="text-[11px] leading-[19px] text-text-secondary">保存済みのイベント下書きのうち、各開催日を参照している日時です。公開中のイベントへの影響は公開確認で示します。</p>
       {entries.length === 0 ? (
-        <p className="text-[12px] leading-5 text-text-secondary">この開催回の開催日を参照している開催枠はありません。</p>
+        <p className="text-[12px] leading-5 text-text-secondary">この開催回の開催日を参照している日時はありません。</p>
       ) : (
         entries.map((day) => {
           const slots = references.get(day.id) ?? []
@@ -426,12 +413,13 @@ function ImpactPanel({ days, references }: { days: OcDayDraft[]; references: Map
               day.publicStart && day.publicEnd && slot.start && slot.end && (toMinutes(slot.start) < toMinutes(day.publicStart) || toMinutes(slot.end) > toMinutes(day.publicEnd)),
           )
           return (
-            <section key={day.id} className="flex flex-col gap-2 rounded-lg bg-surface-subtle p-3">
-              <h3 className="text-[13px] leading-[21px] font-medium text-text-primary">{formatDayHeading(day)}</h3>
-              {day.status === 'cancelled' && <p className="text-[11px] leading-[19px] text-danger">開催日の中止が {slots.length}枠 に反映されます。</p>}
-              <ImpactList label={`終日の枠：${allDay.length}件（開催時間の変更がそのまま反映）`} slots={allDay} />
-              <ImpactList label={`時間指定の枠：${fixed.length}件`} slots={fixed} />
-              {outside.length > 0 && <ImpactList label={`一般公開時間外になる枠：${outside.length}件（時刻は自動で変えません）`} slots={outside} tone="warning" />}
+            <section key={day.id} className="flex flex-col gap-2 border-t border-border-subtle py-3">
+              <h3 className="flex flex-wrap items-center gap-2 text-[13px] leading-[21px] font-bold text-text-primary">{formatDayHeading(day)} {day.status === 'cancelled' && <StatusLabel tone="danger">開催日を中止</StatusLabel>}</h3>
+              {day.status === 'cancelled' && <p className="text-[11px] leading-[19px] text-danger">開催日の中止が {slots.length}件の日時に反映されます。</p>}
+              <ImpactList label={`終日の日時：${allDay.length}件（開催時間の変更がそのまま反映）`} slots={allDay} />
+              <ImpactList label={`時間指定の日時：${fixed.length}件`} slots={fixed} />
+              {outside.length > 0 && <ImpactList label={`一般公開時間外になる日時：${outside.length}件`} slots={outside} tone="warning" />}
+              {day.status === 'cancelled' && <p className="text-[11px] text-text-secondary">「日時独自の中止」は、開催日の中止を解除しても残ります。</p>}
             </section>
           )
         })
@@ -443,17 +431,18 @@ function ImpactPanel({ days, references }: { days: OcDayDraft[]; references: Map
 function ImpactList({ label, slots, tone }: { label: string; slots: SlotReference[]; tone?: 'warning' }) {
   if (slots.length === 0) return null
   return (
-    <div>
-      <p className={cn('text-[11px] leading-[19px] font-medium', tone === 'warning' ? 'text-warning' : 'text-text-primary')}>{label}</p>
+    <div className={tone === 'warning' ? 'rounded bg-warning-subtle p-2' : undefined}>
+      <p className={cn('text-[11px] leading-[19px] font-bold', tone === 'warning' ? 'text-warning' : 'text-text-primary')}>{tone === 'warning' && <TriangleAlert aria-hidden size={14} className="mr-1 inline" />}{label}</p>
       <ul className="text-[11px] leading-[19px] text-text-secondary">
         {slots.map((slot) => (
           <li key={slot.slotId}>
             ・{slot.eventTitle?.trim() || '無題のイベント'}
             {slot.timeMode === 'fixed' && ` ${slot.start ?? '--:--'}–${slot.end ?? '--:--'}`}
-            {slot.slotStatus === 'cancelled' && '（枠独自の中止）'}
+            {slot.slotStatus === 'cancelled' && '（日時独自の中止）'}
           </li>
         ))}
       </ul>
+      {tone === 'warning' && <p className="text-[11px] text-warning">時刻は自動で変えません。イベントの編集画面で日時を確認してください。</p>}
     </div>
   )
 }
