@@ -27,7 +27,7 @@ export function Dialog({ open, onOpenChange, title, description, children, dismi
       <RadixDialog.Portal>
         <RadixDialog.Overlay className="fixed inset-0 z-40 bg-overlay" />
         <RadixDialog.Content
-          className="fixed top-1/2 left-1/2 z-50 flex w-[520px] max-w-[calc(100vw-32px)] -translate-x-1/2 -translate-y-1/2 flex-col gap-[18px] rounded-lg border border-border bg-canvas p-6 shadow-floating focus:outline-none"
+          className="fixed top-1/2 left-1/2 z-50 flex w-[520px] max-w-[calc(100vw-32px)] max-h-[calc(100svh-32px)] overflow-y-auto -translate-x-1/2 -translate-y-1/2 flex-col gap-[18px] rounded-lg border border-border bg-canvas p-6 shadow-floating focus:outline-none"
           onEscapeKeyDown={(event) => !dismissible && event.preventDefault()}
           onPointerDownOutside={(event) => !dismissible && event.preventDefault()}
           onInteractOutside={(event) => !dismissible && event.preventDefault()}
@@ -42,7 +42,7 @@ export function Dialog({ open, onOpenChange, title, description, children, dismi
           }}
         >
           <RadixDialog.Title className="text-[18px] leading-[26px] font-bold text-text-primary">{title}</RadixDialog.Title>
-          <RadixDialog.Description className="text-[13px] leading-[21px] text-text-secondary">{description}</RadixDialog.Description>
+          <RadixDialog.Description className="text-[13px] leading-[21px] whitespace-pre-line text-text-secondary">{description}</RadixDialog.Description>
           {children}
         </RadixDialog.Content>
       </RadixDialog.Portal>
@@ -53,5 +53,5 @@ export function Dialog({ open, onOpenChange, title, description, children, dismi
 export const DialogClose = RadixDialog.Close
 
 export function DialogActions({ children }: { children: ReactNode }) {
-  return <div className="flex gap-3">{children}</div>
+  return <div className="flex flex-wrap gap-3">{children}</div>
 }

@@ -10,7 +10,7 @@ import { ApiError, NetworkError } from '../api/client'
 export type LoginError = 'invalid' | 'network' | 'server' | 'missing'
 
 const messages: Record<LoginError, string> = {
-  invalid: 'メールアドレスまたはパスワードが\n正しくありません。',
+  invalid: 'メールアドレスまたはパスワードが正しくありません。',
   network: 'サーバーに接続できません。\nしばらくしてから再度お試しください。',
   server: 'サーバーでエラーが発生しました。\nしばらくしてから再度お試しください。',
   missing: 'メールアドレスとパスワードを入力してください。',
