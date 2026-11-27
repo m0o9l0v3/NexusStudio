@@ -18,8 +18,24 @@ export function useStackedDetailFocus(selectedId: string | null, detailStatus: D
       if (!focusInsideDetailRef.current) scrollAfterLoading.current = null
     }
 
+    function clearFocusOnOutsideInteraction(event: Event) {
+      // 詳細外の非フォーカス要素を押したときは focusin が発火しない。
+      if (!(event.target instanceof Node && detailRef.current?.contains(event.target))) {
+        focusInsideDetailRef.current = false
+        scrollAfterLoading.current = null
+      }
+    }
+
     document.addEventListener('focusin', trackFocus)
-    return () => document.removeEventListener('focusin', trackFocus)
+    document.addEventListener('pointerdown', clearFocusOnOutsideInteraction, { capture: true })
+    document.addEventListener('mousedown', clearFocusOnOutsideInteraction, { capture: true })
+    document.addEventListener('click', clearFocusOnOutsideInteraction, { capture: true })
+    return () => {
+      document.removeEventListener('focusin', trackFocus)
+      document.removeEventListener('pointerdown', clearFocusOnOutsideInteraction, { capture: true })
+      document.removeEventListener('mousedown', clearFocusOnOutsideInteraction, { capture: true })
+      document.removeEventListener('click', clearFocusOnOutsideInteraction, { capture: true })
+    }
   }, [])
 
   useLayoutEffect(() => {
@@ -58,6 +74,8 @@ export function useStackedDetailFocus(selectedId: string | null, detailStatus: D
   }
 
   function returnToList() {
+    focusInsideDetailRef.current = false
+    scrollAfterLoading.current = null
     setSelection(null)
     const target = listRef.current?.querySelector<HTMLElement>('button[aria-current="true"]') ?? listRef.current?.querySelector('h2')
     target?.scrollIntoView({ block: 'start' })
