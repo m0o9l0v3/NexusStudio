@@ -20,15 +20,16 @@ const toneIcon: Record<Tone, LucideIcon> = {
 }
 
 /** Figma `Notice Banner`（70:253、v2 トーン）。 */
-export function NoticeBanner({ tone = 'info', children, className }: { tone?: Tone; children: ReactNode; className?: string }) {
+export function NoticeBanner({ tone = 'info', children, action, className }: { tone?: Tone; children: ReactNode; action?: ReactNode; className?: string }) {
   const Icon = toneIcon[tone]
   return (
     <div
       role={tone === 'warning' || tone === 'blocking' ? 'alert' : 'status'}
-      className={cn('flex min-w-0 items-start gap-2.5 rounded-lg border px-3.5 py-2.5 font-normal', toneClass[tone], className)}
+      className={cn('grid min-w-0 grid-cols-[auto_minmax(0,1fr)] items-start gap-x-2.5 gap-y-2 rounded-lg border px-3.5 py-2.5 font-normal', toneClass[tone], className)}
     >
       <Icon aria-hidden size={16} strokeWidth={2} className="mt-0.5 shrink-0" />
-      <div className="min-w-0 flex-1 text-[12px] leading-[19px] wrap-anywhere">{children}</div>
+      <div className="min-w-0 text-[12px] leading-[19px] wrap-anywhere">{children}</div>
+      {action && <div className="col-span-full">{action}</div>}
     </div>
   )
 }

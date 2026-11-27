@@ -2,27 +2,56 @@ import { useLayoutEffect, useRef, useState } from 'react'
 
 const desktopQuery = '(min-width: 1024px)'
 
-export function useStackedDetailFocus(selectedId: string | null, detailReady: boolean) {
+type DetailStatus = 'empty' | 'loading' | 'ready' | 'notFound' | 'error'
+
+export function useStackedDetailFocus(selectedId: string | null, detailStatus: DetailStatus, revisionKey: number) {
   const listRef = useRef<HTMLElement>(null)
   const detailRef = useRef<HTMLElement>(null)
   const [selection, setSelection] = useState<{ id: string } | null>(null)
   const handled = useRef<typeof selection>(null)
+  const focusInsideDetailRef = useRef(false)
+  const scrollAfterLoading = useRef<typeof selection>(null)
+
+  useLayoutEffect(() => {
+    function trackFocus(event: FocusEvent) {
+      focusInsideDetailRef.current = event.target instanceof Node && !!detailRef.current?.contains(event.target)
+      if (!focusInsideDetailRef.current) scrollAfterLoading.current = null
+    }
+
+    document.addEventListener('focusin', trackFocus)
+    return () => document.removeEventListener('focusin', trackFocus)
+  }, [])
 
   useLayoutEffect(() => {
     const detail = detailRef.current
-    if (!detail || !selection || selection.id !== selectedId || window.matchMedia(desktopQuery).matches) return
-    const heading = detail.querySelector<HTMLHeadingElement>('h2')
-    if (handled.current !== selection) {
+    if (!detail || !selectedId) return
+
+    const stacked = !window.matchMedia(desktopQuery).matches
+    const heading = detailStatus === 'ready' ? detail.querySelector('h2') : null
+    const focusTarget = heading ?? detail
+    if (stacked && selection?.id === selectedId && handled.current !== selection) {
       handled.current = selection
+      scrollAfterLoading.current = detailStatus === 'loading' ? selection : null
       detail.scrollIntoView({ block: 'start' })
-      const target = heading ?? detail
-      target.focus({ preventScroll: true })
-    } else if (heading && document.activeElement === detail) {
-      // 読み込み中や再試行後も、利用者が詳細から移動していなければ見出しに進める。
-      detail.scrollIntoView({ block: 'start' })
-      heading.focus({ preventScroll: true })
+      focusTarget.focus({ preventScroll: true })
+      focusInsideDetailRef.current = true
+      return
     }
-  }, [selection, selectedId, detailReady])
+
+    const active = document.activeElement
+    // 詳細内の要素が外れると、focusin を経ずにフォーカスが body へ戻る。
+    const focusLost = focusInsideDetailRef.current && (active === document.body || active === null)
+    if (active === detail || focusLost) {
+      if (heading && stacked && scrollAfterLoading.current?.id === selectedId) detail.scrollIntoView({ block: 'start' })
+      focusTarget.focus({ preventScroll: true })
+    }
+    if (detailStatus !== 'loading') scrollAfterLoading.current = null
+  }, [selection, selectedId, detailStatus, revisionKey])
+
+  function retainDetailFocus() {
+    const detail = detailRef.current
+    if (detail?.contains(document.activeElement)) detail.focus({ preventScroll: true })
+  }
 
   function requestDetailFocus(id: string) {
     if (!window.matchMedia(desktopQuery).matches) setSelection({ id })
@@ -35,5 +64,5 @@ export function useStackedDetailFocus(selectedId: string | null, detailReady: bo
     target?.focus({ preventScroll: true })
   }
 
-  return { listRef, detailRef, requestDetailFocus, returnToList }
+  return { listRef, detailRef, requestDetailFocus, retainDetailFocus, returnToList }
 }

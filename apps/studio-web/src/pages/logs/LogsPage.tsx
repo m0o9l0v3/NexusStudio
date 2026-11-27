@@ -4,7 +4,7 @@ import { Link, useSearchParams } from 'react-router'
 import { ApiError } from '../../api/client'
 import { getLog, listLogs, type LogItem } from '../../api/logs'
 import type { TargetKind } from '../../api/releases'
-import { editorPath, kindNouns, normalizePublicationTerms } from '../../publishing/publication'
+import { editorPath, kindNouns } from '../../publishing/publication'
 import { Toolbar } from '../../shell/Toolbar'
 import { Button } from '../../ui/Button'
 import { cn } from '../../ui/cn'
@@ -34,7 +34,13 @@ const statusLabels: Record<string, { label: string; tone: StatusTone }> = {
 
 const metadataRow = 'grid grid-cols-1 gap-1 py-2.5 sm:grid-cols-[120px_1fr] sm:gap-x-4'
 
-function normalizeDetail(detail: string): string { return normalizePublicationTerms(detail, '公開をやめる') }
+function normalizeDetail(detail: string): string {
+  // 公開操作の種別だけで構成される補足と、定型の失敗理由を変換する。改名の補足には ID と自由記述が入る。
+  if (/^(?:公開|取り下げ|復旧)(?:・(?:公開|取り下げ|復旧))*$/.test(detail)) {
+    return detail.split('・').map((action) => action === '取り下げ' ? '公開をやめる' : action).join('・')
+  }
+  return detail.replace(/^公開阻止の問題があるため(?=(?:公開|改名)しませんでした。)/, '公開できない問題があるため')
+}
 
 function actionText(item: LogItem): string {
   // 公開操作は、公開・取り下げ・復旧のどれかを補足に持つ。
@@ -82,7 +88,12 @@ export function LogsPage() {
   const listed = items.find((item) => item.id === selectedId)
   const detail = useQuery({ queryKey: ['log', selectedId], queryFn: selectedId && !listed ? () => getLog(selectedId) : skipToken })
   const selectedLog = listed ?? detail.data
-  const { listRef, detailRef, requestDetailFocus, returnToList } = useStackedDetailFocus(selectedId, !!selectedLog)
+  const detailLoading = detail.isPending || detail.isFetching
+  const detailNotFound = detail.error instanceof ApiError && detail.error.status === 404
+  const detailStatus = !selectedId ? 'empty' : selectedLog ? 'ready' : detailLoading ? 'loading' : detailNotFound ? 'notFound' : 'error'
+  const { listRef, detailRef, requestDetailFocus, retainDetailFocus, returnToList } = useStackedDetailFocus(
+    selectedId, detailStatus, detail.dataUpdatedAt + detail.errorUpdatedAt,
+  )
   const actorName = (id: string) => actorNames.get(id) ?? '指定した管理者'
   const describe = (q: typeof filters) => [
     q.action && `操作：${actionLabels[q.action] ?? '指定の操作'}`,
@@ -212,7 +223,12 @@ export function LogsPage() {
 
           <main ref={detailRef} tabIndex={-1} className={cn('min-w-0 flex-1 px-4 pt-[22px] pb-10 sm:px-6', selectedId && 'max-lg:min-h-[100cqh]')}>
             {selectedId && <Button variant="ghost" size="sm" className="mb-2 lg:hidden" onClick={returnToList}>一覧へ戻る</Button>}
-            {selectedId ? <LogDetailContent item={selectedLog} pending={detail.isPending} error={detail.error} onRetry={() => void detail.refetch()} /> : <p className="text-[12px] leading-5 text-text-secondary">一覧から記録を選ぶと、詳細を表示します。</p>}
+            {selectedId ? (
+              <LogDetailContent item={selectedLog} pending={detailLoading} notFound={detailNotFound} onRetry={() => {
+                retainDetailFocus()
+                void detail.refetch()
+              }} />
+            ) : <p className="text-[12px] leading-5 text-text-secondary">一覧から記録を選ぶと、詳細を表示します。</p>}
           </main>
         </div>
       </div>
@@ -220,7 +236,7 @@ export function LogsPage() {
   )
 }
 
-function LogDetailContent({ item, pending, error, onRetry }: { item?: LogItem; pending: boolean; error: Error | null; onRetry: () => void }) {
+function LogDetailContent({ item, pending, notFound, onRetry }: { item?: LogItem; pending: boolean; notFound: boolean; onRetry: () => void }) {
   if (item) return <LogDetail item={item} />
   if (pending)
     return (
@@ -228,7 +244,6 @@ function LogDetailContent({ item, pending, error, onRetry }: { item?: LogItem; p
         記録を読み込んでいます
       </p>
     )
-  const notFound = error instanceof ApiError && error.status === 404
   return <NoticeBanner tone="blocking">{notFound ? 'この記録は見つかりません。一覧から選び直してください。' : '記録を取得できませんでした。'}{!notFound && <Button variant="secondary" onClick={onRetry}>再試行</Button>}</NoticeBanner>
 }
 

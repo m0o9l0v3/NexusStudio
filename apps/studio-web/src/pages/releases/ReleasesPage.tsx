@@ -51,7 +51,12 @@ export function ReleasesPage() {
     getNextPageParam: (page) => page.nextBefore ?? undefined,
   })
   const detail = useQuery({ queryKey: ['release', selectedId], queryFn: selectedId ? () => getRelease(selectedId) : skipToken })
-  const { listRef, detailRef, requestDetailFocus, returnToList } = useStackedDetailFocus(selectedId, !!detail.data)
+  const detailLoading = detail.isPending || detail.isFetching
+  const detailNotFound = detail.error instanceof ApiError && detail.error.status === 404
+  const detailStatus = !selectedId ? 'empty' : detail.data ? 'ready' : detailLoading ? 'loading' : detailNotFound ? 'notFound' : 'error'
+  const { listRef, detailRef, requestDetailFocus, retainDetailFocus, returnToList } = useStackedDetailFocus(
+    selectedId, detailStatus, detail.dataUpdatedAt + detail.errorUpdatedAt,
+  )
   const query = { targetKind, targetId, action }
   const [lastSuccess, setLastSuccess] = useState<{ data: NonNullable<typeof releases.data>; query: typeof query; updatedAt: number } | null>(null)
   const queryChanged = !!lastSuccess && JSON.stringify(lastSuccess.query) !== JSON.stringify(query)
@@ -95,14 +100,13 @@ export function ReleasesPage() {
             </div>
 
             {targetId && (
-              <NoticeBanner tone="neutral">
+              <NoticeBanner tone="neutral" action={
+                <Button variant="secondary" size="sm" onClick={() => update('targetId', '')}>
+                  <X aria-hidden size={14} />
+                  対象絞り込みを解除
+                </Button>
+              }>
                 <p className="wrap-anywhere">{targetName ? `対象「${targetName}」の公開履歴を表示しています。` : '指定された対象の公開履歴を表示しています。'}</p>
-                <div className="mt-2">
-                  <Button variant="secondary" size="sm" onClick={() => update('targetId', '')}>
-                    <X aria-hidden size={14} />
-                    対象絞り込みを解除
-                  </Button>
-                </div>
               </NoticeBanner>
             )}
 
@@ -174,7 +178,12 @@ export function ReleasesPage() {
 
           <main ref={detailRef} tabIndex={-1} className={cn('min-w-0 flex-1 px-4 pt-[22px] pb-10 sm:px-6', selectedId && 'max-lg:min-h-[100cqh]')}>
             {selectedId && <Button variant="ghost" size="sm" className="mb-2 lg:hidden" onClick={returnToList}>一覧へ戻る</Button>}
-            {selectedId ? <ReleaseDetailContent data={detail.data} pending={detail.isPending} error={detail.error} onRetry={() => void detail.refetch()} /> : <p className="text-[12px] leading-5 text-text-secondary">一覧から公開版を選ぶと、公開した内容と差分を表示します。</p>}
+            {selectedId ? (
+              <ReleaseDetailContent data={detail.data} pending={detailLoading} notFound={detailNotFound} onRetry={() => {
+                retainDetailFocus()
+                void detail.refetch()
+              }} />
+            ) : <p className="text-[12px] leading-5 text-text-secondary">一覧から公開版を選ぶと、公開した内容と差分を表示します。</p>}
           </main>
         </div>
       </div>
@@ -182,7 +191,7 @@ export function ReleasesPage() {
   )
 }
 
-function ReleaseDetailContent({ data, pending, error, onRetry }: { data?: ReleaseDetail; pending: boolean; error: Error | null; onRetry: () => void }) {
+function ReleaseDetailContent({ data, pending, notFound, onRetry }: { data?: ReleaseDetail; pending: boolean; notFound: boolean; onRetry: () => void }) {
   if (data) return <ReleaseDetailView detail={data} />
   if (pending)
     return (
@@ -190,7 +199,6 @@ function ReleaseDetailContent({ data, pending, error, onRetry }: { data?: Releas
         公開版を読み込んでいます
       </p>
     )
-  const notFound = error instanceof ApiError && error.status === 404
   return (
     <NoticeBanner tone="blocking" className="w-[776px] max-w-full">
       {notFound ? 'この公開版は見つかりません。一覧から選び直してください。' : '公開版を取得できませんでした。'}

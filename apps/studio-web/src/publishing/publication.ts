@@ -95,26 +95,60 @@ export function describePath(path: string): string {
   return labels[path] ?? path
 }
 
-/** API や保存済みの所見・操作記録に含まれる旧表記を表示時にそろえる。 */
-export function normalizePublicationTerms(message: string, withdraw = '公開停止'): string {
-  return message
-    .replaceAll('開催枠', '日時')
-    .replaceAll('過去の枠', '過去の日時')
-    .replaceAll('終日枠', '終日の日時')
-    .replaceAll('の枠が', 'の日時が')
-    .replaceAll('取り下げ済み', '公開停止')
-    .replaceAll('取り下げられません', '公開をやめられません')
-    .replaceAll('取り下げる', '公開をやめる')
-    .replaceAll('取り下げて', '公開をやめて')
-    .replaceAll('取り下げ', withdraw)
-    .replaceAll(/公開阻止(?:の問題)?/g, '公開できない問題')
-    .replaceAll(/\bReleases\b(?: の履歴)?/g, '公開履歴')
-    .replaceAll('地図や Spot の', '地図や地点の')
-    .replaceAll(/\bSpot (?=[はのを])/g, '地点')
-    .replaceAll(/\bSpot\b/g, '地点')
-}
-
-export function formatFindingMessage(finding: Pick<ValidationFinding, 'code' | 'message'>): string {
-  if (finding.code === 'slots_required') return '日時を1つ以上追加してください。'
-  return normalizePublicationTerms(finding.message)
+/** API の所見テンプレートに含まれる旧表記だけを変換する。登録名や ID を含む部分はそのまま表示する。 */
+export function formatFindingMessage({ code, message }: Pick<ValidationFinding, 'code' | 'message'>): string {
+  switch (code) {
+    case 'slots_required':
+      return '日時を1つ以上追加してください。'
+    case 'occurrence_no_days':
+      return '開催日がありません。イベントはこの開催回の日時を公開できません。'
+    case 'restore_stashes_draft':
+      return '未公開の下書きがあります。復旧の前に退避し、公開履歴から内容を確認できます。'
+    case 'not_published':
+      return '公開中ではないため公開をやめられません。'
+    case 'withdraw_not_supported':
+      return 'カテゴリ一覧は公開をやめられません。使わないカテゴリは「新規選択停止」にしてください。'
+    case 'spot_map_unpublished':
+      return '地図が公開されていません。地点は地図を公開してから公開できます。'
+    case 'spot_id_kind_conflict':
+      return 'この ID は地点の目的地にならない地図要素として公開されています。'
+    case 'bundle_too_large':
+      return message.replace(/地図や Spot の内容を見直してください。$/, '地図や地点の内容を見直してください。')
+    case 'restore_all_day_time_differs':
+      return message.replace(/^(\d+月\d+日)の終日枠は、/, '$1の終日の日時は、')
+    case 'occurrence_in_use':
+      return message.replace(/）がこの開催回を使っています。先にイベントを取り下げるか、別の開催回へ変更して公開してください。$/, '）がこの開催回を使っています。先にイベントの公開をやめるか、別の開催回へ変更して公開してください。')
+    case 'spot_in_use':
+      return message.replace(/）がこのSpotを会場にしています。先にイベントの会場を変更して公開してください。$/, '）がこの地点を会場にしています。先にイベントの会場を変更して公開してください。')
+    case 'map_in_use':
+      return message.replace(/^公開中のSpot（/, '公開中の地点（').replace(/先にSpotを取り下げてください。$/, '先に地点の公開をやめてください。')
+    case 'venue_spot_missing':
+    case 'venue_spot_not_selectable':
+      return message.replace(/^Spot「/, '地点「')
+    case 'venue_spot_unpublished':
+      return message.replace(/^Spot「/, '地点「').replace(/」が公開されていません。Spotを公開するか、会場を変更してください。$/, '」が公開されていません。地点を公開するか、会場を変更してください。')
+    case 'venue_spot_withdrawn':
+      return message.replace(/^Spot「/, '地点「').replace(/」は取り下げ済みです。会場を変更してください。$/, '」は公開停止です。会場を変更してください。')
+    case 'slot_in_past':
+      return message.replace(/過去の枠を追加・変更して公開してよいか確認してください。$/, '過去の日時を追加・変更して公開してよいか確認してください。')
+    case 'day_in_use_by_published_event':
+      return message.replace(/」の枠が使っている開催日を削除しようとしています。$/, '」の日時が使っている開催日を削除しようとしています。')
+    case 'all_day_hours_removed':
+      return message.replace(/」の終日枠（(\d+月\d+日)）が参照する一般公開時間がなくなります。$/, '」の終日の日時（$1）が参照する一般公開時間がなくなります。')
+    case 'all_day_times_change':
+      return message.replace(/^終日枠（/, '終日の日時（')
+    case 'slot_outside_public_hours':
+      return message.replace(/^(\d+月\d+日)の枠（/, '$1の日時（')
+    case 'day_cancelled':
+      return message.replace(/の中止により、この枠も中止として表示されます。$/, 'の中止により、この日時も中止として表示されます。')
+    case 'spot_withdrawn_in_use':
+      return message.replace(/）がこのSpotを会場にしています。取り下げ済みにする前に、イベントの会場を変更して公開してください。$/, '）がこの地点を会場にしています。公開停止にする前に、イベントの会場を変更して公開してください。')
+    case 'building_name_differs':
+      return message.replace(
+        /^([^：「\n]+：)?Spot の名称「([\s\S]*)」と地図の建物名「([\s\S]*)」が異なります。この建物を目的地として示すときは Spot の名称、(ほかの地点の所在（例「\3・2F」）には地図の建物名が使われます。意図した違いか確認してください。)$/,
+        '$1地点の名称「$2」と地図の建物名「$3」が異なります。この建物を目的地として示すときは地点の名称、$4',
+      )
+    default:
+      return message
+  }
 }
