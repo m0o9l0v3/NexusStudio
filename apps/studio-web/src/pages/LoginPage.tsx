@@ -12,8 +12,28 @@ import { NoticeBanner } from '../ui/NoticeBanner'
 
 /** ログイン後の戻り先。外部サイトへ飛ばされないよう、アプリ内のパスだけを受け付ける。 */
 function safeReturnTo(value: string | null): string {
-  if (!value || !value.startsWith('/') || value.startsWith('//') || value.startsWith('/login')) return '/overview'
-  return value
+  // eslint-disable-next-line no-control-regex
+  if (!value || !value.startsWith('/') || value.startsWith('//') || value.includes('\\') || /[\u0000-\u001f\u007f]/.test(value)) {
+    return '/overview'
+  }
+
+  const origin = 'https://studio.invalid'
+  try {
+    const parsed = new URL(value, origin)
+    // React Router はパスをデコードし、大文字と小文字を区別せずに照合する。
+    const routePath = decodeURI(parsed.pathname).toLowerCase()
+    if (
+      parsed.origin === origin &&
+      parsed.pathname.startsWith('/') &&
+      !parsed.pathname.startsWith('//') &&
+      routePath !== '/login' && !routePath.startsWith('/login/')
+    ) {
+      return `${parsed.pathname}${parsed.search}${parsed.hash}`
+    }
+  } catch {
+    return '/overview'
+  }
+  return '/overview'
 }
 
 /**
@@ -76,18 +96,18 @@ export function LoginPage() {
 
   return (
     <main className="flex min-h-svh items-center justify-center bg-surface-subtle p-4">
-      <section aria-labelledby="login-title" className="w-full max-w-[440px] rounded-lg border border-border bg-canvas px-6 py-8 shadow-floating sm:px-9">
-        <header className="flex flex-col gap-2">
+      <section aria-labelledby="login-title" className="w-full max-w-[440px] rounded-lg border border-border bg-canvas px-6 pt-8 pb-7 shadow-floating sm:px-9">
+        <header className="flex flex-col gap-1.5">
           <p className="flex gap-[7px] text-[24px] leading-[32px] font-bold tracking-[-0.02em] sm:text-[26px] sm:leading-[35px]">
             <span className="text-brand">Nexus</span><span className="text-text-primary">Studio</span>
           </p>
           <h1 id="login-title" className="text-[15px] leading-[22px] font-bold text-text-primary">管理者ログイン</h1>
           <p className="text-[12px] leading-[19px] text-text-secondary">登録済み管理者のアカウントでログイン</p>
         </header>
-        <form className="mt-6 flex w-full flex-col" onSubmit={(event) => void handleSubmit(event)} noValidate>
-          {connectionProblem && <NoticeBanner tone="warning" className="mb-5"><span className="whitespace-pre-line">{loginErrorMessage(error)}</span></NoticeBanner>}
-          {credentialsProblem && <NoticeBanner tone="blocking" className="mb-5"><span className="whitespace-pre-line">{loginErrorMessage(error)}</span></NoticeBanner>}
-          <fieldset disabled={submitting} className="flex flex-col gap-[18px] disabled:opacity-55">
+        <form className="mt-[22px] flex w-full flex-col" onSubmit={(event) => void handleSubmit(event)} noValidate>
+          {connectionProblem && <NoticeBanner tone="warning" className="mb-4"><span className="whitespace-pre-line">{loginErrorMessage(error)}</span></NoticeBanner>}
+          {credentialsProblem && <NoticeBanner tone="blocking" className="mb-4"><span className="whitespace-pre-line">{loginErrorMessage(error)}</span></NoticeBanner>}
+          <fieldset disabled={submitting} className="flex flex-col gap-4 disabled:opacity-55">
             <LoginField label="メールアドレス" icon={Mail} type="email" autoComplete="username" placeholder="name@example.com"
               value={email} onChange={(event) => setEmail(event.target.value)} invalid={error === 'missing' && !email.trim()} inputRef={emailRef} autoFocus />
             <LoginField label="パスワード" icon={Lock} type="password" autoComplete="current-password"
@@ -100,7 +120,7 @@ export function LoginPage() {
             {!submitting && <button type="button" onClick={() => setRecoveryOpen(true)} className="self-center rounded-sm text-[12px] leading-5 font-normal text-brand underline hover:text-brand-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand">パスワードを忘れた場合</button>}
           </div>
         </form>
-        <p className="pt-4 text-center text-[11px] leading-[19px] text-text-muted">登録済み管理者専用</p>
+        <p className="pt-[22px] text-center text-[11px] leading-[18px] text-text-muted">登録済み管理者専用</p>
       </section>
 
       <Dialog
@@ -130,9 +150,9 @@ function LoginField({ label, icon: Icon, invalid, inputRef, ...props }: LoginFie
       </label>
       <div
         className={cn(
-          'flex h-10 items-center gap-2.5 rounded-md border bg-canvas px-3 focus-within:border-brand',
+          'flex h-10 items-center gap-2.5 rounded-md border bg-canvas px-3',
           'focus-within:outline-2 focus-within:outline-offset-1 focus-within:outline-brand',
-          invalid ? 'border-danger' : 'border-border-input',
+          invalid ? 'border-danger' : 'border-border-input focus-within:border-brand',
         )}
       >
         <Icon aria-hidden size={16} className={cn('shrink-0', invalid ? 'text-danger' : 'text-text-muted')} />
