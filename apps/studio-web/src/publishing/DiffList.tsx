@@ -1,27 +1,50 @@
-import { StatusBadge } from '../ui/StatusBadge'
+import { cn } from '../ui/cn'
 import type { DiffRow } from './diff'
 
 /** 差分の行（Figma R01「公開中との差分」）。左右の見出しは用途に合わせて変える。 */
-export function DiffList({ rows, before = '公開中', after = '公開候補', empty = '公開中の内容との違いはありません。' }: { rows: DiffRow[]; before?: string; after?: string; empty?: string }) {
+export function DiffList({
+  rows,
+  before = '公開中',
+  after = '公開候補',
+  empty = '公開中の内容との違いはありません。',
+}: {
+  rows: DiffRow[]
+  before?: string
+  after?: string
+  empty?: string
+}) {
   if (rows.length === 0) return <p className="mt-3 text-[12px] leading-5 text-text-secondary">{empty}</p>
   return (
-    <ul className="mt-1 flex flex-col">
-      {rows.map((row, position) => (
-        <li key={position} className="flex flex-col gap-1.5 border-b border-border py-3.5 last:border-b-0">
-          <div className="flex items-center gap-2">
-            <StatusBadge tone={row.kind === '削除' || row.kind === '取り下げ' ? 'danger' : 'neutral'}>{row.kind}</StatusBadge>
-            <span className="text-[13px] leading-[21px] font-medium text-text-primary">{row.label}</span>
-          </div>
-          <div className="grid grid-cols-2 gap-4 text-[11px] leading-[19px] break-words">
-            <p className="text-text-secondary">
-              {before}：{row.published}
-            </p>
-            <p className="text-text-primary">
-              {after}：{row.candidate}
-            </p>
-          </div>
-        </li>
-      ))}
-    </ul>
+    <div className="mt-2 text-[12px] leading-5">
+      <div className="hidden border-b border-border-subtle py-2 text-text-secondary sm:grid sm:grid-cols-[minmax(0,1.2fr)_minmax(0,2fr)_minmax(0,2fr)] sm:gap-4">
+        <span>項目</span>
+        <span>{before}</span>
+        <span>{after}</span>
+      </div>
+      <ul className="divide-y divide-border-subtle border-b border-border-subtle">
+        {rows.map((row, position) => {
+          const removed = row.kind === '削除' || row.kind === '取り下げ'
+          return (
+            <li
+              key={position}
+              className="grid grid-cols-1 gap-1.5 py-3 break-words sm:grid-cols-[minmax(0,1.2fr)_minmax(0,2fr)_minmax(0,2fr)] sm:gap-4"
+            >
+              <div className={cn('min-w-0', removed ? 'text-danger' : 'text-text-secondary')}>
+                <span>{row.label}</span>
+                <span className="ml-2 text-[11px] sm:ml-0 sm:block">{row.kind}</span>
+              </div>
+              <div className="min-w-0 text-text-secondary">
+                <span className="sm:hidden">{before}：</span>
+                {row.published}
+              </div>
+              <div className={cn('min-w-0 font-bold', removed ? 'text-danger' : 'text-text-primary')}>
+                <span className="font-normal text-text-secondary sm:hidden">{after}：</span>
+                {row.candidate}
+              </div>
+            </li>
+          )
+        })}
+      </ul>
+    </div>
   )
 }

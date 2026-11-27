@@ -1,6 +1,7 @@
+import { ArrowDown, ArrowUp, ChevronLeft, Plus } from 'lucide-react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect, useMemo, useRef } from 'react'
-import { useNavigate } from 'react-router'
+import { useEffect, useMemo, useRef, type ReactNode } from 'react'
+import { Link, useNavigate } from 'react-router'
 import { getCategories, saveCategories, type CategoryConflict, type CategoryDraft, type CategoryListDetail } from '../../api/categories'
 import { CompareRows } from '../../editing/CompareRows'
 import { ConflictNotice } from '../../editing/ConflictNotice'
@@ -11,7 +12,8 @@ import { Toolbar } from '../../shell/Toolbar'
 import { Button } from '../../ui/Button'
 import { cn } from '../../ui/cn'
 import { NoticeBanner } from '../../ui/NoticeBanner'
-import { StatusBadge } from '../../ui/StatusBadge'
+import { StatusLabel } from '../../ui/StatusLabel'
+import { SegmentedControl } from '../../ui/SegmentedControl'
 
 /** `/events/categories`。カテゴリ一覧全体を1つの下書きとして編集する（08 CAT-01〜CAT-05）。 */
 export function CategoriesPage() {
@@ -21,21 +23,21 @@ export function CategoriesPage() {
   if (categories.data) return <CategoriesEditor initial={categories.data} />
   return (
     <>
-      <Toolbar title="Events / カテゴリ管理" />
-      <main className="min-h-0 flex-1 overflow-auto px-6 pt-[22px] pb-10">
+      <CategoryToolbar />
+      <main className="min-h-0 flex-1 overflow-auto bg-canvas px-4 pt-[22px] pb-10 sm:px-6">
         <div className="flex w-[1020px] max-w-full flex-col items-start gap-3">
           {categories.isPending ? (
             <NoticeBanner>カテゴリ一覧を読み込んでいます。</NoticeBanner>
           ) : (
             <NoticeBanner tone="blocking">
               カテゴリ一覧を取得できませんでした。0件とは扱わず、再試行してください。
-              <Button variant="secondary" className="ml-3" onClick={() => void categories.refetch()}>
+              <Button variant="secondary" size="sm" className="ml-3" onClick={() => void categories.refetch()}>
                 再試行
               </Button>
             </NoticeBanner>
           )}
           <Button variant="secondary" onClick={() => void navigate('/events')}>
-            Eventsへ戻る
+            イベント一覧に戻る
           </Button>
         </div>
       </main>
@@ -107,28 +109,28 @@ function CategoriesEditor({ initial }: { initial: CategoryListDetail }) {
 
   return (
     <>
-      <Toolbar title="Events / カテゴリ管理">
-        <StatusBadge tone={publication.tone}>{publication.label}</StatusBadge>
-        <StatusBadge tone={editor.statusBadge.tone}>
-          <span role="status">{editor.statusBadge.label}</span>
-        </StatusBadge>
-        {blockingCount > 0 && <StatusBadge tone="danger">公開阻止 {blockingCount}件</StatusBadge>}
-        <Button className="min-w-[93px]" onClick={() => void save()} disabled={editor.saveState === 'saving' || editor.conflictOpen}>
-          {editor.saveState === 'saving' ? '保存中…' : editor.conflictOpen ? '保存不可' : '下書き保存'}
-        </Button>
-        <Button variant="secondary" onClick={() => void navigate('/events')}>
-          Eventsへ戻る
-        </Button>
-        <Button variant="secondary" onClick={() => void review()} disabled={editor.saveState === 'saving' || editor.conflictOpen}>
-          {editor.dirty ? '保存して確認' : '公開内容を確認'}
-        </Button>
-      </Toolbar>
+      <CategoryToolbar publication={publication}>
+        <div className="flex flex-wrap items-center gap-2">
+          <span role="status" className="text-[12px] text-text-secondary">
+            {editor.statusBadge.label}
+          </span>
+          {blockingCount > 0 && <StatusLabel tone="danger">未入力 {blockingCount}件</StatusLabel>}
+          <Button variant="secondary" onClick={() => void save()} disabled={editor.saveState === 'saving' || editor.conflictOpen}>
+            {editor.saveState === 'saving' ? '保存中…' : editor.conflictOpen ? '保存不可' : '下書き保存'}
+          </Button>
+          <Button onClick={() => void review()} disabled={editor.saveState === 'saving' || editor.conflictOpen}>
+            {editor.dirty ? '保存して確認' : '公開内容を確認'}
+          </Button>
+        </div>
+      </CategoryToolbar>
 
-      <div className="flex min-h-0 flex-1">
-        <main className="min-h-0 flex-1 overflow-auto px-6 pt-[22px] pb-10">
+      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-canvas lg:flex-row lg:overflow-hidden">
+        <main className="min-w-0 flex-1 px-6 pt-[22px] pb-10 lg:min-h-0 lg:overflow-y-auto">
           <div className="flex w-[1020px] max-w-full flex-col gap-3">
             <div>
-              <h2 className="text-[22px] leading-[30px] font-bold text-text-primary">カテゴリ管理</h2>
+              <h2 className="text-[14px] font-bold text-text-primary">
+                カテゴリ <span className="ml-1 font-normal text-text-secondary">{rows.length}件</span>
+              </h2>
               <p className="text-[12px] leading-5 text-text-secondary">
                 カテゴリ一覧は全体で1つの下書きとして保存します。使わなくなったカテゴリは削除せず、新規選択停止にします（既存の参照は維持）。
               </p>
@@ -138,20 +140,26 @@ function CategoriesEditor({ initial }: { initial: CategoryListDetail }) {
               <ConflictNotice latestById={editor.conflict.latest.updatedBy?.id} next="右の比較で最新の内容を確認してから読み込んでください。" />
             )}
 
-            <div aria-hidden className="flex h-8 items-center gap-3 px-3.5 text-[11px] leading-[19px] text-text-secondary">
-              <span className="w-[320px]">名称</span>
-              <span className="w-[200px]">利用状態</span>
-              <span className="w-[90px]">参照</span>
+            <div
+              aria-hidden
+              className="hidden grid-cols-[minmax(0,2fr)_minmax(0,1.7fr)_minmax(80px,.7fr)_minmax(120px,1fr)] gap-4 border-b border-border-subtle pb-2 text-[12px] text-text-secondary md:grid"
+            >
+              <span>名称</span>
+              <span>利用状態</span>
+              <span>参照イベント</span>
               <span>順序</span>
             </div>
-            <ol className="flex flex-col gap-3" aria-label="カテゴリ（表示順）">
+            <ol className="divide-y divide-border-subtle border-b border-border-subtle" aria-label="カテゴリ（表示順）">
               {rows.map((row, index) => {
                 const existing = saved.get(row.id)
                 const name = row.name?.trim() || '（未入力）'
                 const duplicate = Boolean(row.name?.trim() && (nameCounts.get(row.name.trim()) ?? 0) > 1)
                 return (
-                  <li key={row.id} className="flex min-h-16 items-center gap-3 rounded-lg border border-border bg-surface px-3.5 py-3">
-                    <div className="flex w-[320px] flex-col gap-1">
+                  <li
+                    key={row.id}
+                    className="grid gap-3 py-3 md:grid-cols-[minmax(0,2fr)_minmax(0,1.7fr)_minmax(80px,.7fr)_minmax(120px,1fr)] md:gap-4"
+                  >
+                    <div className="min-w-0 space-y-1">
                       <label htmlFor={`category-name-${row.id}`} className="sr-only">
                         {index + 1}番目のカテゴリ名
                       </label>
@@ -162,39 +170,68 @@ function CategoriesEditor({ initial }: { initial: CategoryListDetail }) {
                         onChange={(event) => updateRow(row.id, { name: event.target.value })}
                         aria-invalid={!row.name?.trim() || undefined}
                         className={cn(
-                          'h-10 rounded-[7px] border bg-surface px-3 text-[13px] leading-[21px] text-text-primary focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand',
+                          'h-9 w-full rounded-md border bg-canvas px-3 text-[13px] text-text-primary focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand',
                           !row.name?.trim() ? 'border-danger' : 'border-border-input',
                         )}
                       />
-                      {!row.name?.trim() && <p className="text-[11px] leading-[19px] text-danger">カテゴリ名が未入力です。下書き保存はできます。</p>}
-                      {duplicate && <p className="text-[11px] leading-[19px] text-warning">同じ名前のカテゴリがあります。選択時に誤りやすいため確認してください。</p>}
-                      {existing && existing.name !== (row.name ?? '') && <p className="text-[11px] leading-[19px] text-text-secondary">IDは変わらず、参照しているイベントの表示名が変わります。</p>}
+                      {!existing && <StatusLabel>新規・未保存</StatusLabel>}
+                      {!row.name?.trim() && <p className="text-[11px] leading-[18px] text-danger">カテゴリ名が未入力です。下書き保存はできます。</p>}
+                      {duplicate && <p className="text-[11px] leading-[18px] text-warning">同じ名前のカテゴリがあります。選択時に誤りやすいため確認してください。</p>}
+                      {existing && existing.name !== (row.name ?? '') && (
+                        <p className="text-[11px] leading-[18px] text-text-secondary">
+                          変更前「{existing.name}」。名前を変えてもIDは変わりません。参照している{existing.referenceCount}件のイベントは、公開後に新しい名前で表示されます。
+                        </p>
+                      )}
                     </div>
-                    <div className="w-[200px]">
-                      <label htmlFor={`category-state-${row.id}`} className="sr-only">
-                        {name}の利用状態
-                      </label>
-                      <select
-                        id={`category-state-${row.id}`}
+                    <div className="min-w-0 space-y-1">
+                      <SegmentedControl
+                        name={`category-state-${row.id}`}
+                        aria-label={`${name}の利用状態`}
                         value={row.selectable ? 'selectable' : 'stopped'}
-                        onChange={(event) => updateRow(row.id, { selectable: event.target.value === 'selectable' })}
-                        className="h-10 w-full rounded-[7px] border border-border-input bg-surface px-3 text-[13px] leading-[21px] text-text-primary focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand"
-                      >
-                        <option value="selectable">選択できます</option>
-                        <option value="stopped">新規選択停止</option>
-                      </select>
+                        options={[
+                          { value: 'selectable', label: '選択できます' },
+                          { value: 'stopped', label: '新規選択停止' },
+                        ]}
+                        onChange={(value) => updateRow(row.id, { selectable: value === 'selectable' })}
+                      />
+                      {!row.selectable && (
+                        <p className="text-[11px] leading-[18px] text-text-secondary">
+                          {existing && existing.referenceCount > 0 ? `既存の${existing.referenceCount}件はそのまま表示されます。` : ''}
+                          新しいイベントでは選べません。
+                        </p>
+                      )}
                     </div>
-                    <p className="w-[90px] text-[12px] leading-5 text-text-secondary">{existing ? `${existing.referenceCount}件` : '未保存'}</p>
-                    <div className="flex gap-2">
-                      <Button variant="secondary" className="min-w-0 px-3" disabled={index === 0} onClick={() => move(index, index - 1)} aria-label={`${name}を上へ`}>
-                        ↑
-                      </Button>
-                      <Button variant="secondary" className="min-w-0 px-3" disabled={index === rows.length - 1} onClick={() => move(index, index + 1)} aria-label={`${name}を下へ`}>
-                        ↓
-                      </Button>
+                    <p className="text-[12px] tabular-nums text-text-secondary md:pt-2">
+                      <span className="md:hidden">参照イベント： </span>
+                      {existing ? `${existing.referenceCount}件` : '未保存'}
+                    </p>
+                    <div className="flex flex-wrap items-center gap-1 md:items-start md:pt-0.5">
+                      <button
+                        type="button"
+                        className="inline-grid size-[30px] place-items-center rounded-md text-text-secondary transition-colors hover:bg-surface-hover hover:text-text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:cursor-not-allowed disabled:opacity-40"
+                        disabled={index === 0}
+                        onClick={() => move(index, index - 1)}
+                        aria-label={`${name}を上へ`}
+                      >
+                        <ArrowUp aria-hidden size={16} />
+                      </button>
+                      <button
+                        type="button"
+                        className="inline-grid size-[30px] place-items-center rounded-md text-text-secondary transition-colors hover:bg-surface-hover hover:text-text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:cursor-not-allowed disabled:opacity-40"
+                        disabled={index === rows.length - 1}
+                        onClick={() => move(index, index + 1)}
+                        aria-label={`${name}を下へ`}
+                      >
+                        <ArrowDown aria-hidden size={16} />
+                      </button>
                       {!existing && (
-                        <Button variant="danger" onClick={() => editor.update((current) => current.filter((item) => item.id !== row.id))}>
-                          追加を取り消す
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-text-secondary hover:text-danger"
+                          onClick={() => editor.update((current) => current.filter((item) => item.id !== row.id))}
+                        >
+                          取り消す
                         </Button>
                       )}
                     </div>
@@ -204,20 +241,26 @@ function CategoriesEditor({ initial }: { initial: CategoryListDetail }) {
             </ol>
             {rows.length === 0 && <NoticeBanner>カテゴリは正式に0件です。［カテゴリを追加］から作成できます。</NoticeBanner>}
             <Button
-              variant="secondary"
-              className="self-start"
+              variant="ghost"
+              className="self-start font-bold text-text-primary"
               onClick={() => {
                 const id = crypto.randomUUID()
                 focusName.current = id
                 editor.update((current) => [...current, { id, name: '', selectable: true }])
               }}
             >
-              カテゴリを追加
+              <Plus aria-hidden size={15} /> カテゴリを追加
             </Button>
+            <p className="text-[12px] leading-5 text-text-secondary">
+              名前と並び順の変更は、公開するまでアプリに反映されません。公開すると、このカテゴリを参照している公開中のイベントの表示も変わります。
+            </p>
           </div>
         </main>
         {editor.conflict && (
-          <aside aria-label="最新の保存内容と比較" className="flex w-[400px] shrink-0 flex-col gap-3 overflow-auto border-l border-border bg-surface p-[18px]">
+          <aside
+            aria-label="最新の保存内容と比較"
+            className="flex w-full shrink-0 flex-col gap-3 border-t border-border-subtle bg-canvas p-[18px] lg:w-[400px] lg:overflow-auto lg:border-t-0 lg:border-l"
+          >
             <CompareRows
               rows={[{ label: 'カテゴリ一覧', mine: describe(editor.conflict.mine), latest: describe(editor.conflict.latest.items) }]}
               latestBy={editor.conflict.latest.updatedBy?.displayName ?? '取り込み'}
@@ -231,5 +274,35 @@ function CategoriesEditor({ initial }: { initial: CategoryListDetail }) {
 
       <LeaveGuard id="categories-editor" dirty={editor.dirty} saving={editor.saveState === 'saving'} canSave={!editor.conflictOpen} onSave={save} />
     </>
+  )
+}
+
+function CategoryToolbar({ publication, children }: { publication?: ReturnType<typeof publicationBadge>; children?: ReactNode }) {
+  return (
+    <Toolbar
+      className="flex-wrap"
+      title="カテゴリ管理"
+      leading={
+        <div className="flex items-center gap-2 text-[13px] leading-5 text-text-secondary">
+          <Link
+            to="/events"
+            className="inline-flex items-center gap-1 rounded-sm hover:text-text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+          >
+            <ChevronLeft aria-hidden size={15} strokeWidth={1.75} />
+            イベント
+          </Link>
+          <span aria-hidden className="text-text-muted">
+            /
+          </span>
+        </div>
+      }
+      titleNode={
+        <span className="inline-flex flex-wrap items-center gap-2">
+          カテゴリ管理 {publication && <StatusLabel tone={publication.tone}>{publication.label}</StatusLabel>}
+        </span>
+      }
+    >
+      {children}
+    </Toolbar>
   )
 }
