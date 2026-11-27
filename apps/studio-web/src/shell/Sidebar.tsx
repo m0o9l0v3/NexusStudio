@@ -1,6 +1,6 @@
 import * as Dialog from '@radix-ui/react-dialog'
 import { Menu, X } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState, type Ref } from 'react'
 import { NavLink, useLocation } from 'react-router'
 import { useSessionQuery } from '../auth/session'
 import { Button } from '../ui/Button'
@@ -13,7 +13,7 @@ import { navGroups, type NavArea } from './navigation'
  * ロゴ直下に環境バッジ（12 UI-22、決定事項36 V2-7）、ホーム＋3グループ（コンテンツ／公開／運用）、最下部にアカウントメニュー。
  * 画面の高さが足りないときは縦にスクロールしてアカウントメニューへ届くようにする（検証記録 A-5 D9）。
  */
-export function Sidebar({ className }: { className?: string }) {
+export function Sidebar({ className, navRef }: { className?: string; navRef?: Ref<HTMLElement> }) {
   const { data: session } = useSessionQuery()
 
   return (
@@ -28,7 +28,7 @@ export function Sidebar({ className }: { className?: string }) {
         )}
       </div>
 
-      <nav aria-label="メインメニュー" className="flex shrink-0 flex-col gap-4">
+      <nav ref={navRef} aria-label="メインメニュー" className="flex shrink-0 flex-col gap-4">
         {navGroups.map((group) => (
           <div key={group.label ?? 'top'} className="flex flex-col gap-0.5">
             {group.label && <p className="px-2.5 pb-1 text-[11px] leading-4 font-bold text-text-secondary">{group.label}</p>}
@@ -48,11 +48,12 @@ export function Sidebar({ className }: { className?: string }) {
   )
 }
 
-export function MobileSidebar() {
+export function MobileSidebar({ responsive, onFocusFallback }: { responsive: boolean; onFocusFallback: () => void }) {
   const { key: locationKey } = useLocation()
+  const triggerRef = useRef<HTMLButtonElement>(null)
   const [openedAt, setOpenedAt] = useState<string | null>(null)
-  const open = openedAt === locationKey
-  if (openedAt !== null && openedAt !== locationKey) setOpenedAt(null)
+  const open = responsive && openedAt === locationKey
+  if (openedAt !== null && !open) setOpenedAt(null)
 
   useEffect(() => {
     if (!open) return
@@ -66,10 +67,10 @@ export function MobileSidebar() {
   }, [open])
 
   return (
-    <div className="flex shrink-0 items-center gap-2 border-b border-border bg-sidebar px-3 py-1 md:hidden">
+    <div className={cn('shrink-0 items-center gap-2 border-b border-border bg-sidebar px-3 py-1', responsive ? 'flex md:hidden' : 'hidden')}>
       <Dialog.Root open={open} onOpenChange={(nextOpen) => setOpenedAt(nextOpen ? locationKey : null)}>
         <Dialog.Trigger asChild>
-          <Button variant="ghost" aria-label="メインメニューを開く" className="px-2">
+          <Button ref={triggerRef} variant="ghost" aria-label="メインメニューを開く" className="px-2">
             <Menu aria-hidden size={20} />
           </Button>
         </Dialog.Trigger>
@@ -78,6 +79,12 @@ export function MobileSidebar() {
           <Dialog.Content
             aria-describedby={undefined}
             className="fixed inset-y-0 left-0 z-50 w-[220px] max-w-full bg-sidebar shadow-floating focus:outline-none"
+            onCloseAutoFocus={(event) => {
+              event.preventDefault()
+              const trigger = triggerRef.current
+              if (trigger?.isConnected && trigger.offsetParent !== null) trigger.focus()
+              else onFocusFallback()
+            }}
           >
             <Dialog.Title className="sr-only">メインメニュー</Dialog.Title>
             <Dialog.Close asChild>

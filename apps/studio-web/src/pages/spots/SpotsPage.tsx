@@ -1,8 +1,9 @@
 import { Map, Search, TriangleAlert } from 'lucide-react'
-import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useDeferredValue, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router'
 import { ApiError } from '../../api/client'
+import type { SpotSearchResult } from '../../api/reference'
 import { getSpot, listSpotDirectory, saveSpot, spotKindLabel, spotKindLabels, type SpotConflict, type SpotDetail, type SpotDraft } from '../../api/spots'
 import { CompareRows } from '../../editing/CompareRows'
 import { DraftSaveStatus } from '../../editing/DraftSaveStatus'
@@ -23,6 +24,17 @@ function spotBadge(publication: string, utilization: string) {
   return utilization === 'withdrawn' ? publicationBadge('withdrawn') : publicationBadge(publication)
 }
 
+type SpotConditions = { q: string; building: string; floor: string }
+type SpotDirectorySnapshot = { data: SpotSearchResult; query: SpotConditions; updatedAt: number }
+
+function describeConditions({ q, building, floor }: SpotConditions): string {
+  return [q && `検索「${q}」`, building && `建物「${building}」`, floor && `階「${floor}」`].filter(Boolean).join('／') || '絞り込みなし'
+}
+
+function includeSelection(options: string[] = [], selected: string): string[] {
+  return selected && !options.includes(selected) ? [...options, selected] : options
+}
+
 /**
  * Figma v2 SP01（126:2605）。一覧 300px・詳細 380px・中央に地図を配置する。
  * Step 3 では一覧・検索・Inspectorでの属性の下書き編集まで（2026-09-24 利用者判断）。
@@ -34,12 +46,24 @@ export function SpotsPage() {
   const [q, setQ] = useState('')
   const [building, setBuilding] = useState('')
   const [floor, setFloor] = useState('')
-  const deferredQ = useDeferredValue(q)
+  const [lastSuccess, setLastSuccess] = useState<SpotDirectorySnapshot | null>(null)
+  const deferredQ = useDeferredValue(q).trim()
+  const query = { q: deferredQ, building, floor }
   const directory = useQuery({
-    queryKey: ['spot-directory', { q: deferredQ, building, floor }],
+    queryKey: ['spot-directory', query],
     queryFn: () => listSpotDirectory(deferredQ, building, floor),
-    placeholderData: keepPreviousData,
   })
+  const { data, dataUpdatedAt, isSuccess } = directory
+
+  // データ・条件・時刻を同じ成功レスポンスの組として保持する。
+  if (isSuccess && (!lastSuccess || lastSuccess.data !== data || lastSuccess.updatedAt !== dataUpdatedAt
+    || lastSuccess.query.q !== deferredQ || lastSuccess.query.building !== building || lastSuccess.query.floor !== floor)) {
+    setLastSuccess({ data, query, updatedAt: dataUpdatedAt })
+  }
+
+  const displayedData = lastSuccess?.data
+  const displayedQuery = lastSuccess?.query
+  const options = data ?? lastSuccess?.data
 
   function select(canonicalId: string) {
     const next = new URLSearchParams(params)
@@ -66,7 +90,7 @@ export function SpotsPage() {
           <div className="grid min-w-0 grid-cols-2 gap-2">
             <SelectField label="建物" controlSize="sm" value={building} onChange={(event) => setBuilding(event.target.value)} className="min-w-0 [&>label]:sr-only [&_select]:truncate [&_select]:text-[12px]">
               <option value="">建物：すべて</option>
-              {directory.data?.buildings.map((name) => (
+              {includeSelection(options?.buildings, building).map((name) => (
                 <option key={name} value={name}>
                   建物：{name}
                 </option>
@@ -74,7 +98,7 @@ export function SpotsPage() {
             </SelectField>
             <SelectField label="階" controlSize="sm" value={floor} onChange={(event) => setFloor(event.target.value)} className="min-w-0 [&>label]:sr-only [&_select]:truncate [&_select]:text-[12px]">
               <option value="">階：すべて</option>
-              {directory.data?.floors.map((name) => (
+              {includeSelection(options?.floors, floor).map((name) => (
                 <option key={name} value={name}>
                   階：{name}
                 </option>
@@ -82,31 +106,36 @@ export function SpotsPage() {
             </SelectField>
           </div>
 
-          {directory.isError && directory.data && (
-            <StaleListNotice listName="地点一覧" updatedAt={directory.dataUpdatedAt} onRetry={() => void directory.refetch()} />
+          {directory.isError && lastSuccess && (
+            <StaleListNotice
+              listName="地点一覧"
+              updatedAt={lastSuccess.updatedAt}
+              conditions={{ failed: describeConditions(query), shown: describeConditions(lastSuccess.query) }}
+              onRetry={() => void directory.refetch()}
+            />
           )}
-          {directory.data && (
+          {displayedData && (
             <p className="text-[10px] leading-[18px] text-text-secondary tabular-nums" aria-live="polite">
-              {directory.data.totalCount}件{directory.data.totalCount > directory.data.items.length && `（先頭の${directory.data.items.length}件を表示）`}
+              {displayedData.totalCount}件{displayedData.totalCount > displayedData.items.length && `（先頭の${displayedData.items.length}件を表示）`}
             </p>
           )}
-          {directory.isPending ? (
+          {!displayedData && directory.isPending ? (
             <p role="status" className="text-[11px] leading-[19px] text-text-secondary">
               地点を読み込んでいます
             </p>
-          ) : !directory.data ? (
+          ) : !displayedData ? (
             <NoticeBanner tone="blocking">
               地点を取得できませんでした。0件とは扱わず、再試行してください。
               <Button variant="secondary" className="mt-2" onClick={() => void directory.refetch()}>
                 再試行
               </Button>
             </NoticeBanner>
-          ) : directory.data.items.length === 0 ? (
-            <NoticeBanner>{q || building || floor ? '一致する地点はありません。条件を変えて検索してください。' : '地点は正式に0件です。'}</NoticeBanner>
+          ) : displayedData.items.length === 0 ? (
+            <NoticeBanner>{displayedQuery?.q || displayedQuery?.building || displayedQuery?.floor ? '一致する地点はありません。条件を変えて検索してください。' : '地点は正式に0件です。'}</NoticeBanner>
           ) : (
             <>
               <ul className="divide-y divide-border-subtle border-b border-border-subtle">
-                {directory.data.items.map((spot) => {
+                {displayedData.items.map((spot) => {
                   const selected = spot.canonicalId === selectedId
                   const badge = spotBadge(spot.publication, spot.utilization)
                   return (
@@ -236,7 +265,7 @@ function SpotInspector({ initial }: { initial: SpotDetail }) {
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-      <div className="shrink-0 px-4 pt-4 pb-3">
+      <div className="shrink-0 px-4 pt-4 pb-3 xl:pb-2">
         <div className="flex flex-wrap items-center gap-2">
           <h2 className="min-w-0 text-[17px] font-bold">{draft.name || '（名称未入力）'}</h2>
           <StatusLabel tone={badge.tone}>{badge.label === '取り下げ済み' ? '公開停止' : badge.label}</StatusLabel>
@@ -244,7 +273,7 @@ function SpotInspector({ initial }: { initial: SpotDetail }) {
         </div>
         <DraftSaveStatus className="mt-1 text-[11px]" label={editor.statusBadge.label} dirty={editor.dirty} updatedAt={current.updatedAt} />
       </div>
-      <div className="flex min-w-0 flex-col gap-3 px-4 pb-4 xl:min-h-0 xl:flex-1 xl:overflow-y-auto">
+      <div className="flex min-w-0 flex-col gap-3 px-4 pb-4 xl:min-h-0 xl:flex-1 xl:gap-2.5 xl:overflow-y-auto">
       {editor.failure && <NoticeBanner tone="blocking">{editor.failure}</NoticeBanner>}
       <div className="rounded-lg bg-surface-subtle p-3 text-[11px] text-text-secondary"><div className="grid grid-cols-[52px_1fr] gap-y-1.5"><span>ID</span><span className="break-all font-mono text-text-primary">{initial.canonicalId}</span><span>建物</span><span className={placement.buildingName ? 'text-text-primary' : 'font-bold text-warning'}>{!placement.buildingName && <TriangleAlert aria-hidden size={13} className="mr-1 inline" />}{placement.buildingName ?? '未確認'}</span><span>階</span><span className={placement.floorName ? 'text-text-primary' : 'font-bold text-warning'}>{!placement.floorName && <TriangleAlert aria-hidden size={13} className="mr-1 inline" />}{placement.floorName ?? '未確認'}</span></div><p className="mt-2">IDは変更できません。建物・階は地図と一緒に公開するため、地図画面で変更します。</p></div>
       <div className="rounded-lg bg-surface-subtle p-3 text-[11px] text-text-secondary"><p className="mb-1 text-[13px] font-bold text-text-primary">位置・経路関係</p><p>座標系：floor-local（m）</p><p className="mt-1 font-bold text-warning">X：未確認　Y：未確認</p><p className="mt-1 text-warning">到着点・入口・経路の接続：未確認</p><p className="mt-1">ピンを置いただけでは接続済みにしません。</p></div>

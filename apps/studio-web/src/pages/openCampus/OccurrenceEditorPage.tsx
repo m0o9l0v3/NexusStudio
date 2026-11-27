@@ -102,10 +102,36 @@ function formatDayHeading(day: OcDayDraft, includeYear = false): string {
   return `${date} ${hours}`
 }
 
+function describeNote(note: string | null | undefined): string {
+  return note == null ? '未入力（未設定）' : note === '' ? '空文字' : `「${note}」`
+}
+
 function describeDays(days: OcDayDraft[]): string {
   return days.map((day) =>
-    `${formatDayHeading(day, true)}・${day.status === 'cancelled' ? '開催日を中止' : '通常'}\n中止案内：${day.cancelNote || '（未入力）'}`,
+    `${formatDayHeading(day, true)}・${day.status === 'cancelled' ? '開催日を中止' : '通常'}\n中止案内：${describeNote(day.cancelNote)}`,
   ).join('\n\n') || '開催日なし'
+}
+
+function compareOccurrence(mine: OccurrenceDraft, latest: OccurrenceDraft): CompareRow[] {
+  return [
+    { label: '名称', mine: mine.name || '（未入力）', latest: latest.name || '（未入力）' },
+    {
+      label: '出典メモ',
+      mine: describeNote(mine.sourceNote),
+      latest: describeNote(latest.sourceNote),
+      changed: (mine.sourceNote ?? null) !== (latest.sourceNote ?? null),
+    },
+    {
+      label: '開催日',
+      mine: describeDays(mine.days),
+      latest: describeDays(latest.days),
+      changed: mine.days.length !== latest.days.length || mine.days.some((day, index) => {
+        const other = latest.days[index]
+        return day.date !== other.date || day.publicStart !== other.publicStart || day.publicEnd !== other.publicEnd
+          || day.status !== other.status || (day.cancelNote ?? null) !== (other.cancelNote ?? null)
+      }),
+    },
+  ]
 }
 
 function OccurrenceBreadcrumb() {
@@ -189,16 +215,8 @@ function OccurrenceEditor({ initial }: { initial: OccurrenceDetail | null }) {
   const publication = publicationBadge(base?.publication.state ?? 'unpublished')
 
   const title = draft.name?.trim() || (base ? '無題の開催回' : '新規開催回')
-  const compareRows: CompareRow[] = editor.conflict
-    ? [
-        { label: '名称', mine: editor.conflict.mine.name || '（未入力）', latest: editor.conflict.latest.draft.name || '（未入力）' },
-        { label: '出典メモ', mine: editor.conflict.mine.sourceNote || '（未入力）', latest: editor.conflict.latest.draft.sourceNote || '（未入力）' },
-        {
-          label: '開催日',
-          mine: describeDays(editor.conflict.mine.days),
-          latest: describeDays(editor.conflict.latest.draft.days),
-        },
-      ]
+  const compareRows = editor.conflict
+    ? compareOccurrence(editor.conflict.mine, editor.conflict.latest.draft)
     : []
 
   return (

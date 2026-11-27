@@ -1,6 +1,6 @@
 import { Button } from '../ui/Button'
 
-export type CompareRow = { label: string; mine: string; latest: string }
+export type CompareRow = { label: string; mine: string; latest: string; changed?: boolean }
 
 type CompareRowsProps = {
   rows: CompareRow[]
@@ -15,7 +15,7 @@ type CompareRowsProps = {
  * ［最新の内容を読み込む］で最新版を基準に編集を再開する（docs/UI補完記録.md）。
  */
 export function CompareRows({ rows, latestBy, resolved, onLoadLatest, onClose }: CompareRowsProps) {
-  const changed = rows.filter((row) => row.mine !== row.latest)
+  const changed = rows.filter((row) => row.changed ?? (row.mine !== row.latest))
   return (
     <div className="flex min-w-0 flex-col gap-3 wrap-anywhere tabular-nums">
       <h2 className="text-[16px] leading-6 font-bold text-text-primary">最新の保存内容と比較</h2>
