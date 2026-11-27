@@ -7,16 +7,27 @@ Nexus（[`nexus-mobile`](https://gitlab.com/11h27m/nexus-mobile)）の管理ポ�
 
 分離の経緯は [`nexus-mobile` の E0-7 決定記録](https://gitlab.com/11h27m/nexus-mobile/-/blob/develop/docs/decisions/E0-7-studio-scope-split.md)、実装順序・データ契約は [`docs/決定事項/15`](docs/決定事項/15_NexusStudio_実装開始判断・初期実装計画_2026-09-22_v02.md) を参照してください。
 
+## 今後のアップデートと展開予定（ロードマップ）
+
+2026-11-27 に本番環境（`studio.nexus-app.jp`）へ適用した **Nexus Studio v2 のデザイン刷新（PR #44〜#56）は序章** です。今後も実運用からのフィードバックを反映しながら継続的に UI/UX と機能をアップデートし、あわせて展開形態を広げていきます。
+
+- **継続アップデート**: 運用を通じた UI/UX・配信周りの改善に加え、地図エディタ本体（`/map-data`）やタイムスケジュール取り込み（[`docs/決定事項/35`](docs/決定事項/35_NexusStudio_タイムスケジュール取り込みの実現性調査_2026-11-16_v01.md)）などの機能拡充・統合を順次進めます。
+- **デスクトップアプリ版リリースの構想**: 現在の Web 版に加えて、**デスクトップアプリ版でのリリース**も視野に入れています（技術選定・セキュリティ境界との整合・運用支援機能は今後検討）。
+
+詳細な方針と進捗はロードマップ Issue（[#57](https://github.com/m0o9l0v3/NexusStudio/issues/57)）で管理しています。
+
 ## 現在の実装状態
 
-**Step 0〜3 が完了（Step 3 の Spots は一覧・属性編集まで）。Step 4（検証・公開・履歴・復旧）以降は未着手です。**
+**Step 0〜4 および Nexus Studio v2 UI/UX デザイン刷新の第 1 弾（PR #44〜#56）が完了・本番適用済みです。**
 
-| Step | 内容 | 状態 |
+| 段階 | 内容 | 状態 |
 |---|---|---|
-| Step 0 | リポジトリ骨格、`studio` schema、MapDataset validatorの移植 | ✅ 完了 |
-| Step 1 | ASP.NET Core Identity認証、管理者コマンド、ログイン画面、App Shell（Sidebar/Workspace） | ✅ 完了（各領域の本文は準備中表示） |
-| Step 2 | イベント1件の編集と下書き保存（Revision/head、rowVersion・operationId、参照データの取り込み） | ✅ 完了（公開はStep 4） |
-| Step 3 | 開催回・開催日・カテゴリ・Spotの編集、開催枠の中止 | ✅ 完了（Spotsの地図・位置変更は Map Data と合わせて実装） |
+| Step 0 | リポジトリ骨格、`studio` schema、MapDataset validator の移植 | ✅ 完了 |
+| Step 1 | ASP.NET Core Identity 認証、管理者コマンド、ログイン画面、App Shell | ✅ 完了 |
+| Step 2 | イベント1件の編集と下書き保存（Revision/head、rowVersion・operationId、参照データの取り込み） | ✅ 完了 |
+| Step 3 | 開催回・開催日・カテゴリ・Spot の編集、開催枠の中止 | ✅ 完了（Spots の地図・位置変更は Map Data と合わせて実装） |
+| Step 4 | 全下書き診断（Validation）、公開・取り下げ・復旧（Releases）、操作記録（Logs）、地図・参加者向け bundle 射影 | ✅ 完了 |
+| v2 UI/UX 刷新（第1弾） | デザイン基盤刷新、フラット App Shell、ホーム・編集・管理・公開・認証画面の統合・刷新（PR #44〜#56） | ✅ 完了（2026-11-27 本番適用済み、[`docs/決定事項/36`](docs/決定事項/36_NexusStudio_v2UI刷新の判断記録_2026-11-26_v02.md)） |
 
 詳細は [`CLAUDE.md`](CLAUDE.md) を参照してください。
 
