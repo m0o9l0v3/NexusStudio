@@ -57,7 +57,7 @@ export function SegmentedControl<T extends string>({
               'has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-1 has-[:focus-visible]:outline-brand',
               disabled ? 'cursor-not-allowed' : 'cursor-pointer',
               selected
-                ? 'bg-canvas font-bold text-text-primary shadow-[0_1px_2px_rgb(22_22_26/0.08)]'
+                ? 'bg-canvas font-bold text-text-primary shadow-segment'
                 : disabled
                   ? 'font-normal text-text-secondary'
                   : 'font-normal text-text-secondary hover:text-text-primary',

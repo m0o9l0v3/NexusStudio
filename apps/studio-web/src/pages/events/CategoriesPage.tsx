@@ -259,7 +259,7 @@ function CategoriesEditor({ initial }: { initial: CategoryListDetail }) {
         {editor.conflict && (
           <aside
             aria-label="最新の保存内容と比較"
-            className="flex w-full shrink-0 flex-col gap-3 border-t border-border-subtle bg-canvas p-[18px] lg:w-[400px] lg:overflow-auto lg:border-t-0 lg:border-l"
+            className="flex w-full min-w-0 shrink-0 flex-col gap-3 border-t border-border-subtle bg-canvas p-[18px] wrap-anywhere lg:w-[400px] lg:overflow-y-auto lg:border-t-0 lg:border-l"
           >
             <CompareRows
               rows={[{ label: 'カテゴリ一覧', mine: describe(editor.conflict.mine), latest: describe(editor.conflict.latest.items) }]}

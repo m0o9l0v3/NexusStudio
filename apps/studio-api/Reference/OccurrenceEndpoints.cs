@@ -266,11 +266,11 @@ public static partial class OccurrenceEndpoints
                 var index = draft.Days.ToList().FindIndex(d => d?.Id == existing.Id);
                 if (index < 0)
                 {
-                    problems.Add(new("days", "day_in_use", $"{existing.Date:M月d日}はイベントの開催枠（{referencing.Count}枠：{titles}）が参照しているため削除できません。"));
+                    problems.Add(new("days", "day_in_use", $"{existing.Date:M月d日}はイベントの日時（{referencing.Count}件：{titles}）が参照しているため削除できません。"));
                 }
                 else if (draft.Days[index].Date is { } newDate && newDate != existing.Date)
                 {
-                    problems.Add(new($"days[{index}].date", "day_in_use", $"{existing.Date:M月d日}はイベントの開催枠（{referencing.Count}枠：{titles}）が参照しているため日付を変更できません。"));
+                    problems.Add(new($"days[{index}].date", "day_in_use", $"{existing.Date:M月d日}はイベントの日時（{referencing.Count}件：{titles}）が参照しているため日付を変更できません。"));
                 }
             }
         }

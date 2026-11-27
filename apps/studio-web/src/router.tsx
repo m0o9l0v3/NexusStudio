@@ -4,12 +4,9 @@ import { RequireAuth } from './auth/RequireAuth'
 import { EventListPage } from './pages/events/EventListPage'
 import { LoginPage } from './pages/LoginPage'
 import { LogsPage } from './pages/logs/LogsPage'
-import { OccurrenceEditorPage } from './pages/openCampus/OccurrenceEditorPage'
-import { OpenCampusListPage } from './pages/openCampus/OpenCampusListPage'
 import { PlaceholderPage } from './pages/PlaceholderPage'
 import { ReleasesPage } from './pages/releases/ReleasesPage'
 import { ValidationPage } from './pages/validation/ValidationPage'
-import { SpotsPage } from './pages/spots/SpotsPage'
 import { AppShell } from './shell/AppShell'
 import { navAreas } from './shell/navigation'
 import { FullPageStatus } from './ui/FullPageStatus'
@@ -30,6 +27,21 @@ async function loadCategories() {
 async function loadEventEditor() {
   const { EventEditorPage } = await import('./pages/events/editor/EventEditorPage')
   return { Component: EventEditorPage }
+}
+
+async function loadOpenCampusList() {
+  const { OpenCampusListPage } = await import('./pages/openCampus/OpenCampusListPage')
+  return { Component: OpenCampusListPage }
+}
+
+async function loadOccurrenceEditor() {
+  const { OccurrenceEditorPage } = await import('./pages/openCampus/OccurrenceEditorPage')
+  return { Component: OccurrenceEditorPage }
+}
+
+async function loadSpots() {
+  const { SpotsPage } = await import('./pages/spots/SpotsPage')
+  return { Component: SpotsPage }
 }
 
 function loadPublishReview(kind: TargetKind) {
@@ -58,11 +70,11 @@ export const router = createBrowserRouter([
           { path: '/events/categories/publish', lazy: loadPublishReview('categories'), handle: { responsive: true } },
           { path: '/events/:id', lazy: loadEventEditor, handle: { responsive: true } },
           { path: '/events/:id/publish', lazy: loadPublishReview('event'), handle: { responsive: true } },
-          { path: '/open-campus', element: <OpenCampusListPage /> },
-          { path: '/open-campus/new', element: <OccurrenceEditorPage /> },
-          { path: '/open-campus/:id', element: <OccurrenceEditorPage /> },
+          { path: '/open-campus', lazy: loadOpenCampusList, handle: { responsive: true } },
+          { path: '/open-campus/new', lazy: loadOccurrenceEditor, handle: { responsive: true } },
+          { path: '/open-campus/:id', lazy: loadOccurrenceEditor, handle: { responsive: true } },
           { path: '/open-campus/:id/publish', lazy: loadPublishReview('occurrence'), handle: { responsive: true } },
-          { path: '/spots', element: <SpotsPage /> },
+          { path: '/spots', lazy: loadSpots, handle: { responsive: true } },
           { path: '/spots/publish', lazy: loadPublishReview('spot'), handle: { responsive: true } },
           // 地図の公開確認だけを置く。Map Data 画面（一覧・差分表示）は構成の確定後に作る（UI補完記録）。
           { path: '/map-data/publish', lazy: loadPublishReview('map'), handle: { responsive: true } },
