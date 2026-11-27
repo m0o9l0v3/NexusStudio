@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react'
 import { cn } from './cn'
+import type { StatusTone } from './StatusLabel'
 
-export type StatusTone = 'neutral' | 'info' | 'success' | 'warning' | 'danger'
+export type { StatusTone } from './StatusLabel'
 
 const toneClass: Record<StatusTone, string> = {
   neutral: 'bg-surface-subtle text-text-secondary',

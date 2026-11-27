@@ -23,7 +23,7 @@ export function DiffList({
       </div>
       <ul className="divide-y divide-border-subtle border-b border-border-subtle">
         {rows.map((row, position) => {
-          const removed = row.kind === '削除' || row.kind === '取り下げ'
+          const removed = row.kind === '削除' || row.kind === '公開停止'
           return (
             <li
               key={position}

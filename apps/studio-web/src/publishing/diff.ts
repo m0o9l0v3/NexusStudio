@@ -6,7 +6,7 @@ import { spotKindLabel, type SpotDraft } from '../api/spots'
 import { formatDateLong, participationLabels } from '../events/model'
 
 /** 差分の種類（Figma R01 のバッジ）。 */
-export type DiffKind = '追加' | '変更' | '削除' | '参照' | '取り下げ'
+export type DiffKind = '追加' | '変更' | '削除' | '参照' | '公開停止'
 
 /** 公開確認の差分1行。公開中と公開候補を横に並べる（17 §3）。 */
 export type DiffRow = { kind: DiffKind; label: string; published: string; candidate: string }
@@ -18,10 +18,10 @@ const none = 'なし'
 /** 差分の元になる2つの内容（公開確認の対象、または履歴の1件）。 */
 export type DiffSource = Pick<PreviewItem, 'action' | 'targetKind' | 'event' | 'occurrence' | 'categories' | 'spot' | 'map'>
 
-/** 公開確認・履歴に出す差分。取り下げでは「公開を終了する」ことだけを示す。 */
+/** 公開確認・履歴に出す差分。公開停止では「公開を終了する」ことだけを示す。 */
 export function diffRows(item: DiffSource, published: PreviewReferences, candidate: PreviewReferences, names: Names): DiffRow[] {
   if (item.action === 'withdraw') {
-    return [{ kind: '取り下げ', label: '公開', published: '公開中', candidate: '公開を終了（下書きと履歴は残ります）' }]
+    return [{ kind: '公開停止', label: '公開', published: '公開中', candidate: '公開を終了（下書きと履歴は残ります）' }]
   }
 
   switch (item.targetKind) {
@@ -68,15 +68,30 @@ function slotTime(slot: EventSlot, refs: PreviewReferences): string {
   return `${date}（時間方式未選択）`
 }
 
-function venues(slot: EventSlot, refs: PreviewReferences): string {
+function venues(slot: EventSlot, refs: PreviewReferences, showIds = false): string {
   if (slot.venues.length === 0) return '会場なし'
-  return slot.venues.map((venue) => refs.spots.find((spot) => spot.canonicalId === venue.canonicalSpotId)?.name ?? venue.canonicalSpotId).join('／')
+  return slot.venues.map((venue) => {
+    const id = venue.canonicalSpotId
+    const name = refs.spots.find((spot) => spot.canonicalId === id)?.name ?? id
+    const label = showIds && name !== id ? `${name}（${id}）` : name
+    return venue.note ? `${label}（${venue.note}）` : label
+  }).join('／')
+}
+
+function participation(slot: EventSlot): string {
+  return participationLabels[slot.participation as keyof typeof participationLabels] ?? '参加案内未選択'
+}
+
+function slotStatus(slot: EventSlot): string {
+  if (slot.status !== 'cancelled') return '開催'
+  return slot.cancelNote ? `中止（${slot.cancelNote}）` : '中止'
 }
 
 function slotSummary(slot: EventSlot, refs: PreviewReferences): string {
-  const participation = slot.participation ? participationLabels[slot.participation as keyof typeof participationLabels] : '参加案内未選択'
-  const cancelled = slot.status === 'cancelled' ? `・中止${slot.cancelNote ? `（${slot.cancelNote}）` : ''}` : ''
-  return `${slotTime(slot, refs)}・${participation}・${venues(slot, refs)}${cancelled}`
+  const cancelled = slot.status === 'cancelled' ? `・${slotStatus(slot)}` : ''
+  const hours = allDayHours(slot, refs)
+  const schedule = hours ? `${hours}（終日・開催情報）` : slotTime(slot, refs)
+  return `${schedule}・${participation(slot)}・${venues(slot, refs)}${cancelled}`
 }
 
 /** 終日の実時間。公開版には時刻を書かず、開催日の一般公開時間から解決する（28 S4-3）。 */
@@ -91,27 +106,51 @@ function eventRows(before: EventDraft | null, after: EventDraft | null, beforeRe
   const rows: DiffRow[] = []
   if (!after) return rows
   compare(rows, 'タイトル', before ? (text(before.title) ?? '（未入力）') : null, text(after.title) ?? '（未入力）')
-  compare(rows, '説明', before ? (text(before.description) ?? '（未入力）') : null, text(after.description) ?? '（未入力）')
   const category = (refs: PreviewReferences, id: string | null) => (id ? (refs.categories.find((c) => c.id === id)?.name ?? '公開されていないカテゴリ') : '未選択')
   compare(rows, 'カテゴリ', before ? category(beforeRefs, before.categoryId) : null, category(afterRefs, after.categoryId))
   const occurrence = (id: string | null) => (id ? (names.occurrences.get(id) ?? '開催回') : '未選択')
   compare(rows, '開催回', before ? occurrence(before.occurrenceId) : null, occurrence(after.occurrenceId))
 
   const oldSlots = new Map((before?.slots ?? []).map((slot) => [slot.slotId, slot]))
+  const dates = after.slots.map((slot) => dayOf(afterRefs, slot.ocDayId)?.date)
+  const dateCounts = new Map<string, number>()
+  for (const date of dates) {
+    if (date) dateCounts.set(date, (dateCounts.get(date) ?? 0) + 1)
+  }
   after.slots.forEach((slot, index) => {
     const old = oldSlots.get(slot.slotId)
-    const label = `開催枠${index + 1}`
-    compare(rows, label, old ? slotSummary(old, beforeRefs) : null, slotSummary(slot, afterRefs))
-    const oldHours = old ? allDayHours(old, beforeRefs) : null
-    const newHours = allDayHours(slot, afterRefs)
-    if (newHours && newHours !== oldHours) {
-      rows.push({ kind: '参照', label: `${label}の終日の実時間`, published: oldHours ?? none, candidate: `${newHours}（開催情報）` })
+    const label = `日時${index + 1}`
+    if (old) {
+      const date = dates[index]
+      const dateLabel = date && dateCounts.get(date) === 1 ? formatDateLong(date) : null
+      const context = `（${dateLabel ?? label}）`
+      compare(rows, dateLabel ? `日時${context}` : label, slotTime(old, beforeRefs), slotTime(slot, afterRefs))
+      const oldVenues = venues(old, beforeRefs)
+      const newVenues = venues(slot, afterRefs)
+      const showVenueIds = oldVenues === newVenues && (
+        old.venues.length !== slot.venues.length || old.venues.some((venue, i) => venue.canonicalSpotId !== slot.venues[i]?.canonicalSpotId)
+      )
+      compare(
+        rows, `会場${context}`,
+        showVenueIds ? venues(old, beforeRefs, true) : oldVenues,
+        showVenueIds ? venues(slot, afterRefs, true) : newVenues,
+      )
+      compare(rows, `参加案内${context}`, participation(old), participation(slot))
+      compare(rows, `開催状況${context}`, slotStatus(old), slotStatus(slot))
+      const oldHours = allDayHours(old, beforeRefs)
+      const newHours = allDayHours(slot, afterRefs)
+      if (newHours && newHours !== oldHours) {
+        rows.push({ kind: '参照', label: `${label}の終日の実時間`, published: oldHours ?? none, candidate: `${newHours}（開催情報）` })
+      }
+    } else {
+      compare(rows, label, null, slotSummary(slot, afterRefs))
     }
     oldSlots.delete(slot.slotId)
   })
   for (const removed of oldSlots.values()) {
-    rows.push({ kind: '削除', label: '開催枠', published: slotSummary(removed, beforeRefs), candidate: none })
+    rows.push({ kind: '削除', label: '日時', published: slotSummary(removed, beforeRefs), candidate: none })
   }
+  compare(rows, '説明', before ? (text(before.description) ?? '（未入力）') : null, text(after.description) ?? '（未入力）')
   return rows
 }
 
@@ -159,7 +198,7 @@ function categoryRows(before: CategoryDraft[] | null, after: CategoryDraft[] | n
 
 // ---- Spot ----
 
-const utilizationLabels: Record<string, string> = { available: '選択できる', noNewSelection: '新規選択停止', withdrawn: '取り下げ済み' }
+const utilizationLabels: Record<string, string> = { available: '選択できる', noNewSelection: '新規選択停止', withdrawn: '公開停止済み' }
 
 function spotRows(before: SpotDraft | null, after: SpotDraft | null): DiffRow[] {
   const rows: DiffRow[] = []

@@ -2,7 +2,7 @@ import { Link } from 'react-router'
 import type { PublishAction, PublishPreview, TargetKind, ValidationFinding } from '../api/releases'
 import { Button } from '../ui/Button'
 import { StatusLabel } from '../ui/StatusLabel'
-import { describePath, editorPath, kindNouns } from './publication'
+import { describePath, editorPath, formatFindingMessage, kindNouns } from './publication'
 
 type Props = {
   preview: PublishPreview | undefined
@@ -174,7 +174,7 @@ function FindingRow({ finding }: { finding: ValidationFinding }) {
         <StatusLabel tone={severity.tone}>{severity.label}</StatusLabel>
         <span className="truncate text-[11px] leading-[19px] text-text-secondary">{finding.targetLabel}</span>
       </div>
-      <p className="text-[12px] leading-5 break-words text-text-primary">{finding.message}</p>
+      <p className="text-[12px] leading-5 break-words text-text-primary">{formatFindingMessage(finding)}</p>
       {finding.severity !== 'info' && (
         <Link
           to={editorPath(finding.targetKind, finding.targetId)}

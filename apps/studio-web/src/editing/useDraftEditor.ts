@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { ApiError } from '../api/client'
-import type { StatusTone } from '../ui/StatusBadge'
+import type { StatusTone } from '../ui/StatusLabel'
 import { saveFailureMessage } from './saveMessages'
 
 export type SaveState = 'idle' | 'saving' | 'saved' | 'failed' | 'conflict'

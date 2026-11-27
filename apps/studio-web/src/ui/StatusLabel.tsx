@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { cn } from './cn'
-import type { StatusTone } from './StatusBadge'
+
+export type StatusTone = 'neutral' | 'info' | 'success' | 'warning' | 'danger'
 
 const toneClass: Record<StatusTone, string> = {
   neutral: 'text-text-muted',

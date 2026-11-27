@@ -30,7 +30,7 @@ type FieldFrameProps = {
 
 function FieldFrame({ id, label, invalid, message, messageTone = 'danger', className, children }: FieldFrameProps) {
   return (
-    <div className={cn('flex flex-col gap-1.5', className)}>
+    <div className={cn('relative flex flex-col gap-1.5', className)}>
       <label htmlFor={id} className={cn('text-[12px] leading-[17px] font-normal', invalid ? 'text-danger' : 'text-text-secondary')}>
         {label}
       </label>
