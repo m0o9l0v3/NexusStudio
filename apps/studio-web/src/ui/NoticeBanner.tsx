@@ -5,9 +5,9 @@ import { cn } from './cn'
 type Tone = 'info' | 'neutral' | 'warning' | 'blocking'
 
 const toneClass: Record<Tone, string> = {
-  info: 'border-brand/35 bg-brand-subtle text-brand',
+  info: 'border-brand bg-brand-subtle text-brand',
   neutral: 'border-transparent bg-surface-subtle text-text-primary [&>svg]:text-brand',
-  warning: 'border-warning/40 bg-warning-subtle text-warning',
+  warning: 'border-warning bg-warning-subtle text-warning',
   // danger（#b91c28）× danger-subtle（#fef2f2）は 5.89:1 で WCAG AA 準拠（決定事項36 V2-11）。
   blocking: 'border-danger-border bg-danger-subtle text-danger',
 }

@@ -491,11 +491,13 @@ function EventEditor({ initial }: { initial: EventDetail | null }) {
       </span>
     )
   })()
+  const saveStatus = <div role="status" className="shrink-0">{saveStatusNode}</div>
 
   return (
     <>
       <Toolbar
         title={titleText}
+        className={wide ? undefined : 'flex-wrap gap-y-2 max-sm:px-4'}
         leading={
           <div className="flex shrink-0 items-center gap-2.5">
             <Link
@@ -517,12 +519,9 @@ function EventEditor({ initial }: { initial: EventDetail | null }) {
           </span>
         }
       >
-        <div role="status" className="shrink-0">
-          {saveStatusNode}
-        </div>
-
         {wide ? (
           <>
+            {saveStatus}
             {!previewVisible && !conflict && (
               <Button variant="ghost" size="sm" onClick={() => setPreviewVisible(true)}>
                 見え方を表示
@@ -536,7 +535,8 @@ function EventEditor({ initial }: { initial: EventDetail | null }) {
             </Button>
           </>
         ) : (
-          <>
+          <div className="flex flex-wrap items-center justify-end gap-2 max-sm:w-full sm:gap-x-3">
+            {saveStatus}
             <Button variant="secondary" size="sm" onClick={() => void save()} disabled={busy || conflictOpen}>
               {saveState === 'saving' ? '保存中…' : conflictOpen ? '保存不可' : '下書き保存'}
             </Button>
@@ -565,7 +565,7 @@ function EventEditor({ initial }: { initial: EventDetail | null }) {
                   : []),
               ]}
             />
-          </>
+          </div>
         )}
       </Toolbar>
 

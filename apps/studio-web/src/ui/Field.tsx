@@ -14,8 +14,8 @@ const controlSizeClass: Record<FieldControlSize, string> = {
 const boxClass = (invalid?: boolean) =>
   cn(
     'w-full rounded-md border bg-canvas px-2.5 text-sm leading-[19px] text-text-primary placeholder:text-text-muted',
-    'focus-visible:border-brand focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand disabled:cursor-not-allowed disabled:opacity-55',
-    invalid ? 'border-danger' : 'border-border-input',
+    'focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand disabled:cursor-not-allowed disabled:opacity-55',
+    invalid ? 'border-danger' : 'border-border-input focus-visible:border-brand',
   )
 
 type FieldFrameProps = {

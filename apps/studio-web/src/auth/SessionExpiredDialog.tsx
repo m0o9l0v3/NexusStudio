@@ -1,19 +1,20 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { useState, type FormEvent } from 'react'
+import { LoaderCircle } from 'lucide-react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router'
 import { fetchSession, login, type Session } from '../api/auth'
 import { Button } from '../ui/Button'
 import { Dialog, DialogActions } from '../ui/Dialog'
 import { NoticeBanner } from '../ui/NoticeBanner'
-import { TextField } from '../ui/TextField'
+import { InputField } from '../ui/Field'
 import { describeLoginError, loginErrorMessage, type LoginError } from './loginError'
 import { sessionQueryKey, useSessionExpiry, type SessionExpiryPurpose } from './session'
 
 /** 場面ごとの文言。publishResult は Figma L07（105:3074）。publishReview は補完（UI補完記録 2026-10-15）。 */
 const texts: Record<SessionExpiryPurpose, { title: string; description: string }> = {
-  editing: { title: 'ログインの有効期限が切れました', description: '入力はこの画面に保持されています。再ログイン後、あらためて保存してください。' },
-  publishReview: { title: 'ログインの有効期限が切れました', description: '公開内容は変わっていません。再ログイン後、公開内容を確認し直してください。' },
-  publishResult: { title: '公開結果を確認するため再ログイン', description: '公開処理中にログイン期限が切れました。成功とは表示せず、再ログイン後に操作IDから結果を確認します。' },
+  editing: { title: 'ログインの有効期限が切れました', description: '入力はこの画面に保持されています。\n再ログイン後、あらためて保存してください。' },
+  publishReview: { title: 'ログインの有効期限が切れました', description: '公開内容は変わっていません。\n再ログイン後、公開内容を確認し直してください。' },
+  publishResult: { title: '公開結果を確認するため再ログイン', description: '公開処理中にログイン期限が切れました。\n成功とは表示せず、再ログイン後に操作IDから結果を確認します。' },
 }
 
 /**
@@ -28,11 +29,32 @@ export function SessionExpiredDialog({ session }: { session: Session }) {
   const [password, setPassword] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<LoginError | null>(null)
+  const emailRef = useRef<HTMLInputElement>(null)
+  const passwordRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (expiry.expired) {
+      // 再表示時は前回の失敗と入力を破棄し、現在のセッションに合わせる。
+      // oxlint-disable-next-line react/set-state-in-effect
+      setError(null)
+      // oxlint-disable-next-line react/set-state-in-effect
+      setEmail(session.email)
+      // oxlint-disable-next-line react/set-state-in-effect
+      setPassword('')
+    }
+  }, [expiry.expired, session.email])
+
+  useEffect(() => {
+    if (!error || submitting) return
+    if (error === 'missing') (emailRef.current?.value.trim() ? passwordRef : emailRef).current?.focus()
+    else passwordRef.current?.focus()
+  }, [error, submitting])
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
     if (!email.trim() || !password) {
       setError('missing')
+      ;(email.trim() ? passwordRef : emailRef).current?.focus()
       return
     }
 
@@ -54,7 +76,9 @@ export function SessionExpiredDialog({ session }: { session: Session }) {
       setPassword('')
       expiry.resolve()
     } catch (caught) {
-      setError(describeLoginError(caught))
+      const nextError = describeLoginError(caught)
+      setError(nextError)
+      if (nextError !== 'missing') setPassword('')
     } finally {
       setSubmitting(false)
     }
@@ -71,37 +95,18 @@ export function SessionExpiredDialog({ session }: { session: Session }) {
       description={texts[expiry.purpose].description}
     >
       <form className="flex flex-col gap-[18px]" onSubmit={(event) => void handleSubmit(event)} noValidate>
-        {message && (
-          <p role="alert" className={`text-[12px] leading-5 font-medium whitespace-pre-line ${error === 'network' || error === 'server' ? 'text-warning' : 'text-danger'}`}>
-            {message}
-          </p>
-        )}
-        <TextField
-          label="メールアドレス"
-          type="email"
-          autoComplete="username"
-          value={email}
-          onChange={(event) => setEmail(event.target.value)}
-          disabled={submitting}
-          invalid={error === 'invalid' || (error === 'missing' && !email.trim())}
-        />
-        <TextField
-          label="パスワード"
-          type="password"
-          autoComplete="current-password"
-          value={password}
-          onChange={(event) => setPassword(event.target.value)}
-          disabled={submitting}
-          invalid={error === 'invalid' || (error === 'missing' && !password)}
-          autoFocus
-        />
-        <NoticeBanner>再ログインしても、保存や公開は自動で実行しません。</NoticeBanner>
+        {message && <NoticeBanner tone={error === 'network' || error === 'server' ? 'warning' : 'blocking'}><span className="whitespace-pre-line">{message}</span></NoticeBanner>}
+        <InputField ref={emailRef} label="メールアドレス" type="email" autoComplete="username" value={email}
+          onChange={(event) => setEmail(event.target.value)} disabled={submitting} invalid={error === 'missing' && !email.trim()} />
+        <InputField ref={passwordRef} label="パスワード" type="password" autoComplete="current-password" value={password}
+          onChange={(event) => setPassword(event.target.value)} disabled={submitting} invalid={error === 'invalid' || (error === 'missing' && !password)} autoFocus />
+        <NoticeBanner tone="info">再ログインしても、保存や公開は自動で実行しません。</NoticeBanner>
         <DialogActions>
           <Button variant="secondary" onClick={expiry.dismiss} disabled={submitting}>
             戻る
           </Button>
           <Button type="submit" disabled={submitting}>
-            {submitting ? '確認中…' : '再ログイン'}
+            {submitting ? <><LoaderCircle aria-hidden size={16} className="animate-spin" />確認中…</> : '再ログイン'}
           </Button>
         </DialogActions>
       </form>
