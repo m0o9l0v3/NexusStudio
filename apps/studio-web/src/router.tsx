@@ -3,10 +3,7 @@ import type { TargetKind } from './api/releases'
 import { RequireAuth } from './auth/RequireAuth'
 import { EventListPage } from './pages/events/EventListPage'
 import { LoginPage } from './pages/LoginPage'
-import { LogsPage } from './pages/logs/LogsPage'
 import { PlaceholderPage } from './pages/PlaceholderPage'
-import { ReleasesPage } from './pages/releases/ReleasesPage'
-import { ValidationPage } from './pages/validation/ValidationPage'
 import { AppShell } from './shell/AppShell'
 import { navAreas } from './shell/navigation'
 import { FullPageStatus } from './ui/FullPageStatus'
@@ -44,6 +41,21 @@ async function loadSpots() {
   return { Component: SpotsPage }
 }
 
+async function loadValidation() {
+  const { ValidationPage } = await import('./pages/validation/ValidationPage')
+  return { Component: ValidationPage }
+}
+
+async function loadReleases() {
+  const { ReleasesPage } = await import('./pages/releases/ReleasesPage')
+  return { Component: ReleasesPage }
+}
+
+async function loadLogs() {
+  const { LogsPage } = await import('./pages/logs/LogsPage')
+  return { Component: LogsPage }
+}
+
 function loadPublishReview(kind: TargetKind) {
   return async () => {
     const { PublishReviewPage } = await import('./publishing/PublishReviewPage')
@@ -78,9 +90,9 @@ export const router = createBrowserRouter([
           { path: '/spots/publish', lazy: loadPublishReview('spot'), handle: { responsive: true } },
           // 地図の公開確認だけを置く。Map Data 画面（一覧・差分表示）は構成の確定後に作る（UI補完記録）。
           { path: '/map-data/publish', lazy: loadPublishReview('map'), handle: { responsive: true } },
-          { path: '/validation', element: <ValidationPage /> },
-          { path: '/releases', element: <ReleasesPage /> },
-          { path: '/logs', element: <LogsPage /> },
+          { path: '/validation', lazy: loadValidation, handle: { responsive: true } },
+          { path: '/releases', lazy: loadReleases, handle: { responsive: true } },
+          { path: '/logs', lazy: loadLogs, handle: { responsive: true } },
           ...navAreas
             .filter((area) => !implemented.has(area.path))
             .map((area) => ({ path: area.path, element: <PlaceholderPage area={area} /> })),

@@ -6,7 +6,7 @@ import { spotKindLabel, type SpotDraft } from '../api/spots'
 import { formatDateLong, participationLabels } from '../events/model'
 
 /** 差分の種類（Figma R01 のバッジ）。 */
-export type DiffKind = '追加' | '変更' | '削除' | '参照' | '取り下げ'
+export type DiffKind = '追加' | '変更' | '削除' | '参照' | '公開停止'
 
 /** 公開確認の差分1行。公開中と公開候補を横に並べる（17 §3）。 */
 export type DiffRow = { kind: DiffKind; label: string; published: string; candidate: string }
@@ -18,10 +18,10 @@ const none = 'なし'
 /** 差分の元になる2つの内容（公開確認の対象、または履歴の1件）。 */
 export type DiffSource = Pick<PreviewItem, 'action' | 'targetKind' | 'event' | 'occurrence' | 'categories' | 'spot' | 'map'>
 
-/** 公開確認・履歴に出す差分。取り下げでは「公開を終了する」ことだけを示す。 */
+/** 公開確認・履歴に出す差分。公開停止では「公開を終了する」ことだけを示す。 */
 export function diffRows(item: DiffSource, published: PreviewReferences, candidate: PreviewReferences, names: Names): DiffRow[] {
   if (item.action === 'withdraw') {
-    return [{ kind: '取り下げ', label: '公開', published: '公開中', candidate: '公開を終了（下書きと履歴は残ります）' }]
+    return [{ kind: '公開停止', label: '公開', published: '公開中', candidate: '公開を終了（下書きと履歴は残ります）' }]
   }
 
   switch (item.targetKind) {
@@ -100,7 +100,7 @@ function eventRows(before: EventDraft | null, after: EventDraft | null, beforeRe
   const oldSlots = new Map((before?.slots ?? []).map((slot) => [slot.slotId, slot]))
   after.slots.forEach((slot, index) => {
     const old = oldSlots.get(slot.slotId)
-    const label = `開催枠${index + 1}`
+    const label = `日時${index + 1}`
     compare(rows, label, old ? slotSummary(old, beforeRefs) : null, slotSummary(slot, afterRefs))
     const oldHours = old ? allDayHours(old, beforeRefs) : null
     const newHours = allDayHours(slot, afterRefs)
@@ -110,7 +110,7 @@ function eventRows(before: EventDraft | null, after: EventDraft | null, beforeRe
     oldSlots.delete(slot.slotId)
   })
   for (const removed of oldSlots.values()) {
-    rows.push({ kind: '削除', label: '開催枠', published: slotSummary(removed, beforeRefs), candidate: none })
+    rows.push({ kind: '削除', label: '日時', published: slotSummary(removed, beforeRefs), candidate: none })
   }
   return rows
 }
@@ -159,7 +159,7 @@ function categoryRows(before: CategoryDraft[] | null, after: CategoryDraft[] | n
 
 // ---- Spot ----
 
-const utilizationLabels: Record<string, string> = { available: '選択できる', noNewSelection: '新規選択停止', withdrawn: '取り下げ済み' }
+const utilizationLabels: Record<string, string> = { available: '選択できる', noNewSelection: '新規選択停止', withdrawn: '公開停止済み' }
 
 function spotRows(before: SpotDraft | null, after: SpotDraft | null): DiffRow[] {
   const rows: DiffRow[] = []

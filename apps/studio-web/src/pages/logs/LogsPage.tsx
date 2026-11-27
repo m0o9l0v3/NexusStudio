@@ -1,4 +1,5 @@
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
+import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
 import { ApiError } from '../../api/client'
 import { getLog, listLogs, type LogItem } from '../../api/logs'
@@ -7,9 +8,11 @@ import { editorPath, kindNouns } from '../../publishing/publication'
 import { Toolbar } from '../../shell/Toolbar'
 import { Button } from '../../ui/Button'
 import { cn } from '../../ui/cn'
-import { FilterChip } from '../../ui/FilterChip'
+import { SelectField } from '../../ui/Field'
+import { StaleListNotice } from '../../ui/StaleListNotice'
 import { NoticeBanner } from '../../ui/NoticeBanner'
-import { StatusBadge, type StatusTone } from '../../ui/StatusBadge'
+import type { StatusTone } from '../../ui/StatusBadge'
+import { StatusLabel } from '../../ui/StatusLabel'
 
 const dateTime = new Intl.DateTimeFormat('ja-JP', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'Asia/Tokyo' })
 const fullDateTime = new Intl.DateTimeFormat('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'Asia/Tokyo' })
@@ -29,9 +32,11 @@ const statusLabels: Record<string, { label: string; tone: StatusTone }> = {
   processing: { label: '処理中', tone: 'warning' },
 }
 
+function normalizeDetail(detail: string): string { return detail.replaceAll('取り下げ', '公開をやめる') }
+
 function actionText(item: LogItem): string {
   // 公開操作は、公開・取り下げ・復旧のどれかを補足に持つ。
-  if (item.action === 'publish' && item.detail && item.status === 'succeeded') return item.detail
+  if (item.action === 'publish' && item.detail && item.status === 'succeeded') return normalizeDetail(item.detail)
   return actionLabels[item.action] ?? item.action
 }
 
@@ -57,8 +62,11 @@ export function LogsPage() {
     initialPageParam: null as number | null,
     getNextPageParam: (page) => page.nextOffset ?? undefined,
   })
-  const items = logs.data?.pages.flatMap((page) => page.items) ?? []
-  const actors = logs.data?.pages[0]?.actors ?? []
+  const [lastSuccess, setLastSuccess] = useState<{ data: NonNullable<typeof logs.data>; query: typeof filters; updatedAt: number } | null>(null)
+  if (logs.isSuccess && (!lastSuccess || lastSuccess.data !== logs.data || lastSuccess.updatedAt !== logs.dataUpdatedAt || JSON.stringify(lastSuccess.query) !== JSON.stringify(filters))) setLastSuccess({ data: logs.data, query: filters, updatedAt: logs.dataUpdatedAt })
+  const items = lastSuccess?.data.pages.flatMap((page) => page.items) ?? []
+  const actors = lastSuccess?.data.pages[0]?.actors ?? []
+  const describe = (q: typeof filters) => Object.entries(q).filter(([, value]) => value).map(([key, value]) => `${({ action: '操作', status: '結果', actorId: '管理者', targetKind: '対象', date: '日付' } as Record<string, string>)[key]}：${value}`).join('／') || '絞り込みなし'
 
   function update(key: string, value: string) {
     const next = new URLSearchParams(params)
@@ -69,41 +77,42 @@ export function LogsPage() {
 
   return (
     <>
-      <Toolbar title="Logs" subtitle="保存・公開・ログインの記録" />
-      <div className="flex min-h-0 flex-1">
-        <section aria-label="操作ログ" className="flex w-[640px] shrink-0 flex-col gap-3 overflow-auto border-r border-border bg-surface p-[18px]">
-          <h2 className="text-[16px] leading-6 font-bold text-text-primary">操作ログ</h2>
+      <Toolbar title="操作記録" subtitle="保存・公開・ログインの記録" />
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto bg-canvas lg:flex-row lg:overflow-hidden">
+        <section aria-label="操作記録" className="flex w-full min-w-0 shrink-0 flex-col gap-3 border-b border-border-subtle p-4 lg:w-[440px] xl:w-[500px] lg:min-h-0 lg:overflow-y-auto lg:border-r lg:border-b-0">
+          <h2 className="text-[16px] leading-6 font-bold text-text-primary">操作記録</h2>
           <div className="flex flex-wrap items-center gap-2">
-            <FilterChip label="操作" value={filters.action} onChange={(value) => update('action', value)}>
+            <SelectField label="操作" controlSize="sm" className="min-w-0 [&>label]:sr-only [&_select]:text-[12px]" value={filters.action} onChange={(event) => update('action', event.target.value)}>
               <option value="">操作：すべて</option>
               {Object.entries(actionLabels).map(([value, label]) => (
                 <option key={value} value={value}>
                   操作：{label}
                 </option>
               ))}
-            </FilterChip>
-            <FilterChip label="結果" value={filters.status} onChange={(value) => update('status', value)}>
+            </SelectField>
+            <SelectField label="結果" controlSize="sm" className="min-w-0 [&>label]:sr-only [&_select]:text-[12px]" value={filters.status} onChange={(event) => update('status', event.target.value)}>
               <option value="">結果：すべて</option>
               <option value="succeeded">結果：成功</option>
               <option value="failed">結果：失敗</option>
               <option value="processing">結果：処理中</option>
-            </FilterChip>
-            <FilterChip label="管理者" value={filters.actorId} onChange={(value) => update('actorId', value)}>
+            </SelectField>
+            <SelectField label="管理者" controlSize="sm" className="min-w-0 [&>label]:sr-only [&_select]:text-[12px]" value={filters.actorId} onChange={(event) => update('actorId', event.target.value)}>
               <option value="">管理者：すべて</option>
+              {filters.actorId && !actors.some((actor) => actor.id === filters.actorId) && <option value={filters.actorId}>管理者：{filters.actorId}</option>}
               {actors.map((actor) => (
                 <option key={actor.id} value={actor.id}>
                   管理者：{actor.displayName}
                 </option>
               ))}
-            </FilterChip>
-            <FilterChip label="対象" value={filters.targetKind} onChange={(value) => update('targetKind', value)}>
+            </SelectField>
+            <SelectField label="対象" controlSize="sm" className="min-w-0 [&>label]:sr-only [&_select]:text-[12px]" value={filters.targetKind} onChange={(event) => update('targetKind', event.target.value)}>
               <option value="">対象：すべて</option>
               <option value="event">対象：イベント</option>
               <option value="occurrence">対象：開催回</option>
               <option value="categories">対象：カテゴリ一覧</option>
-              <option value="spot">対象：Spot</option>
+              <option value="spot">対象：地点</option>
               <option value="map">対象：地図</option>
-            </FilterChip>
+            </SelectField>
             <label className="flex items-center gap-1 text-[11px] leading-[19px] text-text-secondary">
               日付
               <input
@@ -111,28 +120,31 @@ export function LogsPage() {
                 value={filters.date}
                 onChange={(event) => update('date', event.target.value)}
                 className={cn(
-                  'h-[25px] rounded-full px-2.5 text-[11px] leading-[19px] font-medium focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand',
-                  filters.date ? 'bg-brand-subtle text-brand' : 'bg-surface-subtle text-text-secondary',
+                  'h-[30px] min-w-0 rounded-md border border-border-input bg-canvas px-2.5 text-[12px] tabular-nums focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand',
+                  filters.date ? 'border-brand bg-brand-subtle text-brand' : 'text-text-secondary',
                 )}
               />
             </label>
           </div>
 
-          {logs.isPending ? (
+          {filtered && <Button variant="secondary" size="sm" onClick={() => { const next = new URLSearchParams(params); Object.keys(filters).forEach((key) => next.delete(key)); setParams(next, { replace: true }) }}>絞り込みを解除</Button>}
+          {logs.isError && !logs.isFetchNextPageError && lastSuccess && <StaleListNotice listName="操作記録" updatedAt={lastSuccess.updatedAt} conditions={{ failed: describe(filters), shown: describe(lastSuccess.query) }} onRetry={() => void logs.refetch()} />}
+          {lastSuccess && <p className="text-[11px] tabular-nums">{items.length}件表示</p>}
+          {!lastSuccess && logs.isPending ? (
             <p role="status" className="text-[12px] leading-5 text-text-secondary">
-              操作ログを読み込んでいます
+              操作記録を読み込んでいます
             </p>
-          ) : logs.isError ? (
+          ) : !lastSuccess ? (
             <NoticeBanner tone="blocking">
-              操作ログを取得できませんでした。0件とは扱わず、再試行してください。
+              操作記録を取得できませんでした。0件とは扱わず、再試行してください。
               <Button variant="secondary" className="ml-3" onClick={() => void logs.refetch()}>
                 再試行
               </Button>
             </NoticeBanner>
           ) : items.length === 0 ? (
-            <NoticeBanner>{filtered ? '条件に一致する記録はありません。' : '操作ログは正式に0件です。'}</NoticeBanner>
+            <NoticeBanner>{Object.values(lastSuccess.query).some(Boolean) ? '条件に一致する記録はありません。' : '操作記録は正式に0件です。'}</NoticeBanner>
           ) : (
-            <ul className="flex flex-col gap-2">
+            <ul className="divide-y divide-border-subtle border-y border-border-subtle">
               {items.map((item) => {
                 const selected = item.id === selectedId
                 const status = statusLabels[item.status] ?? statusLabels.processing
@@ -143,25 +155,26 @@ export function LogsPage() {
                       aria-current={selected || undefined}
                       onClick={() => update('id', item.id)}
                       className={cn(
-                        'flex w-full items-center gap-3 rounded-lg border px-3 py-2.5 text-left focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand',
-                        selected ? 'border-brand bg-brand-subtle' : 'border-border bg-surface hover:bg-surface-subtle',
+                        'flex w-full flex-wrap items-center gap-3 min-w-0 rounded-md px-2.5 py-2 text-left wrap-anywhere focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand',
+                        selected ? 'bg-nav-active' : 'hover:bg-surface-subtle',
                       )}
                     >
-                      <span className="w-[120px] shrink-0 text-[11px] leading-[19px] text-text-secondary">{dateTime.format(new Date(item.startedAt))}</span>
+                      <span className="w-[100px] shrink-0 text-[11px] tabular-nums leading-[19px] text-text-secondary">{dateTime.format(new Date(item.startedAt))}</span>
                       <span className="flex min-w-0 flex-1 flex-col">
-                        <span className={cn('truncate text-[13px] leading-[21px] font-medium', selected ? 'text-brand' : 'text-text-primary')}>
+                        <span className={cn('wrap-anywhere text-[13px] leading-[21px] font-bold', 'text-text-primary')}>
                           {actionText(item)}
                           {item.targetLabel ? `：${item.targetLabel}` : ''}
                         </span>
-                        <span className="truncate text-[11px] leading-[19px] text-text-secondary">{item.actor?.displayName ?? (item.action === 'import' ? '取り込みコマンド' : '不明な管理者')}</span>
+                        <span className="wrap-anywhere text-[11px] leading-[19px] text-text-secondary">{item.actor?.displayName ?? (item.action === 'import' ? '取り込みコマンド' : '不明な管理者')}</span>
                       </span>
-                      <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
+                      <StatusLabel tone={status.tone}>{status.label}</StatusLabel>
                     </button>
                   </li>
                 )
               })}
             </ul>
           )}
+          {logs.isFetchNextPageError && <NoticeBanner tone="blocking">続きを取得できませんでした。<Button variant="secondary" onClick={() => void logs.fetchNextPage()}>再試行</Button></NoticeBanner>}
           {logs.hasNextPage && (
             <Button variant="secondary" className="self-start" disabled={logs.isFetchingNextPage} onClick={() => void logs.fetchNextPage()}>
               {logs.isFetchingNextPage ? '読み込み中…' : 'さらに読み込む'}
@@ -169,7 +182,7 @@ export function LogsPage() {
           )}
         </section>
 
-        <main className="min-h-0 flex-1 overflow-auto px-6 pt-[22px] pb-10">
+        <main className="min-w-0 flex-1 px-4 pt-[22px] pb-10 sm:px-6 lg:min-h-0 lg:overflow-y-auto">
           {selectedId ? <LogDetailLoader key={selectedId} id={selectedId} listed={items.find((item) => item.id === selectedId)} /> : <p className="text-[12px] leading-5 text-text-secondary">左の一覧から記録を選ぶと、詳細を表示します。</p>}
         </main>
       </div>
@@ -188,7 +201,7 @@ function LogDetailLoader({ id, listed }: { id: string; listed: LogItem | undefin
       </p>
     )
   const notFound = detail.error instanceof ApiError && detail.error.status === 404
-  return <NoticeBanner tone="blocking">{notFound ? 'この記録は見つかりません。一覧から選び直してください。' : '記録を取得できませんでした。'}</NoticeBanner>
+  return <NoticeBanner tone="blocking">{notFound ? 'この記録は見つかりません。一覧から選び直してください。' : '記録を取得できませんでした。'}{!notFound && <Button variant="secondary" onClick={() => void detail.refetch()}>再試行</Button>}</NoticeBanner>
 }
 
 function LogDetail({ item }: { item: LogItem }) {
@@ -198,11 +211,11 @@ function LogDetail({ item }: { item: LogItem }) {
     <div className="flex w-[640px] max-w-full flex-col gap-4">
       <div className="flex flex-wrap items-center gap-3">
         <h2 className="text-[22px] leading-[30px] font-bold text-text-primary">{actionText(item)}</h2>
-        <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
+        <StatusLabel tone={status.tone}>{status.label}</StatusLabel>
       </div>
-      <dl className="grid grid-cols-[120px_1fr] gap-x-4 gap-y-2 rounded-lg bg-surface px-4 py-3.5 text-[12px] leading-5">
+      <dl className="grid grid-cols-1 sm:grid-cols-[120px_1fr] gap-x-4 gap-y-2 rounded-lg bg-surface px-4 py-3.5 text-[12px] leading-5">
         <dt className="text-text-secondary">日時</dt>
-        <dd className="text-text-primary">
+        <dd className="text-text-primary tabular-nums">
           {fullDateTime.format(new Date(item.startedAt))} JST
           {item.finishedAt && item.finishedAt !== item.startedAt ? `（完了 ${fullDateTime.format(new Date(item.finishedAt))}）` : ''}
         </dd>
@@ -211,7 +224,7 @@ function LogDetail({ item }: { item: LogItem }) {
         <dt className="text-text-secondary">操作</dt>
         <dd className="text-text-primary">{actionLabels[item.action] ?? item.action}</dd>
         <dt className="text-text-secondary">対象</dt>
-        <dd className="break-words text-text-primary">
+        <dd className="wrap-anywhere text-text-primary">
           {kind && item.targetId ? (
             <>
               {kindNouns[kind] ?? kind}：
@@ -226,14 +239,14 @@ function LogDetail({ item }: { item: LogItem }) {
         <dt className="text-text-secondary">結果</dt>
         <dd className={item.status === 'failed' ? 'text-danger' : 'text-text-primary'}>
           {status.label}
-          {item.detail ? `（${item.detail}）` : ''}
+          {item.detail ? `（${normalizeDetail(item.detail)}）` : ''}
         </dd>
         {item.releaseId && (
           <>
-            <dt className="text-text-secondary">関連する Release</dt>
+            <dt className="text-text-secondary">関連する公開履歴</dt>
             <dd>
               <Link to={`/releases?id=${item.releaseId}`} className="text-brand hover:underline">
-                Release #{item.releaseSequence}
+                第{item.releaseSequence}版
               </Link>
             </dd>
           </>
@@ -241,13 +254,13 @@ function LogDetail({ item }: { item: LogItem }) {
         {item.revisionId && (
           <>
             <dt className="text-text-secondary">保存した版</dt>
-            <dd className="text-text-primary">{item.revisionId.slice(-8)}</dd>
+            <dd className="font-mono tabular-nums text-text-primary">{item.revisionId.slice(-8)}</dd>
           </>
         )}
         {item.operationId && (
           <>
             <dt className="text-text-secondary">操作ID</dt>
-            <dd className="break-all text-text-secondary">{item.operationId}</dd>
+            <dd className="break-all font-mono text-text-secondary">{item.operationId}</dd>
           </>
         )}
       </dl>
